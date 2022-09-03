@@ -1,0 +1,23 @@
+[package]
+name = "image_editor"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+winit = "0.27.2"
+env_logger = "0.9"
+log = "0.4"
+wgpu = "0.13"
+pollster = "0.2"
+bytemuck = {version = "1.12.1", features = [ "derive" ] }
+cgmath="0.18.0"
+anyhow="1.0.63"
+raw-window-handle="0.4"
+as-slice="0.2.1"
+
+[dependencies.image]
+version = "0.24"
+default-features = false
+features = ["png", "jpeg"]
