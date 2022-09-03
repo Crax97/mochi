@@ -1,5 +1,6 @@
 mod framework;
 mod mesh;
+mod render_pass;
 
 pub use framework::AdapterCreationError;
 pub use framework::Framework;

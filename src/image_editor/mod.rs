@@ -19,13 +19,15 @@ use self::layer::Layer;
 pub struct Assets {
     pub quad_mesh: Mesh,
     pub simple_diffuse_pipeline: RenderPipeline,
+    pub final_present_pipeline: RenderPipeline,
 }
 
 pub struct ImageEditor {
     framework: Rc<Framework>,
     assets: Rc<Assets>,
-    render_pipeline_test: wgpu::RenderPipeline,
 
+    // TODO: Put into document struct
+    layers: Vec<Layer>,
     final_layer: Layer,
 }
 
@@ -37,56 +39,24 @@ impl ImageEditor {
                 label: "Final Rendering Layer".to_owned(),
                 width: 800,
                 height: 600,
-                texture_format: wgpu::TextureFormat::Rgba8UnormSrgb,
+                initial_background_color: [1.0, 1.0, 1.0, 1.0],
             },
         );
-        let module = framework
-            .device
-            .create_shader_module(wgpu::include_wgsl!("thing_test.wgsl"));
-
-        let render_pipeline_test =
-            framework
-                .device
-                .create_render_pipeline(&RenderPipelineDescriptor {
-                    label: Some("simple shader"),
-                    layout: None,
-                    depth_stencil: None,
-                    vertex: VertexState {
-                        module: &module,
-                        entry_point: "vs",
-                        buffers: &[Mesh::layout()],
-                    },
-                    fragment: Some(FragmentState {
-                        module: &module,
-                        entry_point: "fs",
-                        targets: &[Some(ColorTargetState {
-                            format: wgpu::TextureFormat::Rgba8UnormSrgb,
-                            blend: Some(wgpu::BlendState::REPLACE),
-                            write_mask: wgpu::ColorWrites::ALL,
-                        })],
-                    }),
-                    multisample: wgpu::MultisampleState {
-                        count: 1,
-                        mask: !0,
-                        alpha_to_coverage_enabled: false,
-                    },
-                    multiview: None,
-                    primitive: wgpu::PrimitiveState {
-                        topology: wgpu::PrimitiveTopology::TriangleList,
-                        strip_index_format: None,
-                        front_face: wgpu::FrontFace::Ccw,
-                        conservative: false,
-                        cull_mode: Some(wgpu::Face::Back),
-                        polygon_mode: wgpu::PolygonMode::Fill,
-                        unclipped_depth: false,
-                    },
-                });
+        let test_layer = Layer::new(
+            &framework,
+            LayerConfiguration {
+                label: "Layer 0".to_owned(),
+                width: 800,
+                height: 600,
+                initial_background_color: [0.0, 0.0, 0.0, 1.0],
+            },
+        );
 
         ImageEditor {
             framework,
-            final_layer,
-            render_pipeline_test,
             assets,
+            layers: vec![test_layer],
+            final_layer,
         }
     }
 
@@ -95,15 +65,15 @@ impl ImageEditor {
             label: Some("Image render encoder"),
         };
         let render_pass_description = RenderPassDescriptor {
-            label: Some("ImageEditor Final Layer Pass"),
+            label: Some("ImageEditor Redraw Image Pass"),
             color_attachments: &[Some(RenderPassColorAttachment {
                 view: self.final_layer.texture_view(),
                 resolve_target: None,
                 ops: wgpu::Operations {
                     load: wgpu::LoadOp::Clear(wgpu::Color {
                         r: 0.0,
-                        g: 0.3,
-                        b: 0.3,
+                        g: 0.0,
+                        b: 0.0,
                         a: 1.0,
                     }),
                     store: true,
@@ -118,9 +88,12 @@ impl ImageEditor {
 
         {
             let mut render_pass = command_encoder.begin_render_pass(&render_pass_description);
-            self.assets.quad_mesh.bind_to_render_pass(&mut render_pass);
-            render_pass.set_pipeline(&self.render_pipeline_test);
-            render_pass.draw_indexed(0..6, 0, 0..1);
+            render_pass.set_pipeline(&self.assets.simple_diffuse_pipeline);
+
+            for layer in self.layers.iter() {
+                render_pass.set_bind_group(0, layer.binding_group(), &[]);
+                self.assets.quad_mesh.draw(&mut render_pass, 1);
+            }
         }
         command_encoder.finish()
     }

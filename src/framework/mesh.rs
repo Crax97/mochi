@@ -1,5 +1,8 @@
 use cgmath::{Point2, Point3};
-use wgpu::{util::DeviceExt, Buffer, RenderPass, VertexAttribute, VertexBufferLayout};
+use wgpu::{
+    util::{DeviceExt, RenderEncoder},
+    Buffer, RenderPass, VertexAttribute, VertexBufferLayout,
+};
 
 use super::Framework;
 
@@ -36,7 +39,7 @@ impl<'a> Mesh {
         const LAYOUT: &'static [VertexAttribute] =
             &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x2];
         VertexBufferLayout {
-            array_stride: std::mem::size_of::<Self>() as u64,
+            array_stride: std::mem::size_of::<Vertex>() as u64,
             step_mode: wgpu::VertexStepMode::Vertex,
             attributes: LAYOUT,
         }
@@ -79,12 +82,17 @@ impl Mesh {
         }
     }
 
-    pub fn bind_to_render_pass<'a>(&'a self, render_pass: &mut RenderPass<'a>) {
+    pub fn draw<'a>(&'a self, render_pass: &mut RenderPass<'a>, instance_count: u32) {
         render_pass.set_index_buffer(self.index_buffer.slice(..), INDEX_FORMAT);
         render_pass.set_vertex_buffer(
             VERTEX_BUFFER_POSITION,
             self.vertices_vertex_buffer.slice(..),
         );
+        render_pass.draw_indexed(
+            0..self.construction_details.indices.0.len() as u32,
+            0,
+            0..instance_count,
+        )
     }
 }
 

@@ -11,7 +11,7 @@ struct VertexOutput {
 
 @vertex
 fn vs(in: VertexInput) -> VertexOutput {
-    var out = VertexOutput();
+    var out : VertexOutput;
     out.coordinates_position = vec4<f32>(in.position, 1.0);
     out.position = in.position;
     out.tex_uv = in.tex_uv;
