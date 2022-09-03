@@ -1,4 +1,5 @@
 use crate::framework::Framework;
+use cgmath::num_traits::ToPrimitive;
 use wgpu::{
     BindGroup, Color, ImageDataLayout, Sampler, SamplerDescriptor, Texture, TextureDescriptor,
     TextureView, TextureViewDescriptor, TextureViewDimension,
@@ -23,14 +24,15 @@ impl Layer {
         let bytes: Vec<u32> = (1..(configuration.width * configuration.height) + 1)
             .map(|_| {
                 let bg = configuration.initial_background_color;
-                let r = (bg[0] * 255.0).clamp(0.0, 1.0) as u8;
-                let g = (bg[1] * 255.0).clamp(0.0, 1.0) as u8;
-                let b = (bg[2] * 255.0).clamp(0.0, 1.0) as u8;
-                let a = (bg[3] * 255.0).clamp(0.0, 1.0) as u8;
-                (r as u32) << 27 | (g as u32) << 16 | (b as u32) << 8 | a as u32
+                let r = (bg[0].clamp(0.0, 1.0) * 255.0).to_u8().unwrap();
+                let g = (bg[1].clamp(0.0, 1.0) * 255.0).to_u8().unwrap();
+                let b = (bg[2].clamp(0.0, 1.0) * 255.0).to_u8().unwrap();
+                let a = (bg[3].clamp(0.0, 1.0) * 255.0).to_u8().unwrap();
+                u32::from_le_bytes([r, g, b, a])
             })
             .collect();
-        Self::new_from_bytes(framework, &bytemuck::cast_slice(&bytes), configuration)
+        let bytes = bytemuck::cast_slice(&bytes);
+        Self::new_from_bytes(framework, &bytes, configuration)
     }
 
     pub fn new_from_bytes(

@@ -38,19 +38,19 @@ impl AppState {
 
         let quad_mesh_vertices = [
             Vertex {
-                position: point3(-0.5, 0.5, 0.0),
+                position: point3(-1.0, 1.0, 0.0),
                 tex_coords: point2(0.0, 1.0),
             },
             Vertex {
-                position: point3(0.5, 0.5, 0.0),
+                position: point3(1.0, 1.0, 0.0),
                 tex_coords: point2(1.0, 1.0),
             },
             Vertex {
-                position: point3(-0.5, -0.5, 0.0),
+                position: point3(-1.0, -1.0, 0.0),
                 tex_coords: point2(0.0, 0.0),
             },
             Vertex {
-                position: point3(0.5, -0.5, 0.0),
+                position: point3(1.0, -1.0, 0.0),
                 tex_coords: point2(1.0, 0.0),
             },
         ]

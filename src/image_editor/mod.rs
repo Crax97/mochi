@@ -39,7 +39,7 @@ impl ImageEditor {
                 label: "Final Rendering Layer".to_owned(),
                 width: 800,
                 height: 600,
-                initial_background_color: [1.0, 1.0, 1.0, 1.0],
+                initial_background_color: [0.5, 0.5, 0.5, 1.0],
             },
         );
         let test_layer = Layer::new(
@@ -48,7 +48,7 @@ impl ImageEditor {
                 label: "Layer 0".to_owned(),
                 width: 800,
                 height: 600,
-                initial_background_color: [0.0, 0.0, 0.0, 1.0],
+                initial_background_color: [1.0, 1.0, 1.0, 1.0],
             },
         );
 
