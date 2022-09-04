@@ -5,22 +5,22 @@ use wgpu::{
     TextureView, TextureViewDescriptor, TextureViewDimension,
 };
 
-pub struct LayerConfiguration {
+pub struct BitmapLayerConfiguration {
     pub label: String,
     pub width: u32,
     pub initial_background_color: [f32; 4],
     pub height: u32,
 }
-pub struct Layer {
+pub struct BitmapLayer {
     texture: Texture,
     rgba_texture_view: TextureView,
     sampler: Sampler,
     bind_group: BindGroup,
-    configuration: LayerConfiguration,
+    configuration: BitmapLayerConfiguration,
 }
 
-impl Layer {
-    pub fn new(framework: &Framework, configuration: LayerConfiguration) -> Self {
+impl BitmapLayer {
+    pub fn new(framework: &Framework, configuration: BitmapLayerConfiguration) -> Self {
         let bytes: Vec<u32> = (1..(configuration.width * configuration.height) + 1)
             .map(|_| {
                 let bg = configuration.initial_background_color;
@@ -38,7 +38,7 @@ impl Layer {
     pub fn new_from_bytes(
         framework: &Framework,
         bytes: &[u8],
-        configuration: LayerConfiguration,
+        configuration: BitmapLayerConfiguration,
     ) -> Self {
         let dimension = wgpu::TextureDimension::D2;
         let format = wgpu::TextureFormat::Rgba8UnormSrgb;
@@ -142,7 +142,7 @@ impl Layer {
                 ],
             });
 
-        Layer {
+        Self {
             texture,
             rgba_texture_view,
             configuration,

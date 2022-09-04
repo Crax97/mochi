@@ -4,7 +4,7 @@ use std::{ops::Deref, rc::Rc};
 
 use crate::{
     framework::{self, Framework, Mesh, Vertices},
-    image_editor::layer::LayerConfiguration,
+    image_editor::layer::BitmapLayerConfiguration,
 };
 use cgmath::{prelude::*, *};
 use wgpu::{
@@ -14,7 +14,7 @@ use wgpu::{
     RenderPipelineDescriptor, TextureDescriptor, VertexBufferLayout, VertexState,
 };
 
-use self::layer::Layer;
+use self::layer::*;
 
 pub struct Assets {
     pub quad_mesh: Mesh,
@@ -27,24 +27,24 @@ pub struct ImageEditor {
     assets: Rc<Assets>,
 
     // TODO: Put into document struct
-    layers: Vec<Layer>,
-    final_layer: Layer,
+    layers: Vec<LayerType>,
+    final_layer: BitmapLayer,
 }
 
 impl ImageEditor {
     pub fn new(framework: Rc<Framework>, assets: Rc<Assets>) -> Self {
-        let final_layer = Layer::new(
+        let final_layer = BitmapLayer::new(
             &framework,
-            LayerConfiguration {
+            BitmapLayerConfiguration {
                 label: "Final Rendering Layer".to_owned(),
                 width: 800,
                 height: 600,
                 initial_background_color: [0.5, 0.5, 0.5, 1.0],
             },
         );
-        let test_layer = Layer::new(
+        let test_layer = BitmapLayer::new(
             &framework,
-            LayerConfiguration {
+            BitmapLayerConfiguration {
                 label: "Layer 0".to_owned(),
                 width: 800,
                 height: 600,
@@ -55,7 +55,7 @@ impl ImageEditor {
         ImageEditor {
             framework,
             assets,
-            layers: vec![test_layer],
+            layers: vec![LayerType::Bitmap(test_layer)],
             final_layer,
         }
     }
@@ -91,14 +91,21 @@ impl ImageEditor {
             render_pass.set_pipeline(&self.assets.simple_diffuse_pipeline);
 
             for layer in self.layers.iter() {
-                render_pass.set_bind_group(0, layer.binding_group(), &[]);
-                self.assets.quad_mesh.draw(&mut render_pass, 1);
+                match layer {
+                    LayerType::Bitmap(bitmap_layer) => {
+                        render_pass.set_bind_group(0, bitmap_layer.binding_group(), &[]);
+                        self.assets.quad_mesh.draw(&mut render_pass, 1);
+                    }
+                    LayerType::Group(_) => {
+                        // draw layer group recursively
+                    }
+                }
             }
         }
         command_encoder.finish()
     }
 
-    pub(crate) fn get_full_image_texture(&self) -> &Layer {
+    pub(crate) fn get_full_image_texture(&self) -> &BitmapLayer {
         &self.final_layer
     }
 }
