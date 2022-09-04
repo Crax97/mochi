@@ -1,17 +1,14 @@
 mod layer;
 
-use std::{collections::HashMap, ops::Deref, rc::Rc};
+use std::{collections::HashMap, rc::Rc};
 
 use crate::{
-    framework::{self, Framework, Mesh, Vertices},
+    framework::{Framework, Mesh},
     image_editor::layer::BitmapLayerConfiguration,
 };
-use cgmath::{prelude::*, *};
 use wgpu::{
-    util::{BufferInitDescriptor, DeviceExt},
-    ColorTargetState, CommandBuffer, CommandEncoderDescriptor, FragmentState, MultisampleState,
-    PipelineLayout, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline,
-    RenderPipelineDescriptor, TextureDescriptor, VertexBufferLayout, VertexState,
+    CommandBuffer, CommandEncoderDescriptor, RenderPassColorAttachment, RenderPassDescriptor,
+    RenderPipeline,
 };
 
 use self::layer::*;

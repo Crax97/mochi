@@ -1,7 +1,7 @@
 use crate::framework::Framework;
 use cgmath::num_traits::ToPrimitive;
 use wgpu::{
-    BindGroup, Color, ImageDataLayout, Sampler, SamplerDescriptor, Texture, TextureDescriptor,
+    BindGroup, ImageDataLayout, Sampler, SamplerDescriptor, Texture, TextureDescriptor,
     TextureView, TextureViewDescriptor, TextureViewDimension,
 };
 

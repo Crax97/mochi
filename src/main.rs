@@ -9,10 +9,8 @@ use framework::*;
 use image_editor::*;
 
 use wgpu::{
-    BindGroup, BindGroupEntry, BindGroupLayout, BindGroupLayoutEntry, ColorTargetState,
-    CommandBuffer, CommandEncoderDescriptor, FragmentState, RenderPassColorAttachment,
-    RenderPassDescriptor, RenderPipeline, SamplerBindingType, Surface, SurfaceConfiguration,
-    TextureDimension, TextureView, VertexState,
+    ColorTargetState, CommandBuffer, CommandEncoderDescriptor, FragmentState,
+    RenderPassColorAttachment, RenderPassDescriptor, Surface, SurfaceConfiguration, VertexState,
 };
 use winit::{event::WindowEvent, event_loop::ControlFlow, window::Window};
 

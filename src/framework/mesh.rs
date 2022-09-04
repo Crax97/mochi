@@ -1,8 +1,5 @@
 use cgmath::{Point2, Point3};
-use wgpu::{
-    util::{DeviceExt, RenderEncoder},
-    Buffer, RenderPass, VertexAttribute, VertexBufferLayout,
-};
+use wgpu::{util::DeviceExt, Buffer, RenderPass, VertexAttribute, VertexBufferLayout};
 
 use super::Framework;
 
