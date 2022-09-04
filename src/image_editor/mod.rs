@@ -1,6 +1,6 @@
 mod layer;
 
-use std::{ops::Deref, rc::Rc};
+use std::{collections::HashMap, ops::Deref, rc::Rc};
 
 use crate::{
     framework::{self, Framework, Mesh, Vertices},
@@ -22,13 +22,25 @@ pub struct Assets {
     pub final_present_pipeline: RenderPipeline,
 }
 
+#[derive(Clone, Copy, PartialEq, PartialOrd, Eq, Hash)]
+pub(crate) struct LayerIndex(u16);
+pub(crate) enum LayerTree {
+    SingleLayer(LayerIndex),
+    Group(Vec<LayerIndex>),
+}
+pub(crate) struct RootLayer(Vec<LayerTree>);
+
+pub(crate) struct Document {
+    layers: HashMap<LayerIndex, LayerType>,
+    tree_root: RootLayer,
+    final_layer: BitmapLayer,
+}
+
 pub struct ImageEditor {
     framework: Rc<Framework>,
     assets: Rc<Assets>,
 
-    // TODO: Put into document struct
-    layers: Vec<LayerType>,
-    final_layer: BitmapLayer,
+    document: Document,
 }
 
 impl ImageEditor {
@@ -52,11 +64,19 @@ impl ImageEditor {
             },
         );
 
+        let test_document = Document {
+            layers: HashMap::from_iter(std::iter::once((
+                LayerIndex(123),
+                LayerType::Bitmap(test_layer),
+            ))),
+            tree_root: RootLayer(vec![LayerTree::SingleLayer(LayerIndex(123))]),
+            final_layer,
+        };
+
         ImageEditor {
             framework,
             assets,
-            layers: vec![LayerType::Bitmap(test_layer)],
-            final_layer,
+            document: test_document,
         }
     }
 
@@ -67,7 +87,7 @@ impl ImageEditor {
         let render_pass_description = RenderPassDescriptor {
             label: Some("ImageEditor Redraw Image Pass"),
             color_attachments: &[Some(RenderPassColorAttachment {
-                view: self.final_layer.texture_view(),
+                view: self.document.final_layer.texture_view(),
                 resolve_target: None,
                 ops: wgpu::Operations {
                     load: wgpu::LoadOp::Clear(wgpu::Color {
@@ -89,23 +109,30 @@ impl ImageEditor {
         {
             let mut render_pass = command_encoder.begin_render_pass(&render_pass_description);
             render_pass.set_pipeline(&self.assets.simple_diffuse_pipeline);
+            let mut draw_context = LayerDrawContext {
+                assets: &self.assets,
+                render_pass,
+            };
 
-            for layer in self.layers.iter() {
-                match layer {
-                    LayerType::Bitmap(bitmap_layer) => {
-                        render_pass.set_bind_group(0, bitmap_layer.binding_group(), &[]);
-                        self.assets.quad_mesh.draw(&mut render_pass, 1);
+            for layer_node in self.document.tree_root.0.iter() {
+                match layer_node {
+                    LayerTree::SingleLayer(index) => {
+                        let layer = self.document.layers.get(index).expect("Nonexistent layer");
+                        layer.draw(&mut draw_context);
                     }
-                    LayerType::Group(_) => {
-                        // draw layer group recursively
+                    LayerTree::Group(indices) => {
+                        for index in indices {
+                            let layer = self.document.layers.get(index).expect("Nonexistent layer");
+                            layer.draw(&mut draw_context);
+                        }
                     }
-                }
+                };
             }
         }
         command_encoder.finish()
     }
 
     pub(crate) fn get_full_image_texture(&self) -> &BitmapLayer {
-        &self.final_layer
+        &self.document.final_layer
     }
 }
