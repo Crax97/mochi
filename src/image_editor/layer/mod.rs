@@ -1,29 +1,54 @@
 mod bitmap_layer;
 
-pub use bitmap_layer::*;
-use wgpu::{CommandEncoder, RenderPass};
+use std::{cell::RefCell, rc::Rc};
 
-use crate::framework::Framework;
+pub use bitmap_layer::*;
+use cgmath::{Point2, Vector2};
+use wgpu::RenderPass;
+
+use crate::framework::{Framework, InstanceBuffer, InstanceBufferConfiguration, MeshInstance2D};
 
 use super::Assets;
 
+pub struct Layer {
+    pub layer_type: LayerType,
+    pub position: Point2<f32>,
+    pub scale: Vector2<f32>,
+    pub rotation_radians: f32,
+
+    pub instance_buffer: InstanceBuffer,
+}
 pub enum LayerType {
     Bitmap(bitmap_layer::BitmapLayer),
 }
 
 pub(crate) struct LayerDrawContext<'a> {
-    pub render_pass: RenderPass<'a>,
+    pub render_pass: RefCell<RenderPass<'a>>,
     pub assets: &'a Assets,
 }
 
-impl LayerType {
-    pub fn update() {}
+impl Layer {
+    pub fn update(&mut self, framework: &Framework) {
+        self.instance_buffer = InstanceBuffer::new(
+            &framework,
+            InstanceBufferConfiguration {
+                initial_data: vec![MeshInstance2D {
+                    position: self.position.clone(),
+                    scale: self.scale.clone(),
+                    rotation: self.rotation_radians,
+                }],
+                allow_write: false,
+            },
+        );
+    }
 
-    pub(crate) fn draw<'a>(&'a self, draw_context: &mut LayerDrawContext<'a>) {
-        match &self {
+    pub(crate) fn draw<'a>(&'a self, draw_context: Rc<LayerDrawContext<'a>>) {
+        match &self.layer_type {
             LayerType::Bitmap(bitmap_layer) => {
-                let render_pass = &mut draw_context.render_pass;
-                render_pass.set_pipeline(&draw_context.assets.simple_diffuse_pipeline);
+                {
+                    self.instance_buffer.bind(1, &draw_context.render_pass);
+                }
+                let render_pass = &mut draw_context.render_pass.borrow_mut();
                 render_pass.set_bind_group(0, bitmap_layer.binding_group(), &[]);
                 draw_context.assets.quad_mesh.draw(render_pass, 1);
             }

@@ -1,3 +1,5 @@
+use std::cell::RefCell;
+
 use wgpu::{util::DeviceExt, RenderPass};
 
 use super::Framework;
@@ -6,15 +8,15 @@ pub struct InstanceBuffer {
     buffer: wgpu::Buffer,
 }
 
-pub struct BufferConfiguration<T> {
+pub struct InstanceBufferConfiguration<T> {
     pub initial_data: Vec<T>,
     pub allow_write: bool,
 }
 
 impl InstanceBuffer {
-    fn new<T: bytemuck::Pod + bytemuck::Zeroable>(
+    pub fn new<T: bytemuck::Pod + bytemuck::Zeroable>(
         framework: &Framework,
-        initial_configuration: BufferConfiguration<T>,
+        initial_configuration: InstanceBufferConfiguration<T>,
     ) -> Self {
         use std::mem;
         let usage = wgpu::BufferUsages::VERTEX
@@ -42,7 +44,9 @@ impl InstanceBuffer {
         InstanceBuffer { buffer }
     }
 
-    fn bind<'a>(&'a self, index: u32, render_pass: &mut RenderPass<'a>) {
-        render_pass.set_vertex_buffer(index, self.buffer.slice(..));
+    pub fn bind<'a>(&'a self, index: u32, render_pass: &RefCell<RenderPass<'a>>) {
+        render_pass
+            .borrow_mut()
+            .set_vertex_buffer(index, self.buffer.slice(..));
     }
 }

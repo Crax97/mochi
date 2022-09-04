@@ -66,7 +66,7 @@ impl AppState {
 
         let module = framework
             .device
-            .create_shader_module(wgpu::include_wgsl!("simple_shader.wgsl"));
+            .create_shader_module(wgpu::include_wgsl!("shaders/final_present.wgsl"));
 
         let bind_group_layout =
             framework
@@ -138,47 +138,8 @@ impl AppState {
                     },
                 });
 
-        let simple_diffuse_pipeline =
-            framework
-                .device
-                .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                    label: Some("final render shader"),
-                    layout: Some(&render_pipeline_layout),
-                    depth_stencil: None,
-                    vertex: VertexState {
-                        module: &module,
-                        entry_point: "vs",
-                        buffers: &[Mesh::layout()],
-                    },
-                    fragment: Some(FragmentState {
-                        module: &module,
-                        entry_point: "fs",
-                        targets: &[Some(ColorTargetState {
-                            format: wgpu::TextureFormat::Rgba8UnormSrgb,
-                            blend: Some(wgpu::BlendState::REPLACE),
-                            write_mask: wgpu::ColorWrites::ALL,
-                        })],
-                    }),
-                    multisample: wgpu::MultisampleState {
-                        count: 1,
-                        mask: !0,
-                        alpha_to_coverage_enabled: false,
-                    },
-                    multiview: None,
-                    primitive: wgpu::PrimitiveState {
-                        topology: wgpu::PrimitiveTopology::TriangleList,
-                        strip_index_format: None,
-                        front_face: wgpu::FrontFace::Cw,
-                        conservative: false,
-                        cull_mode: Some(wgpu::Face::Back),
-                        polygon_mode: wgpu::PolygonMode::Fill,
-                        unclipped_depth: false,
-                    },
-                });
-
         let assets = Rc::new(Assets {
             quad_mesh,
-            simple_diffuse_pipeline,
             final_present_pipeline,
         });
         Self {
