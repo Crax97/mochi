@@ -32,17 +32,17 @@ fn scale(s: vec2<f32>) -> mat4x4<f32> {
 }
 
 fn translation(pos: vec2<f32>) -> mat4x4<f32> {
-    return mat4x4(0.0, 0.0, 0.0, pos.x,
-                  0.0, 0.0, 0.0, pos.y,
-                  0.0, 0.0, 0.0, 0.0,
+    return mat4x4(1.0, 0.0, 0.0, pos.x,
+                  0.0, 1.0, 0.0, pos.y,
+                  0.0, 0.0, 1.0, 0.0,
                   0.0, 0.0, 0.0, 1.0);
 }
 
 @vertex
 fn vs(in: VertexInput, instance: PerInstanceData) -> VertexOutput {
     var out : VertexOutput;
-    var model = scale(instance.position_and_size.zw) * rot_z(instance.rotation_radians) * translation(instance.position_and_size.xy);
-    out.coordinates_position = vec4<f32>(in.position + vec3<f32>(instance.position_and_size.xy, 0.0), 1.0);
+    var model = translation(instance.position_and_size.xy) * rot_z(instance.rotation_radians) * scale(instance.position_and_size.zw);
+    out.coordinates_position =  vec4<f32>(in.position, 1.0) * model;
     out.position = in.position;
     out.tex_uv = in.tex_uv;
     return out;
