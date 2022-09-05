@@ -75,7 +75,7 @@ impl ImageEditor {
                 Layer {
                     layer_type: LayerType::Bitmap(test_layer),
                     position: point2(0.5, 0.0),
-                    scale: vec2(1.0, 1.0),
+                    scale: vec2(0.5, 0.5),
                     rotation_radians: 0.0,
                     instance_buffer,
                 },
