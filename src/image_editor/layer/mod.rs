@@ -22,8 +22,8 @@ pub enum LayerType {
     Bitmap(bitmap_layer::BitmapLayer),
 }
 
-pub(crate) struct LayerDrawContext<'a> {
-    pub render_pass: RefCell<RenderPass<'a>>,
+pub(crate) struct LayerDrawContext<'a, 'b> {
+    pub render_pass: &'b mut RenderPass<'a>,
     pub assets: &'a Assets,
 }
 
@@ -42,15 +42,17 @@ impl Layer {
         );
     }
 
-    pub(crate) fn draw<'a>(&'a self, draw_context: Rc<LayerDrawContext<'a>>) {
+    pub(crate) fn draw<'a, 'b>(&'a self, draw_context: &mut LayerDrawContext<'a, 'b>) {
         match &self.layer_type {
             LayerType::Bitmap(bitmap_layer) => {
-                {
-                    self.instance_buffer.bind(1, &draw_context.render_pass);
-                }
-                let render_pass = &mut draw_context.render_pass.borrow_mut();
-                render_pass.set_bind_group(0, bitmap_layer.binding_group(), &[]);
-                draw_context.assets.quad_mesh.draw(render_pass, 1);
+                self.instance_buffer.bind(1, draw_context.render_pass);
+                draw_context
+                    .render_pass
+                    .set_bind_group(0, bitmap_layer.binding_group(), &[]);
+                draw_context
+                    .assets
+                    .quad_mesh
+                    .draw(draw_context.render_pass, 1);
             }
         }
     }

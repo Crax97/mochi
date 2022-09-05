@@ -196,25 +196,26 @@ impl ImageEditor {
         {
             let mut render_pass = command_encoder.begin_render_pass(&render_pass_description);
             render_pass.set_pipeline(&self.simple_diffuse_pipeline);
-            let mut draw_context = Rc::new(LayerDrawContext {
-                assets: &self.assets,
-                render_pass: RefCell::new(render_pass),
-            });
 
             for (_, layer) in self.document.layers.iter_mut() {
                 layer.update(&self.framework);
             }
 
+            let mut draw_context = LayerDrawContext {
+                render_pass: &mut render_pass,
+                assets: &self.assets,
+            };
+
             for layer_node in self.document.tree_root.0.iter() {
                 match layer_node {
                     LayerTree::SingleLayer(index) => {
                         let layer = self.document.layers.get(index).expect("Nonexistent layer");
-                        layer.draw(draw_context.clone());
+                        layer.draw(&mut draw_context);
                     }
                     LayerTree::Group(indices) => {
                         for index in indices {
                             let layer = self.document.layers.get(index).expect("Nonexistent layer");
-                            layer.draw(draw_context.clone());
+                            layer.draw(&mut draw_context);
                         }
                     }
                 };

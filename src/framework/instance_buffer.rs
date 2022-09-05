@@ -44,9 +44,7 @@ impl InstanceBuffer {
         InstanceBuffer { buffer }
     }
 
-    pub fn bind<'a>(&'a self, index: u32, render_pass: &RefCell<RenderPass<'a>>) {
-        render_pass
-            .borrow_mut()
-            .set_vertex_buffer(index, self.buffer.slice(..));
+    pub fn bind<'a>(&'a self, index: u32, render_pass: &mut RenderPass<'a>) {
+        render_pass.set_vertex_buffer(index, self.buffer.slice(..));
     }
 }
