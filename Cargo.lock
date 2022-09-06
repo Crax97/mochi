@@ -697,6 +697,7 @@ dependencies = [
  "log",
  "pollster",
  "raw-window-handle 0.4.3",
+ "scene",
  "wgpu",
  "winit",
 ]
@@ -1229,6 +1230,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c1ff3d6d9696af502cc3110dacce942840fb06ff4514cad92236ecc455f2ce05"
 dependencies = [
  "bytemuck",
+]
+
+[[package]]
+name = "scene"
+version = "0.1.0"
+dependencies = [
+ "bytemuck",
+ "cgmath",
+ "framework",
 ]
 
 [[package]]

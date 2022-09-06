@@ -3,8 +3,9 @@ mod layer;
 use std::{collections::HashMap, rc::Rc};
 
 use cgmath::{point2, vec2};
-use framework::{Camera2d, Framework, Mesh, MeshInstance2D};
+use framework::{Framework, Mesh, MeshInstance2D};
 use layer::BitmapLayerConfiguration;
+use scene::Camera2d;
 use wgpu::{
     ColorTargetState, CommandBuffer, CommandEncoderDescriptor, FragmentState,
     RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, VertexState,

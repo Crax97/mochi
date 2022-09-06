@@ -1,9 +1,9 @@
 use cgmath::{Matrix4, SquareMatrix, Vector3};
 
-use super::{
-    super::framework::Framework,
-    super::transform::Transform2d,
-    super::typed_buffer::{BufferType, TypedBuffer, TypedBufferConfiguration},
+use super::super::transform::Transform2d;
+use framework::{
+    typed_buffer::{BufferType, TypedBuffer, TypedBufferConfiguration},
+    Framework,
 };
 
 pub struct Camera2d<'framework> {
