@@ -29,17 +29,13 @@ pub(crate) struct LayerDrawContext<'a, 'b> {
 
 impl Layer {
     pub fn update(&mut self, framework: &Framework) {
-        self.instance_buffer = TypedBuffer::new(
-            &framework,
-            TypedBufferConfiguration {
-                initial_data: vec![MeshInstance2D {
-                    position: self.position.clone(),
-                    scale: self.scale.clone(),
-                    rotation: self.rotation_radians,
-                }],
-                buffer_type: crate::framework::BufferType::Vertex,
-                allow_write: false,
-            },
+        self.instance_buffer.write_sync(
+            &[MeshInstance2D {
+                position: self.position.clone(),
+                scale: self.scale.clone(),
+                rotation: self.rotation_radians,
+            }],
+            framework,
         );
     }
 

@@ -1,3 +1,4 @@
+use as_slice::AsSlice;
 use wgpu::{util::DeviceExt, BufferUsages, RenderPass};
 
 use super::Framework;
@@ -29,6 +30,7 @@ pub struct TypedBufferConfiguration<T> {
     pub initial_data: Vec<T>,
     pub buffer_type: BufferType,
     pub allow_write: bool,
+    pub allow_read: bool,
 }
 
 impl TypedBuffer {
@@ -40,7 +42,12 @@ impl TypedBuffer {
         let buffer_usage: BufferUsages = initial_configuration.buffer_type.into();
         let usage: BufferUsages = buffer_usage
             | if initial_configuration.allow_write {
-                wgpu::BufferUsages::MAP_WRITE
+                wgpu::BufferUsages::MAP_WRITE | wgpu::BufferUsages::COPY_DST
+            } else {
+                wgpu::BufferUsages::empty()
+            }
+            | if initial_configuration.allow_write {
+                wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_SRC
             } else {
                 wgpu::BufferUsages::empty()
             };
@@ -61,6 +68,14 @@ impl TypedBuffer {
             })
         };
         TypedBuffer { buffer }
+    }
+
+    pub fn write_sync<T: AsSlice>(&self, data: &T, framework: &Framework)
+    where
+        T::Element: bytemuck::Pod + bytemuck::Zeroable,
+    {
+        let queue = &framework.queue;
+        queue.write_buffer(&self.buffer, 0, &bytemuck::cast_slice(&data.as_slice()));
     }
 
     pub fn bind<'a>(&'a self, index: u32, render_pass: &mut RenderPass<'a>) {
