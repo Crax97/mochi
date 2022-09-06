@@ -1,15 +1,10 @@
-mod bitmap_layer;
-
-pub use bitmap_layer::*;
 use cgmath::{Point2, Vector2};
+use framework::{Framework, MeshInstance2D, TypedBuffer, TypedBufferConfiguration};
 use wgpu::{BindGroup, RenderPass};
 
-use framework::{
-    typed_buffer::{TypedBuffer, TypedBufferConfiguration},
-    Framework, MeshInstance2D,
-};
+use crate::asset_library::AssetsLibrary;
 
-use super::Assets;
+use super::{bitmap_layer, BitmapLayer};
 
 pub struct Layer<'framework> {
     pub layer_type: LayerType,
@@ -34,7 +29,7 @@ pub enum LayerType {
 
 pub(crate) struct LayerDrawContext<'a, 'b> {
     pub render_pass: &'b mut RenderPass<'a>,
-    pub assets: &'a Assets,
+    pub assets: &'a AssetsLibrary,
 }
 
 impl<'framework> Layer<'framework> {

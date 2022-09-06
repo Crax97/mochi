@@ -33,7 +33,7 @@ lazy_static! {
 }
 struct AppState<'framework> {
     pub framework: &'framework Framework,
-    pub assets: Rc<Assets>,
+    pub assets: Rc<AssetsLibrary>,
     window: Window,
     final_surface: Surface,
     final_surface_configuration: SurfaceConfiguration,
@@ -154,7 +154,7 @@ impl<'framework> AppState<'framework> {
                     },
                 });
 
-        let assets = Rc::new(Assets {
+        let assets = Rc::new(AssetsLibrary {
             quad_mesh,
             final_present_pipeline,
         });
