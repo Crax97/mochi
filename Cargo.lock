@@ -679,6 +679,7 @@ dependencies = [
  "cgmath",
  "env_logger",
  "image",
+ "lazy_static",
  "log",
  "pollster",
  "raw-window-handle 0.4.3",

@@ -13,10 +13,11 @@ pub enum BufferType {
     Storage,
 }
 
-#[derive(Debug)]
-pub struct TypedBuffer {
+pub struct TypedBuffer<'framework> {
     buffer: wgpu::Buffer,
     buffer_type: BufferType,
+
+    owner_framework: &'framework Framework,
 }
 
 impl From<BufferType> for BufferUsages {
@@ -36,9 +37,9 @@ pub struct TypedBufferConfiguration<T> {
     pub allow_read: bool,
 }
 
-impl TypedBuffer {
+impl<'framework> TypedBuffer<'framework> {
     pub fn new<T: bytemuck::Pod + bytemuck::Zeroable>(
-        framework: &Framework,
+        framework: &'framework Framework,
         initial_configuration: TypedBufferConfiguration<T>,
     ) -> Self {
         use std::mem;
@@ -73,6 +74,7 @@ impl TypedBuffer {
         TypedBuffer {
             buffer,
             buffer_type: initial_configuration.buffer_type,
+            owner_framework: framework,
         }
     }
 

@@ -30,23 +30,23 @@ pub(crate) enum LayerTree {
 }
 pub(crate) struct RootLayer(Vec<LayerTree>);
 
-pub(crate) struct Document {
-    layers: HashMap<LayerIndex, Layer>,
+pub(crate) struct Document<'framework> {
+    layers: HashMap<LayerIndex, Layer<'framework>>,
     tree_root: RootLayer,
     final_layer: BitmapLayer,
 }
 
-pub struct ImageEditor {
-    framework: Rc<Framework>,
+pub struct ImageEditor<'framework> {
+    framework: &'framework Framework,
     assets: Rc<Assets>,
-    pan_camera: Camera2d,
+    pan_camera: Camera2d<'framework>,
 
-    document: Document,
+    document: Document<'framework>,
     simple_diffuse_pipeline: RenderPipeline,
 }
 
-impl ImageEditor {
-    pub fn new(framework: Rc<Framework>, assets: Rc<Assets>) -> Self {
+impl<'framework> ImageEditor<'framework> {
+    pub fn new(framework: &'framework Framework, assets: Rc<Assets>) -> Self {
         let final_layer = BitmapLayer::new(
             &framework,
             BitmapLayerConfiguration {
@@ -177,6 +177,11 @@ impl ImageEditor {
             document: test_document,
             simple_diffuse_pipeline,
         }
+    }
+
+    pub fn on_resize(&mut self, new_size: [f32; 2]) {
+        let new_bounds = [0.0, new_size[0], 0.0, -new_size[0]];
+        self.pan_camera.set_new_bounds(new_bounds);
     }
 
     pub fn redraw_full_image(&mut self) -> CommandBuffer {

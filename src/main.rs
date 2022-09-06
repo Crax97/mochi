@@ -1,5 +1,6 @@
 mod framework;
 mod image_editor;
+use lazy_static::lazy_static;
 
 use std::{cell::RefCell, rc::Rc};
 
@@ -14,16 +15,34 @@ use wgpu::{
 };
 use winit::{event::WindowEvent, event_loop::ControlFlow, window::Window};
 
-struct AppState {
-    framework: Rc<Framework>,
-    assets: Rc<Assets>,
+lazy_static! {
+    static ref FRAMEWORK: Framework = pollster::block_on(async {
+        let framework = Framework::new(&wgpu::DeviceDescriptor {
+            label: Some("Image Editor framework"),
+            features: wgpu::Features::empty(),
+            limits: wgpu::Limits::downlevel_defaults(),
+        })
+        .await;
+        match framework {
+            Ok(framework) => {
+                framework.log_info();
+                framework
+            }
+            Err(e) => {
+                panic!("Error while creating framework: {}", e)
+            }
+        }
+    });
+}
+struct AppState<'framework> {
+    pub framework: &'framework Framework,
+    pub assets: Rc<Assets>,
     window: Window,
-    image_editor: ImageEditor,
     final_surface: Surface,
     final_surface_configuration: SurfaceConfiguration,
 }
-impl AppState {
-    fn new(window: Window, framework: Rc<Framework>) -> Self {
+impl<'framework> AppState<'framework> {
+    fn new(window: Window, framework: &'framework Framework) -> Self {
         let final_surface = unsafe { framework.instance.create_surface(&window) };
         let final_surface_configuration = SurfaceConfiguration {
             usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
@@ -145,8 +164,8 @@ impl AppState {
         Self {
             window,
             assets: assets.clone(),
-            framework: framework.clone(),
-            image_editor: ImageEditor::new(framework, assets),
+            framework,
+            // image_editor: ImageEditor::new(framework, assets),
             final_surface,
             final_surface_configuration,
         }
@@ -158,15 +177,9 @@ async fn run_app() -> anyhow::Result<()> {
     let window = winit::window::WindowBuilder::new()
         .with_title("Image editor")
         .build(&event_loop)?;
-    let framework = Framework::new(&wgpu::DeviceDescriptor {
-        label: Some("Image Editor framework"),
-        features: wgpu::Features::empty(),
-        limits: wgpu::Limits::downlevel_defaults(),
-    })
-    .await?;
-    framework.log_info();
 
-    let app_state = Rc::new(RefCell::new(AppState::new(window, Rc::new(framework))));
+    let app_state = AppState::new(window, &FRAMEWORK);
+    let mut image_editor = ImageEditor::new(&FRAMEWORK, app_state.assets.clone());
 
     event_loop.run(move |event, _, control_flow| match event {
         winit::event::Event::WindowEvent { event, .. } => match event {
@@ -180,25 +193,19 @@ async fn run_app() -> anyhow::Result<()> {
         },
         winit::event::Event::DeviceEvent { event, .. } => match event {
             _ => {
-                app_state.borrow().window.request_redraw();
+                app_state.window.request_redraw();
             }
         },
         winit::event::Event::UserEvent(_) => {}
         winit::event::Event::RedrawRequested(_) => {
             let mut commands: Vec<CommandBuffer> = vec![];
 
-            let command = {
-                let mut app_state_mut = app_state.borrow_mut();
-                let image_editor = &mut app_state_mut.image_editor;
-                image_editor.redraw_full_image()
-            };
+            let command = { image_editor.redraw_full_image() };
             commands.push(command);
-
-            let app_state = app_state.borrow();
 
             let current_texture = app_state.final_surface.get_current_texture().unwrap();
             let mut render_last_frame = || {
-                let render_result = app_state.image_editor.get_full_image_texture();
+                let render_result = image_editor.get_full_image_texture();
                 let app_surface_view = current_texture
                     .texture
                     .create_view(&wgpu::TextureViewDescriptor::default());
@@ -294,10 +301,6 @@ async fn run_app() -> anyhow::Result<()> {
 
 fn main() {
     env_logger::init();
-    match pollster::block_on(run_app()) {
-        Ok(_) => {}
-        Err(e) => {
-            log::error!("While running app: {}", e);
-        }
-    }
+
+    let result = pollster::block_on(run_app());
 }

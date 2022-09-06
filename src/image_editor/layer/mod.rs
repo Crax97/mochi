@@ -10,21 +10,21 @@ use crate::framework::{Framework, MeshInstance2D, TypedBuffer, TypedBufferConfig
 
 use super::Assets;
 
-pub struct Layer {
+pub struct Layer<'framework> {
     pub layer_type: LayerType,
     pub position: Point2<f32>,
     pub scale: Vector2<f32>,
     pub rotation_radians: f32,
 
-    pub instance_buffer: TypedBuffer,
+    pub instance_buffer: TypedBuffer<'framework>,
     bind_group: BindGroup,
 }
 
-pub struct LayerCreationInfo<'a> {
+pub struct LayerCreationInfo<'framework> {
     pub position: Point2<f32>,
     pub scale: Vector2<f32>,
     pub rotation_radians: f32,
-    pub camera_buffer: &'a TypedBuffer,
+    pub camera_buffer: &'framework TypedBuffer<'framework>,
 }
 
 pub enum LayerType {
@@ -37,11 +37,11 @@ pub(crate) struct LayerDrawContext<'a, 'b> {
     pub framework: &'a Framework,
 }
 
-impl Layer {
+impl<'framework> Layer<'framework> {
     pub fn new_bitmap(
         bitmap_layer: BitmapLayer,
         creation_info: LayerCreationInfo<'_>,
-        framework: &Framework,
+        framework: &'framework Framework,
     ) -> Self {
         let bind_group_layout =
             framework
@@ -100,15 +100,12 @@ impl Layer {
                 ],
             });
 
-        let instance_buffer = TypedBuffer::new(
-            &framework,
-            TypedBufferConfiguration {
-                initial_data: Vec::<MeshInstance2D>::new(),
-                buffer_type: crate::framework::BufferType::Vertex,
-                allow_write: true,
-                allow_read: false,
-            },
-        );
+        let instance_buffer = framework.allocate_typed_buffer(TypedBufferConfiguration {
+            initial_data: Vec::<MeshInstance2D>::new(),
+            buffer_type: crate::framework::BufferType::Vertex,
+            allow_write: true,
+            allow_read: false,
+        });
         Self {
             layer_type: LayerType::Bitmap(bitmap_layer),
             position: creation_info.position,

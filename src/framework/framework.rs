@@ -2,6 +2,8 @@ use anyhow::Result;
 use log::*;
 use wgpu::*;
 
+use super::{TypedBuffer, TypedBufferConfiguration};
+
 pub struct Framework {
     pub instance: wgpu::Instance,
     pub adapter: wgpu::Adapter,
@@ -39,6 +41,13 @@ impl<'a> Framework {
             device,
             queue,
         })
+    }
+
+    pub fn allocate_typed_buffer<BufferType: bytemuck::Pod + bytemuck::Zeroable>(
+        &'a self,
+        configuration: TypedBufferConfiguration<BufferType>,
+    ) -> TypedBuffer<'a> {
+        TypedBuffer::new(self, configuration)
     }
 
     pub fn log_info(&self) {
