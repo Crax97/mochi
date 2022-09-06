@@ -78,11 +78,11 @@ impl<'framework> TypedBuffer<'framework> {
         }
     }
 
-    pub fn write_sync<T: AsSlice>(&self, data: &T, framework: &Framework)
+    pub fn write_sync<T: AsSlice>(&self, data: &T)
     where
         T::Element: bytemuck::Pod + bytemuck::Zeroable,
     {
-        let queue = &framework.queue;
+        let queue = &self.owner_framework.queue;
         queue.write_buffer(&self.buffer, 0, &bytemuck::cast_slice(&data.as_slice()));
     }
 

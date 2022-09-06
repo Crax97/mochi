@@ -50,12 +50,8 @@ impl<'framework> Camera2d<'framework> {
     }
 
     fn update_camera_buffer(&mut self) {
-        /*
-        self.camera_buffer.write_sync(
-            &[Camera2dUniformBlock::from(self as &Camera2d)],
-            ,
-        )
-         */
+        self.camera_buffer
+            .write_sync(&[Camera2dUniformBlock::from(self as &Camera2d)]);
     }
 
     pub fn buffer(&self) -> &TypedBuffer {

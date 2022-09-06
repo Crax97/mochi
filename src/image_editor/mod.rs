@@ -46,7 +46,11 @@ pub struct ImageEditor<'framework> {
 }
 
 impl<'framework> ImageEditor<'framework> {
-    pub fn new(framework: &'framework Framework, assets: Rc<Assets>) -> Self {
+    pub fn new(
+        framework: &'framework Framework,
+        assets: Rc<Assets>,
+        initial_window_bounds: &[f32; 2],
+    ) -> Self {
         let final_layer = BitmapLayer::new(
             &framework,
             BitmapLayerConfiguration {
@@ -66,7 +70,13 @@ impl<'framework> ImageEditor<'framework> {
             },
         );
 
-        let pan_camera = Camera2d::new(-0.1, 1000.0, [0.0, 1.0, 1.0, -1.0], &framework);
+        let left_right_top_bottom = [
+            -initial_window_bounds[0] * 0.5,
+            initial_window_bounds[0] * 0.5,
+            initial_window_bounds[1] * 0.5,
+            -initial_window_bounds[1] * 0.5,
+        ];
+        let pan_camera = Camera2d::new(-0.1, 1000.0, left_right_top_bottom, &framework);
 
         let test_document = Document {
             layers: HashMap::from_iter(std::iter::once((
@@ -179,8 +189,7 @@ impl<'framework> ImageEditor<'framework> {
         }
     }
 
-    pub fn on_resize(&mut self, new_size: [f32; 2]) {
-        let new_bounds = [0.0, new_size[0], 0.0, -new_size[0]];
+    pub fn on_resize(&mut self, new_bounds: [f32; 4]) {
         self.pan_camera.set_new_bounds(new_bounds);
     }
 

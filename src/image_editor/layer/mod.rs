@@ -119,22 +119,17 @@ impl<'framework> Layer<'framework> {
         &'draw_call self,
         draw_context: &mut LayerDrawContext<'draw_call, 'b>,
     ) {
-        let framework = draw_context.framework;
-
         match &self.layer_type {
             LayerType::Bitmap(bitmap_layer) => {
                 let real_scale = Vector2 {
-                    x: self.scale.x * 0.4,
-                    y: self.scale.y * 0.4,
+                    x: self.scale.x * bitmap_layer.size().x,
+                    y: self.scale.y * bitmap_layer.size().y,
                 };
-                self.instance_buffer.write_sync(
-                    &[MeshInstance2D {
-                        position: self.position.clone(),
-                        scale: real_scale,
-                        rotation: self.rotation_radians,
-                    }],
-                    framework,
-                );
+                self.instance_buffer.write_sync(&[MeshInstance2D {
+                    position: self.position.clone(),
+                    scale: real_scale,
+                    rotation: self.rotation_radians,
+                }]);
                 self.instance_buffer.bind(1, draw_context.render_pass);
                 draw_context
                     .render_pass

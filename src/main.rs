@@ -1,6 +1,7 @@
 mod framework;
 mod image_editor;
 use lazy_static::lazy_static;
+use log::error;
 
 use std::{cell::RefCell, rc::Rc};
 
@@ -13,7 +14,7 @@ use wgpu::{
     ColorTargetState, CommandBuffer, CommandEncoderDescriptor, FragmentState,
     RenderPassColorAttachment, RenderPassDescriptor, Surface, SurfaceConfiguration, VertexState,
 };
-use winit::{event::WindowEvent, event_loop::ControlFlow, window::Window};
+use winit::{dpi::PhysicalSize, event::WindowEvent, event_loop::ControlFlow, window::Window};
 
 lazy_static! {
     static ref FRAMEWORK: Framework = pollster::block_on(async {
@@ -47,8 +48,8 @@ impl<'framework> AppState<'framework> {
         let final_surface_configuration = SurfaceConfiguration {
             usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: final_surface.get_supported_formats(&framework.adapter)[0],
-            width: 800,
-            height: 600,
+            width: window.inner_size().width,
+            height: window.inner_size().height,
             present_mode: wgpu::PresentMode::Fifo,
         };
         final_surface.configure(&framework.device, &final_surface_configuration);
@@ -165,7 +166,6 @@ impl<'framework> AppState<'framework> {
             window,
             assets: assets.clone(),
             framework,
-            // image_editor: ImageEditor::new(framework, assets),
             final_surface,
             final_surface_configuration,
         }
@@ -176,10 +176,21 @@ async fn run_app() -> anyhow::Result<()> {
     let event_loop = winit::event_loop::EventLoop::new();
     let window = winit::window::WindowBuilder::new()
         .with_title("Image editor")
+        .with_min_inner_size(PhysicalSize {
+            width: 800,
+            height: 600,
+        })
         .build(&event_loop)?;
 
     let app_state = AppState::new(window, &FRAMEWORK);
-    let mut image_editor = ImageEditor::new(&FRAMEWORK, app_state.assets.clone());
+    let mut image_editor = ImageEditor::new(
+        &FRAMEWORK,
+        app_state.assets.clone(),
+        &[
+            app_state.final_surface_configuration.width as f32,
+            app_state.final_surface_configuration.height as f32,
+        ],
+    );
 
     event_loop.run(move |event, _, control_flow| match event {
         winit::event::Event::WindowEvent { event, .. } => match event {
@@ -188,6 +199,32 @@ async fn run_app() -> anyhow::Result<()> {
                 // *control_flow = ControlFlow::ExitWithCode(0);
                 // }
                 *control_flow = ControlFlow::ExitWithCode(0);
+            }
+            WindowEvent::Resized(new_size) => {
+                let half_size = PhysicalSize {
+                    width: new_size.width as f32 * 0.5,
+                    height: new_size.height as f32 * 0.5,
+                };
+                let left_right_top_bottom = [
+                    -half_size.width,
+                    half_size.width,
+                    half_size.height,
+                    -half_size.height,
+                ];
+                let new_surface_configuration = SurfaceConfiguration {
+                    usage: wgpu::TextureUsages::TEXTURE_BINDING
+                        | wgpu::TextureUsages::RENDER_ATTACHMENT,
+                    format: app_state
+                        .final_surface
+                        .get_supported_formats(&app_state.framework.adapter)[0],
+                    width: new_size.width,
+                    height: new_size.height,
+                    present_mode: wgpu::PresentMode::Fifo,
+                };
+                app_state
+                    .final_surface
+                    .configure(&app_state.framework.device, &new_surface_configuration);
+                image_editor.on_resize(left_right_top_bottom);
             }
             _ => {}
         },
@@ -203,7 +240,17 @@ async fn run_app() -> anyhow::Result<()> {
             let command = { image_editor.redraw_full_image() };
             commands.push(command);
 
-            let current_texture = app_state.final_surface.get_current_texture().unwrap();
+            let current_texture = match app_state.final_surface.get_current_texture() {
+                Ok(surface) => surface,
+                Err(e) => match e {
+                    wgpu::SurfaceError::Outdated => {
+                        return;
+                    }
+                    _ => {
+                        panic!("While presenting the last image: {e}");
+                    }
+                },
+            };
             let mut render_last_frame = || {
                 let render_result = image_editor.get_full_image_texture();
                 let app_surface_view = current_texture
