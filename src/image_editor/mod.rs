@@ -36,6 +36,7 @@ pub(crate) struct Document {
 pub struct ImageEditor {
     framework: Rc<Framework>,
     assets: Rc<Assets>,
+    pan_camera: Camera2d,
 
     document: Document,
     simple_diffuse_pipeline: RenderPipeline,
@@ -67,9 +68,13 @@ impl ImageEditor {
             TypedBufferConfiguration {
                 initial_data: Vec::<MeshInstance2D>::new(),
                 buffer_type: crate::framework::BufferType::Vertex,
-                allow_write: false,
+                allow_write: true,
+                allow_read: false,
             },
         );
+
+        let pan_camera = Camera2d::new(0.1, 1000.0, [-1.0, 1.0, 1.0, -1.0]);
+
         let test_document = Document {
             layers: HashMap::from_iter(std::iter::once((
                 LayerIndex(123),
@@ -163,6 +168,7 @@ impl ImageEditor {
         ImageEditor {
             framework,
             assets,
+            pan_camera,
             document: test_document,
             simple_diffuse_pipeline,
         }
