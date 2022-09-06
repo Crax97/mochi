@@ -1,5 +1,5 @@
 [package]
-name = "image_editor_app"
+name = "app"
 version = "0.1.0"
 edition = "2021"
 
