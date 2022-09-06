@@ -1,20 +1,9 @@
-use cgmath::{Point2, Point3, Vector2};
 use wgpu::{util::DeviceExt, Buffer, RenderPass, VertexAttribute, VertexBufferLayout};
 
-use super::framework::Framework;
+use super::types::*;
+use crate::framework::Framework;
 
-pub type Index = u16;
-const INDEX_FORMAT: wgpu::IndexFormat = wgpu::IndexFormat::Uint16;
 const VERTEX_BUFFER_POSITION: u32 = 0;
-
-#[repr(C)]
-#[derive(Clone, Copy, Debug)]
-pub struct Vertex {
-    pub position: Point3<f32>,
-    pub tex_coords: Point2<f32>,
-}
-pub struct Indices(Vec<Index>);
-pub struct Vertices(Vec<Vertex>);
 
 pub struct MeshConstructionDetails {
     pub vertices: Vertices,
@@ -90,48 +79,5 @@ impl Mesh {
             0,
             0..instance_count,
         )
-    }
-}
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct MeshInstance2D {
-    pub position: Point2<f32>,
-    pub scale: Vector2<f32>,
-    pub rotation: f32,
-}
-
-impl<'a> MeshInstance2D {
-    pub fn layout() -> VertexBufferLayout<'a> {
-        const LAYOUT: &'static [VertexAttribute] =
-            &wgpu::vertex_attr_array![2 => Float32x4, 3 => Float32];
-        VertexBufferLayout {
-            array_stride: std::mem::size_of::<MeshInstance2D>() as u64,
-            step_mode: wgpu::VertexStepMode::Instance,
-            attributes: LAYOUT,
-        }
-    }
-}
-
-unsafe impl bytemuck::Pod for MeshInstance2D {}
-unsafe impl bytemuck::Zeroable for MeshInstance2D {}
-
-impl<T: as_slice::AsSlice + IntoIterator> From<T> for Indices
-where
-    T::Item: Into<Index>,
-{
-    fn from(slice: T) -> Self {
-        let index_vec: Vec<Index> = slice.into_iter().map(|i| i.into()).collect();
-        Self(index_vec)
-    }
-}
-
-impl<T: as_slice::AsSlice + IntoIterator> From<T> for Vertices
-where
-    T::Item: Into<Vertex>,
-{
-    fn from(slice: T) -> Self {
-        let vertices_vec: Vec<Vertex> = slice.into_iter().map(|i| i.into()).collect();
-        Self(vertices_vec)
     }
 }
