@@ -11,12 +11,9 @@ env_logger = "0.9"
 log = "0.4"
 wgpu = "0.13"
 pollster = "0.2"
-bytemuck = {version = "1.12.1", features = [ "derive" ] }
-cgmath="0.18.0"
 anyhow="1.0.63"
-raw-window-handle="0.4"
-as-slice="0.2.1"
 lazy_static="1.4.0"
+cgmath="0.18.0"
 
 framework = { path = "../framework" }
 image_editor = { path = "../image_editor" }
