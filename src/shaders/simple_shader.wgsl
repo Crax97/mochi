@@ -8,6 +8,13 @@ struct PerInstanceData {
     @location(3) rotation_radians: f32,
 }
 
+struct PerFrameData {
+       vp: mat4x4<f32>,
+}
+
+@group(0) @binding(2)
+var<uniform> uniform_data: PerFrameData;
+
 
 struct VertexOutput {
     @builtin(position) coordinates_position: vec4<f32>,
@@ -40,9 +47,19 @@ fn translation(pos: vec2<f32>) -> mat4x4<f32> {
 
 @vertex
 fn vs(in: VertexInput, instance: PerInstanceData) -> VertexOutput {
+    let OPENGL_CORRECT = mat4x4<f32>(
+        1.0, 0.0, 0.0, 0.0,
+        0.0, 1.0, 0.0, 0.0,
+        0.0, 0.0, 0.5, 0.0,
+        0.0, 0.0, 0.5, 1.0
+    );
+
     var out : VertexOutput;
     var model = translation(instance.position_and_size.xy) * rot_z(instance.rotation_radians) * scale(instance.position_and_size.zw);
-    out.coordinates_position =  vec4<f32>(in.position, 1.0) * model;
+    var projected = vec4<f32>(in.position, 1.0) * model;
+
+    var vp = uniform_data.vp;
+    out.coordinates_position = OPENGL_CORRECT * vp * projected;
     out.position = in.position;
     out.tex_uv = in.tex_uv;
     return out;

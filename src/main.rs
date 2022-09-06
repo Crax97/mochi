@@ -222,6 +222,53 @@ async fn run_app() -> anyhow::Result<()> {
                     })],
                     depth_stencil_attachment: None,
                 };
+                let bind_group_layout = app_state.framework.device.create_bind_group_layout(
+                    &wgpu::BindGroupLayoutDescriptor {
+                        label: Some("Final render group layout"),
+                        entries: &[
+                            wgpu::BindGroupLayoutEntry {
+                                binding: 0,
+                                visibility: wgpu::ShaderStages::FRAGMENT,
+                                ty: wgpu::BindingType::Texture {
+                                    sample_type: wgpu::TextureSampleType::Float {
+                                        filterable: true,
+                                    },
+                                    view_dimension: wgpu::TextureViewDimension::D2,
+                                    multisampled: false,
+                                },
+                                count: None,
+                            },
+                            wgpu::BindGroupLayoutEntry {
+                                binding: 1,
+                                visibility: wgpu::ShaderStages::FRAGMENT,
+                                ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                                count: None,
+                            },
+                        ],
+                    },
+                );
+                let bind_group =
+                    app_state
+                        .framework
+                        .device
+                        .create_bind_group(&wgpu::BindGroupDescriptor {
+                            label: Some("Final Draw render pass"),
+                            layout: &bind_group_layout,
+                            entries: &[
+                                wgpu::BindGroupEntry {
+                                    binding: 0,
+                                    resource: wgpu::BindingResource::TextureView(
+                                        render_result.texture_view(),
+                                    ),
+                                },
+                                wgpu::BindGroupEntry {
+                                    binding: 1,
+                                    resource: wgpu::BindingResource::Sampler(
+                                        render_result.sampler(),
+                                    ),
+                                },
+                            ],
+                        });
                 let mut command_encoder = app_state
                     .framework
                     .device
@@ -231,7 +278,7 @@ async fn run_app() -> anyhow::Result<()> {
                     let mut render_pass =
                         command_encoder.begin_render_pass(&render_pass_description);
                     render_pass.set_pipeline(&app_state.assets.final_present_pipeline);
-                    render_pass.set_bind_group(0, render_result.binding_group(), &[]);
+                    render_pass.set_bind_group(0, &bind_group, &[]);
                     app_state.assets.quad_mesh.draw(&mut render_pass, 1);
                 }
                 let final_command = command_encoder.finish();

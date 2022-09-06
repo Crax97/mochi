@@ -1,5 +1,5 @@
 use crate::framework::Framework;
-use cgmath::num_traits::ToPrimitive;
+use cgmath::{num_traits::ToPrimitive, Vector2};
 use wgpu::{
     BindGroup, ImageDataLayout, Sampler, SamplerDescriptor, Texture, TextureDescriptor,
     TextureView, TextureViewDescriptor, TextureViewDimension,
@@ -15,7 +15,6 @@ pub struct BitmapLayer {
     texture: Texture,
     rgba_texture_view: TextureView,
     sampler: Sampler,
-    bind_group: BindGroup,
     configuration: BitmapLayerConfiguration,
 }
 
@@ -100,53 +99,10 @@ impl BitmapLayer {
             ..Default::default()
         });
 
-        let bind_group_layout =
-            framework
-                .device
-                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    label: Some("Final render group layout"),
-                    entries: &[
-                        wgpu::BindGroupLayoutEntry {
-                            binding: 0,
-                            visibility: wgpu::ShaderStages::FRAGMENT,
-                            ty: wgpu::BindingType::Texture {
-                                sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                                view_dimension: wgpu::TextureViewDimension::D2,
-                                multisampled: false,
-                            },
-                            count: None,
-                        },
-                        wgpu::BindGroupLayoutEntry {
-                            binding: 1,
-                            visibility: wgpu::ShaderStages::FRAGMENT,
-                            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                            count: None,
-                        },
-                    ],
-                });
-
-        let bind_group = framework
-            .device
-            .create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("Final Draw render pass"),
-                layout: &bind_group_layout,
-                entries: &[
-                    wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: wgpu::BindingResource::TextureView(&rgba_texture_view),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 1,
-                        resource: wgpu::BindingResource::Sampler(&sampler),
-                    },
-                ],
-            });
-
         Self {
             texture,
             rgba_texture_view,
             configuration,
-            bind_group,
             sampler,
         }
     }
@@ -163,7 +119,10 @@ impl BitmapLayer {
         &self.sampler
     }
 
-    pub(crate) fn binding_group(&self) -> &BindGroup {
-        &&self.bind_group
+    pub(crate) fn size(&self) -> Vector2<f32> {
+        Vector2 {
+            x: self.configuration.width as f32,
+            y: self.configuration.height as f32,
+        }
     }
 }

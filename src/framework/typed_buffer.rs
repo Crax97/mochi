@@ -3,10 +3,7 @@ use wgpu::{util::DeviceExt, BufferUsages, RenderPass};
 
 use super::Framework;
 
-pub struct TypedBuffer {
-    buffer: wgpu::Buffer,
-}
-
+#[derive(Copy, Clone, Debug)]
 pub enum BufferType {
     // A buffer meant to be used as an input for the Vertex Shader
     Vertex,
@@ -14,6 +11,12 @@ pub enum BufferType {
     Uniform,
     // A buffer whose contents can be dynamic
     Storage,
+}
+
+#[derive(Debug)]
+pub struct TypedBuffer {
+    buffer: wgpu::Buffer,
+    buffer_type: BufferType,
 }
 
 impl From<BufferType> for BufferUsages {
@@ -67,7 +70,10 @@ impl TypedBuffer {
                 mapped_at_creation: false,
             })
         };
-        TypedBuffer { buffer }
+        TypedBuffer {
+            buffer,
+            buffer_type: initial_configuration.buffer_type,
+        }
     }
 
     pub fn write_sync<T: AsSlice>(&self, data: &T, framework: &Framework)
@@ -79,6 +85,16 @@ impl TypedBuffer {
     }
 
     pub fn bind<'a>(&'a self, index: u32, render_pass: &mut RenderPass<'a>) {
-        render_pass.set_vertex_buffer(index, self.buffer.slice(..));
+        match self.buffer_type {
+            BufferType::Vertex => render_pass.set_vertex_buffer(index, self.buffer.slice(..)),
+            BufferType::Uniform => {
+                panic!("Uniform buffers should be set by using the associated bind group!")
+            }
+            BufferType::Storage => todo!(),
+        };
+    }
+
+    pub(crate) fn binding_resource(&self) -> wgpu::BufferBinding {
+        self.buffer.as_entire_buffer_binding()
     }
 }

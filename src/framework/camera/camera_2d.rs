@@ -21,17 +21,22 @@ impl Camera2d {
     }
 }
 
+#[repr(C)]
+#[derive(Clone, Copy, Debug)]
 pub(crate) struct Camera2dUniformBlock {
     ortho_matrix: Matrix4<f32>,
 }
+
+unsafe impl bytemuck::Pod for Camera2dUniformBlock {}
+unsafe impl bytemuck::Zeroable for Camera2dUniformBlock {}
 
 impl From<&Camera2d> for Camera2dUniformBlock {
     fn from(camera: &Camera2d) -> Self {
         let transform = &camera.transform;
         let lrtb = &camera.left_right_top_bottom;
         let view = Matrix4::from_translation(Vector3 {
-            x: transform.position.x,
-            y: transform.position.y,
+            x: -transform.position.x,
+            y: -transform.position.y,
             z: transform.position.z,
         }) * Matrix4::from_angle_z(transform.rotation_radians)
             * Matrix4::from_nonuniform_scale(
@@ -42,7 +47,7 @@ impl From<&Camera2d> for Camera2dUniformBlock {
         let projection = cgmath::ortho(lrtb[0], lrtb[1], lrtb[3], lrtb[2], camera.near, camera.far);
 
         Self {
-            ortho_matrix: view * projection,
+            ortho_matrix: projection * view,
         }
     }
 }

@@ -3,7 +3,10 @@ mod layer;
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::{
-    framework::{Camera2d, Framework, Mesh, MeshInstance2D, TypedBuffer, TypedBufferConfiguration},
+    framework::{
+        Camera2d, Camera2dUniformBlock, Framework, Mesh, MeshInstance2D, TypedBuffer,
+        TypedBufferConfiguration,
+    },
     image_editor::layer::BitmapLayerConfiguration,
 };
 use cgmath::{point2, vec2};
@@ -37,6 +40,7 @@ pub struct ImageEditor {
     framework: Rc<Framework>,
     assets: Rc<Assets>,
     pan_camera: Camera2d,
+    camera_buffer: TypedBuffer,
 
     document: Document,
     simple_diffuse_pipeline: RenderPipeline,
@@ -63,28 +67,30 @@ impl ImageEditor {
             },
         );
 
-        let instance_buffer = TypedBuffer::new(
+        let pan_camera = Camera2d::new(-0.1, 1000.0, [0.0, 1.0, 1.0, -1.0]);
+
+        let camera_buffer = TypedBuffer::new::<Camera2dUniformBlock>(
             &framework,
             TypedBufferConfiguration {
-                initial_data: Vec::<MeshInstance2D>::new(),
-                buffer_type: crate::framework::BufferType::Vertex,
+                initial_data: vec![(&pan_camera).into()],
+                buffer_type: crate::framework::BufferType::Uniform,
                 allow_write: true,
                 allow_read: false,
             },
         );
-
-        let pan_camera = Camera2d::new(0.1, 1000.0, [-1.0, 1.0, 1.0, -1.0]);
-
         let test_document = Document {
             layers: HashMap::from_iter(std::iter::once((
                 LayerIndex(123),
-                Layer {
-                    layer_type: LayerType::Bitmap(test_layer),
-                    position: point2(0.5, 0.0),
-                    scale: vec2(0.5, 0.5),
-                    rotation_radians: 0.0,
-                    instance_buffer,
-                },
+                Layer::new_bitmap(
+                    test_layer,
+                    LayerCreationInfo {
+                        position: point2(0.5, 0.0),
+                        scale: vec2(0.1, 0.1),
+                        rotation_radians: 0.0,
+                        camera_buffer: &camera_buffer,
+                    },
+                    &framework,
+                ),
             ))),
             tree_root: RootLayer(vec![LayerTree::SingleLayer(LayerIndex(123))]),
             final_layer,
@@ -114,6 +120,16 @@ impl ImageEditor {
                             binding: 1,
                             visibility: wgpu::ShaderStages::FRAGMENT,
                             ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                            count: None,
+                        },
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 2,
+                            visibility: wgpu::ShaderStages::VERTEX,
+                            ty: wgpu::BindingType::Buffer {
+                                ty: wgpu::BufferBindingType::Uniform,
+                                has_dynamic_offset: false,
+                                min_binding_size: None,
+                            },
                             count: None,
                         },
                     ],
@@ -164,11 +180,11 @@ impl ImageEditor {
                         unclipped_depth: false,
                     },
                 });
-
         ImageEditor {
             framework,
             assets,
             pan_camera,
+            camera_buffer,
             document: test_document,
             simple_diffuse_pipeline,
         }
@@ -204,16 +220,13 @@ impl ImageEditor {
             let mut render_pass = command_encoder.begin_render_pass(&render_pass_description);
             render_pass.set_pipeline(&self.simple_diffuse_pipeline);
 
-            for (_, layer) in self.document.layers.iter_mut() {
-                layer.update(&self.framework);
-            }
-
             let mut draw_context = LayerDrawContext {
                 render_pass: &mut render_pass,
                 assets: &self.assets,
+                framework: &self.framework,
             };
 
-            for layer_node in self.document.tree_root.0.iter() {
+            for layer_node in self.document.tree_root.0.iter_mut() {
                 match layer_node {
                     LayerTree::SingleLayer(index) => {
                         let layer = self.document.layers.get(index).expect("Nonexistent layer");
