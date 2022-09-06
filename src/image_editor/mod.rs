@@ -3,7 +3,7 @@ mod layer;
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::{
-    framework::{Framework, InstanceBuffer, InstanceBufferConfiguration, Mesh, MeshInstance2D},
+    framework::{Camera2d, Framework, Mesh, MeshInstance2D, TypedBuffer, TypedBufferConfiguration},
     image_editor::layer::BitmapLayerConfiguration,
 };
 use cgmath::{point2, vec2};
@@ -62,10 +62,11 @@ impl ImageEditor {
             },
         );
 
-        let instance_buffer = InstanceBuffer::new(
+        let instance_buffer = TypedBuffer::new(
             &framework,
-            InstanceBufferConfiguration {
+            TypedBufferConfiguration {
                 initial_data: Vec::<MeshInstance2D>::new(),
+                buffer_type: crate::framework::BufferType::Vertex,
                 allow_write: false,
             },
         );
