@@ -40,7 +40,6 @@ pub struct ImageEditor {
     framework: Rc<Framework>,
     assets: Rc<Assets>,
     pan_camera: Camera2d,
-    camera_buffer: TypedBuffer,
 
     document: Document,
     simple_diffuse_pipeline: RenderPipeline,
@@ -67,17 +66,8 @@ impl ImageEditor {
             },
         );
 
-        let pan_camera = Camera2d::new(-0.1, 1000.0, [0.0, 1.0, 1.0, -1.0]);
+        let pan_camera = Camera2d::new(-0.1, 1000.0, [0.0, 1.0, 1.0, -1.0], &framework);
 
-        let camera_buffer = TypedBuffer::new::<Camera2dUniformBlock>(
-            &framework,
-            TypedBufferConfiguration {
-                initial_data: vec![(&pan_camera).into()],
-                buffer_type: crate::framework::BufferType::Uniform,
-                allow_write: true,
-                allow_read: false,
-            },
-        );
         let test_document = Document {
             layers: HashMap::from_iter(std::iter::once((
                 LayerIndex(123),
@@ -87,7 +77,7 @@ impl ImageEditor {
                         position: point2(0.5, 0.0),
                         scale: vec2(0.1, 0.1),
                         rotation_radians: 0.0,
-                        camera_buffer: &camera_buffer,
+                        camera_buffer: pan_camera.buffer(),
                     },
                     &framework,
                 ),
@@ -184,7 +174,6 @@ impl ImageEditor {
             framework,
             assets,
             pan_camera,
-            camera_buffer,
             document: test_document,
             simple_diffuse_pipeline,
         }

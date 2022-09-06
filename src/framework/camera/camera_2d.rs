@@ -1,23 +1,53 @@
-use cgmath::{Matrix4, Vector3};
+use cgmath::{Matrix4, SquareMatrix, Vector3};
 
-use crate::Transform2d;
+use crate::{
+    framework::{Framework, TypedBuffer, TypedBufferConfiguration},
+    Transform2d,
+};
 
 pub(crate) struct Camera2d {
     transform: Transform2d,
     pub near: f32,
     pub far: f32,
     pub left_right_top_bottom: [f32; 4],
+
+    camera_buffer: TypedBuffer,
 }
 
 impl Camera2d {
-    pub fn new(near: f32, far: f32, left_right_top_bottom: [f32; 4]) -> Self {
+    pub fn new(
+        near: f32,
+        far: f32,
+        left_right_top_bottom: [f32; 4],
+        framework: &Framework,
+    ) -> Self {
         assert!(far > near);
+
+        let camera_buffer = TypedBuffer::new::<Camera2dUniformBlock>(
+            &framework,
+            TypedBufferConfiguration {
+                initial_data: vec![Camera2dUniformBlock {
+                    ortho_matrix: Matrix4::identity(),
+                }],
+                buffer_type: crate::framework::BufferType::Uniform,
+                allow_write: true,
+                allow_read: false,
+            },
+        );
+
         Self {
             transform: Transform2d::default(),
             near,
             far,
             left_right_top_bottom,
+            camera_buffer,
         }
+    }
+}
+
+impl Camera2d {
+    pub fn buffer(&self) -> &TypedBuffer {
+        &self.camera_buffer
     }
 }
 
