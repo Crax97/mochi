@@ -1,12 +1,13 @@
 mod bitmap_layer;
 
-use std::{cell::RefCell, rc::Rc};
-
 pub use bitmap_layer::*;
 use cgmath::{Point2, Vector2};
 use wgpu::{BindGroup, RenderPass};
 
-use crate::framework::{Framework, MeshInstance2D, TypedBuffer, TypedBufferConfiguration};
+use framework::{
+    typed_buffer::{TypedBuffer, TypedBufferConfiguration},
+    Framework, MeshInstance2D,
+};
 
 use super::Assets;
 
@@ -34,7 +35,6 @@ pub enum LayerType {
 pub(crate) struct LayerDrawContext<'a, 'b> {
     pub render_pass: &'b mut RenderPass<'a>,
     pub assets: &'a Assets,
-    pub framework: &'a Framework,
 }
 
 impl<'framework> Layer<'framework> {
@@ -102,7 +102,7 @@ impl<'framework> Layer<'framework> {
 
         let instance_buffer = framework.allocate_typed_buffer(TypedBufferConfiguration {
             initial_data: Vec::<MeshInstance2D>::new(),
-            buffer_type: crate::framework::BufferType::Vertex,
+            buffer_type: framework::BufferType::Vertex,
             allow_write: true,
             allow_read: false,
         });

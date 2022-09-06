@@ -1,11 +1,12 @@
 use cgmath::{Matrix4, SquareMatrix, Vector3};
 
-use crate::{
-    framework::{Framework, TypedBuffer, TypedBufferConfiguration},
-    Transform2d,
+use super::{
+    super::framework::Framework,
+    super::transform::Transform2d,
+    super::typed_buffer::{BufferType, TypedBuffer, TypedBufferConfiguration},
 };
 
-pub(crate) struct Camera2d<'framework> {
+pub struct Camera2d<'framework> {
     transform: Transform2d,
     pub near: f32,
     pub far: f32,
@@ -28,7 +29,7 @@ impl<'framework> Camera2d<'framework> {
                 initial_data: vec![Camera2dUniformBlock {
                     ortho_matrix: Matrix4::identity(),
                 }],
-                buffer_type: crate::framework::BufferType::Uniform,
+                buffer_type: BufferType::Uniform,
                 allow_write: true,
                 allow_read: false,
             });
@@ -44,7 +45,7 @@ impl<'framework> Camera2d<'framework> {
         new_camera
     }
 
-    pub(crate) fn set_new_bounds(&mut self, new_left_right_top_bottom: [f32; 4]) {
+    pub fn set_new_bounds(&mut self, new_left_right_top_bottom: [f32; 4]) {
         self.left_right_top_bottom = new_left_right_top_bottom;
         self.update_camera_buffer();
     }
@@ -60,7 +61,7 @@ impl<'framework> Camera2d<'framework> {
 }
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct Camera2dUniformBlock {
+pub struct Camera2dUniformBlock {
     ortho_matrix: Matrix4<f32>,
 }
 

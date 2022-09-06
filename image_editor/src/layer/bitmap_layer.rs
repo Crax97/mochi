@@ -1,8 +1,8 @@
-use crate::framework::Framework;
 use cgmath::{num_traits::ToPrimitive, Vector2};
+use framework::Framework;
 use wgpu::{
-    BindGroup, ImageDataLayout, Sampler, SamplerDescriptor, Texture, TextureDescriptor,
-    TextureView, TextureViewDescriptor, TextureViewDimension,
+    ImageDataLayout, Sampler, SamplerDescriptor, Texture, TextureDescriptor, TextureView,
+    TextureViewDescriptor, TextureViewDimension,
 };
 
 pub struct BitmapLayerConfiguration {
@@ -111,15 +111,15 @@ impl BitmapLayer {
         &self.rgba_texture_view
     }
 
-    pub(crate) fn texture(&self) -> &Texture {
+    pub fn texture(&self) -> &Texture {
         &self.texture
     }
 
-    pub(crate) fn sampler(&self) -> &Sampler {
+    pub fn sampler(&self) -> &Sampler {
         &self.sampler
     }
 
-    pub(crate) fn size(&self) -> Vector2<f32> {
+    pub fn size(&self) -> Vector2<f32> {
         Vector2 {
             x: self.configuration.width as f32,
             y: self.configuration.height as f32,

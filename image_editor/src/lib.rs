@@ -1,15 +1,10 @@
 mod layer;
 
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{collections::HashMap, rc::Rc};
 
-use crate::{
-    framework::{
-        Camera2d, Camera2dUniformBlock, Framework, Mesh, MeshInstance2D, TypedBuffer,
-        TypedBufferConfiguration,
-    },
-    image_editor::layer::BitmapLayerConfiguration,
-};
 use cgmath::{point2, vec2};
+use framework::{Camera2d, Framework, Mesh, MeshInstance2D};
+use layer::BitmapLayerConfiguration;
 use wgpu::{
     ColorTargetState, CommandBuffer, CommandEncoderDescriptor, FragmentState,
     RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, VertexState,
@@ -98,7 +93,7 @@ impl<'framework> ImageEditor<'framework> {
 
         let module = framework
             .device
-            .create_shader_module(wgpu::include_wgsl!("../shaders/simple_shader.wgsl"));
+            .create_shader_module(wgpu::include_wgsl!("shaders/simple_shader.wgsl"));
 
         let bind_group_layout =
             framework
@@ -226,7 +221,6 @@ impl<'framework> ImageEditor<'framework> {
             let mut draw_context = LayerDrawContext {
                 render_pass: &mut render_pass,
                 assets: &self.assets,
-                framework: &self.framework,
             };
 
             for layer_node in self.document.tree_root.0.iter_mut() {
@@ -247,7 +241,7 @@ impl<'framework> ImageEditor<'framework> {
         command_encoder.finish()
     }
 
-    pub(crate) fn get_full_image_texture(&self) -> &BitmapLayer {
+    pub fn get_full_image_texture(&self) -> &BitmapLayer {
         &self.document.final_layer
     }
 }

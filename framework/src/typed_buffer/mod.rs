@@ -1,7 +1,7 @@
 use as_slice::AsSlice;
 use wgpu::{util::DeviceExt, BufferUsages, RenderPass};
 
-use super::Framework;
+use super::framework::Framework;
 
 #[derive(Copy, Clone, Debug)]
 pub enum BufferType {
@@ -96,7 +96,7 @@ impl<'framework> TypedBuffer<'framework> {
         };
     }
 
-    pub(crate) fn binding_resource(&self) -> wgpu::BufferBinding {
+    pub fn binding_resource(&self) -> wgpu::BufferBinding {
         self.buffer.as_entire_buffer_binding()
     }
 }

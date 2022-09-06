@@ -1,7 +1,7 @@
-use cgmath::{Point2, Point3, Vector2, Vector3};
+use cgmath::{Point2, Point3, Vector2};
 use wgpu::{util::DeviceExt, Buffer, RenderPass, VertexAttribute, VertexBufferLayout};
 
-use super::Framework;
+use super::framework::Framework;
 
 pub type Index = u16;
 const INDEX_FORMAT: wgpu::IndexFormat = wgpu::IndexFormat::Uint16;

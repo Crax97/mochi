@@ -2,7 +2,7 @@ use anyhow::Result;
 use log::*;
 use wgpu::*;
 
-use super::{TypedBuffer, TypedBufferConfiguration};
+use super::typed_buffer::{TypedBuffer, TypedBufferConfiguration};
 
 pub struct Framework {
     pub instance: wgpu::Instance,

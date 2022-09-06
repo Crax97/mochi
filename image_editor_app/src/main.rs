@@ -1,13 +1,9 @@
-mod framework;
-mod image_editor;
 use lazy_static::lazy_static;
-use log::error;
 
-use std::{cell::RefCell, rc::Rc};
+use std::rc::Rc;
 
 use cgmath::{point2, point3};
-use framework::Framework;
-use framework::*;
+use framework::{Framework, Mesh, MeshConstructionDetails, Vertex};
 use image_editor::*;
 
 use wgpu::{
@@ -350,4 +346,8 @@ fn main() {
     env_logger::init();
 
     let result = pollster::block_on(run_app());
+    match result {
+        Ok(()) => {}
+        Err(e) => panic!("Error while running application: {e}"),
+    };
 }
