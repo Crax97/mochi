@@ -1,4 +1,4 @@
-use cgmath::{vec3, Matrix4, SquareMatrix, Vector2, Vector3};
+use cgmath::{point2, point3, vec3, Matrix4, Point2, SquareMatrix, Vector2, Vector3};
 
 use super::super::transform::Transform2d;
 use framework::{
@@ -64,9 +64,27 @@ impl<'framework> Camera2d<'framework> {
         self.update_camera_buffer();
     }
 
+    pub fn set_position(&mut self, new_position: Point2<f32>) {
+        self.transform.position = point3(new_position.x, new_position.y, 0.0);
+        self.update_camera_buffer();
+    }
+
+    pub fn position(&self) -> Point2<f32> {
+        point2(self.transform.position.x, self.transform.position.y)
+    }
+
     pub fn scale(&mut self, delta: f32) {
         self.transform.scale(vec3(delta, delta, 0.0));
         self.update_camera_buffer();
+    }
+
+    pub fn set_scale(&mut self, new_scale: f32) {
+        self.transform.set_scale(vec3(new_scale, new_scale, 0.0));
+        self.update_camera_buffer();
+    }
+
+    pub fn current_scale(&self) -> f32 {
+        self.transform.scale.x
     }
 
     pub fn view(&self) -> Matrix4<f32> {

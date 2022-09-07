@@ -44,4 +44,17 @@ impl Transform2d {
             self.scale.z = 0.01;
         }
     }
+
+    pub(crate) fn set_scale(&mut self, new_scale: Vector3<f32>) {
+        self.scale = new_scale;
+        if self.scale.x <= 0.0 {
+            self.scale.x = 0.01;
+        }
+        if self.scale.y <= 0.0 {
+            self.scale.y = 0.01;
+        }
+        if self.scale.z <= 0.0 {
+            self.scale.z = 0.01;
+        }
+    }
 }
