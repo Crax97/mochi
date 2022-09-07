@@ -1,4 +1,4 @@
-use cgmath::{Matrix4, SquareMatrix, Vector3};
+use cgmath::{vec3, Matrix4, SquareMatrix, Vector2, Vector3};
 
 use super::super::transform::Transform2d;
 use framework::{
@@ -57,6 +57,11 @@ impl<'framework> Camera2d<'framework> {
 
     pub fn buffer(&self) -> &TypedBuffer {
         &self.camera_buffer
+    }
+
+    pub fn translate(&mut self, delta: Vector2<f32>) {
+        self.transform.translate(vec3(delta.x, delta.y, 0.0));
+        self.update_camera_buffer();
     }
 }
 #[repr(C)]

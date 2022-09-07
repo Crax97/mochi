@@ -1,6 +1,6 @@
 use std::{collections::HashMap, rc::Rc};
 
-use cgmath::{point2, vec2};
+use cgmath::{point2, vec2, vec3};
 use framework::{Framework, Mesh, MeshInstance2D};
 use scene::Camera2d;
 use wgpu::{
@@ -8,7 +8,7 @@ use wgpu::{
     RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, VertexState,
 };
 
-use crate::asset_library::AssetsLibrary;
+use crate::{asset_library::AssetsLibrary, ImageEditorEvent};
 
 use super::{
     document::Document,
@@ -171,6 +171,8 @@ impl<'framework> ImageEditor<'framework> {
         }
     }
 
+    pub fn emit_event(&mut self, event: ImageEditorEvent) {}
+
     pub fn on_resize(&mut self, new_bounds: [f32; 4]) {
         self.pan_camera.set_new_bounds(new_bounds);
     }
@@ -230,5 +232,9 @@ impl<'framework> ImageEditor<'framework> {
 
     pub fn get_full_image_texture(&self) -> &BitmapLayer {
         &self.document.final_layer
+    }
+
+    pub(crate) fn pan_camera(&mut self, delta: cgmath::Vector2<f32>) {
+        self.pan_camera.translate(delta);
     }
 }

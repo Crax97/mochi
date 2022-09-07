@@ -1,6 +1,7 @@
 mod app_state;
 
 use app_state::AppState;
+use cgmath::point2;
 use framework::Framework;
 use image_editor::*;
 use lazy_static::lazy_static;
@@ -10,7 +11,7 @@ use wgpu::{
     BindGroup, CommandBuffer, CommandEncoderDescriptor, RenderPassColorAttachment,
     RenderPassDescriptor, SurfaceTexture,
 };
-use winit::{dpi::PhysicalSize, event::WindowEvent, event_loop::ControlFlow};
+use winit::{dpi::PhysicalSize, event::{WindowEvent, MouseButton}, event_loop::ControlFlow};
 
 lazy_static! {
     static ref FRAMEWORK: Framework = pollster::block_on(async {
@@ -95,6 +96,8 @@ async fn run_app() -> anyhow::Result<()> {
                 },
             ],
         });
+        let mut hand_tool = HandTool::new();
+
 
     event_loop.run(move |event, _, control_flow| match event {
         winit::event::Event::WindowEvent { event, .. } => match event {
@@ -106,6 +109,26 @@ async fn run_app() -> anyhow::Result<()> {
             }
             WindowEvent::Resized(new_size) => {
                 app_state.on_resized(new_size, &mut image_editor);
+            }
+            WindowEvent::MouseInput { state, button, .. } => {
+                match state {
+                    winit::event::ElementState::Pressed => hand_tool.on_pointer_click(PointerClick {
+                        pointer_location: point2(0.0, 0.0),
+                    },                  
+                    EditorContext { image_editor: &mut image_editor }
+                )
+                    ,
+                    winit::event::ElementState::Released => hand_tool.on_pointer_release(PointerRelease  {
+                    },                  
+                    EditorContext { image_editor: &mut image_editor }
+                ),
+                }
+            }
+            WindowEvent::CursorMoved { position,  .. } => {
+                hand_tool.on_pointer_move(PointerMove {
+                    new_pointer_location: point2(position.x as f32, position.y as f32),
+                    
+                }, EditorContext { image_editor: &mut image_editor })
             }
             _ => {}
         },

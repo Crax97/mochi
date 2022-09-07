@@ -48,8 +48,6 @@ name = "app"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "as-slice",
- "bytemuck",
  "cgmath",
  "env_logger",
  "framework",
@@ -58,7 +56,6 @@ dependencies = [
  "lazy_static",
  "log",
  "pollster",
- "raw-window-handle 0.4.3",
  "wgpu",
  "winit",
 ]
@@ -549,11 +546,7 @@ dependencies = [
  "bytemuck",
  "cgmath",
  "env_logger",
- "image",
- "lazy_static",
  "log",
- "pollster",
- "raw-window-handle 0.4.3",
  "wgpu",
  "winit",
 ]
@@ -706,20 +699,14 @@ dependencies = [
 name = "image_editor"
 version = "0.1.0"
 dependencies = [
- "anyhow",
- "as-slice",
  "bytemuck",
  "cgmath",
  "env_logger",
  "framework",
  "image",
- "lazy_static",
  "log",
- "pollster",
- "raw-window-handle 0.4.3",
  "scene",
  "wgpu",
- "winit",
 ]
 
 [[package]]
