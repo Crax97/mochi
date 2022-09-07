@@ -66,8 +66,8 @@ impl<'framework> ImageEditor<'framework> {
                 Layer::new_bitmap(
                     test_layer,
                     LayerCreationInfo {
-                        position: point2(0.5, 0.0),
-                        scale: vec2(0.1, 0.1),
+                        position: point2(0.0, 0.0),
+                        scale: vec2(1.0, 1.0),
                         rotation_radians: 0.0,
                         camera_buffer: pan_camera.buffer(),
                     },
