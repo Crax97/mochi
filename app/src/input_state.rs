@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use cgmath::{Point2, Vector1, Vector2};
+use cgmath::{Point2, Vector2};
 use winit::{
     dpi::{PhysicalPosition, PhysicalSize},
     event::{ElementState, MouseButton, MouseScrollDelta},
@@ -12,7 +12,7 @@ pub(crate) struct InputState {
     last_update_cursor_position: PhysicalPosition<f32>,
     current_pointer_pressure: f32,
     window_size: PhysicalSize<u32>,
-    current_wheel_delta: MouseScrollDelta,
+    current_wheel_delta: f32,
 
     pointer_button_state: HashMap<MouseButton, ElementState>,
     last_button_state: HashMap<MouseButton, ElementState>,
@@ -25,7 +25,7 @@ impl Default for InputState {
             last_update_cursor_position: Default::default(),
             current_pointer_pressure: Default::default(),
             window_size: Default::default(),
-            current_wheel_delta: MouseScrollDelta::LineDelta(0.0, 0.0),
+            current_wheel_delta: 0.0,
             pointer_button_state: Default::default(),
             last_button_state: Default::default(),
         }
@@ -35,6 +35,7 @@ impl Default for InputState {
 impl InputState {
     pub(crate) fn update(&mut self, event: &winit::event::Event<()>) {
         self.last_button_state = self.pointer_button_state.clone();
+        self.current_wheel_delta = 0.0;
         match event {
             winit::event::Event::WindowEvent { event, .. } => match event {
                 winit::event::WindowEvent::Resized(new_size) => self.window_size = *new_size,
@@ -55,7 +56,11 @@ impl InputState {
                     self.current_cursor_position = position.cast::<f32>();
                 }
                 winit::event::WindowEvent::MouseWheel { delta, .. } => {
-                    self.current_wheel_delta = *delta;
+                    self.current_wheel_delta = match delta {
+                        MouseScrollDelta::LineDelta(_, y) => *y,
+                        MouseScrollDelta::PixelDelta(pos) => pos.y as f32,
+                    } / self.window_size.height as f32
+                        * 0.5;
                 }
                 winit::event::WindowEvent::MouseInput { state, button, .. } => {
                     self.pointer_button_state
@@ -135,5 +140,9 @@ impl InputState {
         self.pointer_button_state
             .get(&button)
             .map_or(false, |btn| btn == &ElementState::Released)
+    }
+
+    pub(crate) fn mouse_wheel_delta(&self) -> f32 {
+        self.current_wheel_delta
     }
 }

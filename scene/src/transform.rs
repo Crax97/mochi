@@ -34,5 +34,14 @@ impl Transform2d {
     }
     pub fn scale(&mut self, delta: Vector3<f32>) {
         self.scale += delta;
+        if self.scale.x <= 0.0 {
+            self.scale.x = 0.01;
+        }
+        if self.scale.y <= 0.0 {
+            self.scale.y = 0.01;
+        }
+        if self.scale.z <= 0.0 {
+            self.scale.z = 0.01;
+        }
     }
 }

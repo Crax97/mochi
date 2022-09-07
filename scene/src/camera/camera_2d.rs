@@ -64,6 +64,11 @@ impl<'framework> Camera2d<'framework> {
         self.update_camera_buffer();
     }
 
+    pub fn scale(&mut self, delta: f32) {
+        self.transform.scale(vec3(delta, delta, 0.0));
+        self.update_camera_buffer();
+    }
+
     pub fn view(&self) -> Matrix4<f32> {
         Matrix4::from_translation(Vector3 {
             x: self.transform.position.x,

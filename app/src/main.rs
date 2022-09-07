@@ -2,7 +2,6 @@ mod app_state;
 mod input_state;
 
 use app_state::AppState;
-use cgmath::point2;
 use framework::Framework;
 use image_editor::*;
 use input_state::InputState;
@@ -157,7 +156,10 @@ async fn run_app() -> anyhow::Result<()> {
         } else {
             hand_tool.on_pointer_move(PointerMove {new_pointer_location: input_state.normalized_mouse_position(), delta_normalized: input_state.normalized_mouse_delta()}, EditorContext { image_editor: &mut image_editor })
         }
-
+        
+        if input_state.mouse_wheel_delta().abs() > 0.0 {
+            image_editor.scale_view(input_state.mouse_wheel_delta());
+        }
 });
     
 }

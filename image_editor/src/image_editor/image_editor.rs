@@ -238,6 +238,10 @@ impl<'framework> ImageEditor<'framework> {
         self.pan_camera.translate(delta);
     }
 
+    pub fn scale_view(&mut self, delta: f32) {
+        self.pan_camera.scale(delta);
+    }
+
     pub(crate) fn ndc_vector_into_world(&self, vector: Vector2<f32>) -> Vector2<f32> {
         let inv_view_camera = self
             .pan_camera
