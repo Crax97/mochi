@@ -66,9 +66,11 @@ impl<'framework> ImageEditor<'framework> {
         } * 0.25;
         println!("Initial scale: {initial_camera_scale}");
         pan_camera.set_scale(initial_camera_scale);
+
+        let test_layer_index = LayerIndex(0);
         let test_document = Document {
             layers: HashMap::from_iter(std::iter::once((
-                LayerIndex(123),
+                test_layer_index,
                 Layer::new_bitmap(
                     test_layer,
                     LayerCreationInfo {
@@ -80,8 +82,9 @@ impl<'framework> ImageEditor<'framework> {
                     &framework,
                 ),
             ))),
-            tree_root: RootLayer(vec![LayerTree::SingleLayer(LayerIndex(123))]),
+            tree_root: RootLayer(vec![LayerTree::SingleLayer(test_layer_index)]),
             final_layer,
+            current_layer_index: test_layer_index,
         };
 
         let module = framework
@@ -272,5 +275,9 @@ impl<'framework> ImageEditor<'framework> {
             .expect("Invalid transform matrix!");
         let v4 = inv_view_camera * vec4(pos.x, pos.y, 0.0, 1.0);
         point2(v4.x, v4.y) * 1.0 / self.pan_camera.current_scale()
+    }
+
+    pub(crate) fn selected_layer(&self) -> &Layer {
+        self.document.current_layer()
     }
 }

@@ -3,7 +3,7 @@ mod input_state;
 
 use app_state::AppState;
 use framework::Framework;
-use image_editor::*;
+use image_editor::{*, stamping_engine::StrokingEngine};
 use input_state::InputState;
 use lazy_static::lazy_static;
 
@@ -98,6 +98,7 @@ async fn run_app() -> anyhow::Result<()> {
                 },
             ],
         });
+        let mut brush_tool = BrushTool::new(Box::new(StrokingEngine{}), 5.0);
         let mut hand_tool = HandTool::new();
 
 
@@ -150,11 +151,11 @@ async fn run_app() -> anyhow::Result<()> {
         _ => {}
     }
         if input_state.is_mouse_button_just_pressed(MouseButton::Left) {
-            hand_tool.on_pointer_click(PointerClick {pointer_location: input_state.normalized_mouse_position()}, EditorContext { image_editor: &mut image_editor })
+            brush_tool.on_pointer_click(PointerClick {pointer_location: input_state.normalized_mouse_position()}, EditorContext { image_editor: &mut image_editor })
         } else if input_state.is_mouse_button_just_released(MouseButton::Left) {
-            hand_tool.on_pointer_release(PointerRelease {}, EditorContext { image_editor: &mut image_editor })
+            brush_tool.on_pointer_release(PointerRelease {}, EditorContext { image_editor: &mut image_editor })
         } else {
-            hand_tool.on_pointer_move(PointerMove {new_pointer_location: input_state.normalized_mouse_position(), delta_normalized: input_state.normalized_mouse_delta()}, EditorContext { image_editor: &mut image_editor })
+            brush_tool.on_pointer_move(PointerMove {new_pointer_location: input_state.normalized_mouse_position(), delta_normalized: input_state.normalized_mouse_delta()}, EditorContext { image_editor: &mut image_editor })
         }
         
         if input_state.mouse_wheel_delta().abs() > 0.0 {
