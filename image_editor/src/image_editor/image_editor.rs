@@ -8,7 +8,7 @@ use wgpu::{
     RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, VertexState,
 };
 
-use crate::{asset_library::AssetsLibrary, ImageEditorEvent};
+use crate::asset_library::AssetsLibrary;
 
 use super::{
     document::Document,
@@ -177,8 +177,6 @@ impl<'framework> ImageEditor<'framework> {
         }
     }
 
-    pub fn emit_event(&mut self, event: ImageEditorEvent) {}
-
     pub fn on_resize(&mut self, new_bounds: [f32; 4]) {
         self.pan_camera.set_new_bounds(new_bounds);
     }
@@ -253,7 +251,8 @@ impl<'framework> ImageEditor<'framework> {
     }
 
     pub fn scale_view(&mut self, delta: f32) {
-        self.pan_camera.scale(delta);
+        const SCALE_SPEED: f32 = 4.0; // TODO: Make this customizable
+        self.pan_camera.scale(delta * SCALE_SPEED);
     }
 
     pub(crate) fn ndc_vector_into_world(&self, vector: Vector2<f32>) -> Vector2<f32> {

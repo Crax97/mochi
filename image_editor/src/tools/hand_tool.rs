@@ -1,6 +1,5 @@
-use cgmath::{point2, vec3, Point2};
-
-use crate::{EditorContext, ImageEditor};
+use crate::tools::{EditorContext, PointerClick, PointerMove, PointerRelease};
+use cgmath::{point2, Point2};
 
 use super::tool::Tool;
 
@@ -22,7 +21,7 @@ impl Tool for HandTool {
     fn on_pointer_click(
         &mut self,
         pointer_click: super::tool::PointerClick,
-        context: EditorContext,
+        _context: EditorContext,
     ) {
         self.is_active = true;
         self.last_frame_location = pointer_click.pointer_location;
@@ -43,11 +42,7 @@ impl Tool for HandTool {
         self.last_frame_location = pointer_motion.new_pointer_location;
     }
 
-    fn on_pointer_release(
-        &mut self,
-        pointer_release: crate::PointerRelease,
-        context: EditorContext,
-    ) {
+    fn on_pointer_release(&mut self, _pointer_release: PointerRelease, _context: EditorContext) {
         self.is_active = false;
     }
 }
