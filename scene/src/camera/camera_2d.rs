@@ -63,6 +63,27 @@ impl<'framework> Camera2d<'framework> {
         self.transform.translate(vec3(delta.x, delta.y, 0.0));
         self.update_camera_buffer();
     }
+
+    pub fn view(&self) -> Matrix4<f32> {
+        Matrix4::from_translation(Vector3 {
+            x: self.transform.position.x,
+            y: self.transform.position.y,
+            z: self.transform.position.z,
+        }) * Matrix4::from_angle_z(self.transform.rotation_radians)
+            * Matrix4::from_nonuniform_scale(
+                self.transform.scale.x,
+                self.transform.scale.y,
+                self.transform.scale.z,
+            )
+    }
+
+    pub fn projection(&self) -> Matrix4<f32> {
+        let lrtb = &self.left_right_top_bottom;
+        cgmath::ortho(lrtb[0], lrtb[1], lrtb[3], lrtb[2], self.near, self.far)
+    }
+    pub fn view_projection(&self) -> Matrix4<f32> {
+        self.projection() * self.view()
+    }
 }
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
@@ -75,22 +96,8 @@ unsafe impl bytemuck::Zeroable for Camera2dUniformBlock {}
 
 impl From<&Camera2d<'_>> for Camera2dUniformBlock {
     fn from(camera: &Camera2d) -> Self {
-        let transform = &camera.transform;
-        let lrtb = &camera.left_right_top_bottom;
-        let view = Matrix4::from_translation(Vector3 {
-            x: -transform.position.x,
-            y: -transform.position.y,
-            z: transform.position.z,
-        }) * Matrix4::from_angle_z(transform.rotation_radians)
-            * Matrix4::from_nonuniform_scale(
-                transform.scale.x,
-                transform.scale.y,
-                transform.scale.z,
-            );
-        let projection = cgmath::ortho(lrtb[0], lrtb[1], lrtb[3], lrtb[2], camera.near, camera.far);
-
         Self {
-            ortho_matrix: projection * view,
+            ortho_matrix: camera.view_projection(),
         }
     }
 }

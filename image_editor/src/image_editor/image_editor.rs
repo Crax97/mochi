@@ -1,6 +1,6 @@
 use std::{collections::HashMap, rc::Rc};
 
-use cgmath::{point2, vec2, vec3};
+use cgmath::{point2, vec2, vec3, vec4, ElementWise, Point2, Transform, Vector2};
 use framework::{Framework, Mesh, MeshInstance2D};
 use scene::Camera2d;
 use wgpu::{
@@ -236,5 +236,24 @@ impl<'framework> ImageEditor<'framework> {
 
     pub(crate) fn pan_camera(&mut self, delta: cgmath::Vector2<f32>) {
         self.pan_camera.translate(delta);
+    }
+
+    pub(crate) fn ndc_vector_into_world(&self, vector: Vector2<f32>) -> Vector2<f32> {
+        let inv_view_camera = self
+            .pan_camera
+            .view_projection()
+            .inverse_transform()
+            .expect("Invalid transform matrix!");
+        let v4 = inv_view_camera * vec4(vector.x, vector.y, 0.0, 0.0);
+        vec2(v4.x, v4.y)
+    }
+    pub(crate) fn ndc_position_into_world(&self, pos: Point2<f32>) -> Point2<f32> {
+        let inv_view_camera = self
+            .pan_camera
+            .view_projection()
+            .inverse_transform()
+            .expect("Invalid transform matrix!");
+        let v4 = inv_view_camera * vec4(pos.x, pos.y, 0.0, 1.0);
+        point2(v4.x, v4.y)
     }
 }

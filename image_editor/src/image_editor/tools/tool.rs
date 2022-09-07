@@ -1,4 +1,4 @@
-use cgmath::Point2;
+use cgmath::{Point2, Vector2};
 
 use crate::ImageEditor;
 
@@ -13,6 +13,7 @@ pub struct PointerClick {
 #[derive(Debug, Clone, Copy)]
 pub struct PointerMove {
     pub new_pointer_location: Point2<f32>,
+    pub delta_normalized: Vector2<f32>,
 }
 #[derive(Debug, Clone, Copy)]
 pub struct PointerRelease {}

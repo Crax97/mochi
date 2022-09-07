@@ -36,10 +36,13 @@ impl Tool for HandTool {
         if !self.is_active {
             return;
         }
-        let delta = pointer_motion.new_pointer_location - self.last_frame_location;
-        let camera = context.image_editor.pan_camera(delta);
+        const SPEED_MULT: f32 = 0.01;
+        let scaled_movement = context
+            .image_editor
+            .ndc_vector_into_world(pointer_motion.delta_normalized)
+            * SPEED_MULT;
+        context.image_editor.pan_camera(scaled_movement);
         self.last_frame_location = pointer_motion.new_pointer_location;
-        println!("Mouse move! {:?}", pointer_motion)
     }
 
     fn on_pointer_release(

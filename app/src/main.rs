@@ -1,9 +1,11 @@
 mod app_state;
+mod input_state;
 
 use app_state::AppState;
 use cgmath::point2;
 use framework::Framework;
 use image_editor::*;
+use input_state::InputState;
 use lazy_static::lazy_static;
 
 use log::info;
@@ -44,6 +46,7 @@ async fn run_app() -> anyhow::Result<()> {
         .build(&event_loop)?;
 
     let app_state = AppState::new(window, &FRAMEWORK);
+    let mut input_state = InputState::default();
     let mut image_editor = ImageEditor::new(
         &FRAMEWORK,
         app_state.assets.clone(),
@@ -99,7 +102,9 @@ async fn run_app() -> anyhow::Result<()> {
         let mut hand_tool = HandTool::new();
 
 
-    event_loop.run(move |event, _, control_flow| match event {
+    event_loop.run(move |event, _, control_flow| {
+        input_state.update(&event);
+        match event {
         winit::event::Event::WindowEvent { event, .. } => match event {
             WindowEvent::CloseRequested => {
                 // if app.handle_on_close_requested() == AppFlow::Exit {
@@ -109,26 +114,6 @@ async fn run_app() -> anyhow::Result<()> {
             }
             WindowEvent::Resized(new_size) => {
                 app_state.on_resized(new_size, &mut image_editor);
-            }
-            WindowEvent::MouseInput { state, button, .. } => {
-                match state {
-                    winit::event::ElementState::Pressed => hand_tool.on_pointer_click(PointerClick {
-                        pointer_location: point2(0.0, 0.0),
-                    },                  
-                    EditorContext { image_editor: &mut image_editor }
-                )
-                    ,
-                    winit::event::ElementState::Released => hand_tool.on_pointer_release(PointerRelease  {
-                    },                  
-                    EditorContext { image_editor: &mut image_editor }
-                ),
-                }
-            }
-            WindowEvent::CursorMoved { position,  .. } => {
-                hand_tool.on_pointer_move(PointerMove {
-                    new_pointer_location: point2(position.x as f32, position.y as f32),
-                    
-                }, EditorContext { image_editor: &mut image_editor })
             }
             _ => {}
         },
@@ -164,7 +149,17 @@ async fn run_app() -> anyhow::Result<()> {
             current_texture.present();
         }
         _ => {}
-    });
+    }
+        if input_state.is_mouse_button_just_pressed(MouseButton::Left) {
+            hand_tool.on_pointer_click(PointerClick {pointer_location: input_state.normalized_mouse_position()}, EditorContext { image_editor: &mut image_editor })
+        } else if input_state.is_mouse_button_just_released(MouseButton::Left) {
+            hand_tool.on_pointer_release(PointerRelease {}, EditorContext { image_editor: &mut image_editor })
+        } else {
+            hand_tool.on_pointer_move(PointerMove {new_pointer_location: input_state.normalized_mouse_position(), delta_normalized: input_state.normalized_mouse_delta()}, EditorContext { image_editor: &mut image_editor })
+        }
+
+});
+    
 }
 
 fn render_into_texture(current_texture: &SurfaceTexture, app_state: &AppState, bind_group: &BindGroup) -> CommandBuffer {
