@@ -1,6 +1,10 @@
 use cgmath::{point2, Point2};
+use wgpu::CommandEncoderDescriptor;
 
-use crate::tools::{EditorContext, PointerClick, PointerMove};
+use crate::{
+    tools::{EditorContext, PointerClick, PointerMove},
+    StrokeContext,
+};
 
 use super::{BrushEngine, StrokePath, Tool};
 
@@ -42,8 +46,20 @@ impl Tool for BrushTool {
             new_pointer_position,
             self.step,
         );
-        self.engine
-            .stroke(context.image_editor.selected_layer(), path);
+        let framework = context.image_editor.framework();
+        let mut encoder = framework
+            .device
+            .create_command_encoder(&CommandEncoderDescriptor {
+                label: Some("BrushTool stroke rendering"),
+            });
+
+        let context = StrokeContext {
+            layer: context.image_editor.selected_layer(),
+            command_encoder: &mut encoder,
+            assets: context.image_editor.assets(),
+        };
+        self.engine.stroke(path, context);
+        framework.queue.submit(std::iter::once(encoder.finish()));
     }
 
     fn on_pointer_release(
@@ -53,4 +69,8 @@ impl Tool for BrushTool {
     ) {
         self.is_active = false
     }
+
+    fn on_selected(&mut self, context: EditorContext) {}
+
+    fn on_deselected(&mut self, context: EditorContext) {}
 }

@@ -1,16 +1,23 @@
 pub mod stamping_engine;
 
 use cgmath::{InnerSpace, MetricSpace, Point2};
+use wgpu::CommandEncoder;
 
-use crate::layers::Layer;
+use crate::{layers::Layer, AssetsLibrary};
 
 #[derive(Debug)]
 pub struct StrokePath {
     pub points: Vec<Point2<f32>>,
 }
 
+pub struct StrokeContext<'editor, 'stroke> {
+    pub layer: &'editor Layer<'editor>,
+    pub command_encoder: &'stroke mut CommandEncoder,
+    pub assets: &'editor AssetsLibrary,
+}
+
 pub trait BrushEngine {
-    fn stroke(&self, layer: &Layer, path: StrokePath);
+    fn stroke(&mut self, path: StrokePath, context: StrokeContext);
 }
 impl StrokePath {
     pub(crate) fn linear_start_to_end(start: Point2<f32>, end: Point2<f32>, step: f32) -> Self {

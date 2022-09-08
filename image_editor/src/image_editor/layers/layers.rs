@@ -2,7 +2,7 @@ use cgmath::{Point2, Vector2};
 use framework::{Framework, MeshInstance2D, TypedBuffer, TypedBufferConfiguration};
 use wgpu::{BindGroup, RenderPass};
 
-use crate::asset_library::AssetsLibrary;
+use crate::{asset_library::AssetsLibrary, MeshNames};
 
 use super::{bitmap_layer, BitmapLayer};
 
@@ -110,10 +110,7 @@ impl<'framework> Layer<'framework> {
             bind_group,
         }
     }
-    pub(crate) fn draw<'draw_call, 'b>(
-        &'draw_call self,
-        draw_context: &mut LayerDrawContext<'draw_call, 'b>,
-    ) {
+    pub(crate) fn update(&mut self) {
         match &self.layer_type {
             LayerType::Bitmap(bitmap_layer) => {
                 let real_scale = Vector2 {
@@ -125,13 +122,22 @@ impl<'framework> Layer<'framework> {
                     scale: real_scale,
                     rotation: self.rotation_radians,
                 }]);
+            }
+        }
+    }
+    pub(crate) fn draw<'draw_call, 'b>(
+        &'draw_call self,
+        draw_context: &mut LayerDrawContext<'draw_call, 'b>,
+    ) {
+        match &self.layer_type {
+            LayerType::Bitmap(_) => {
                 self.instance_buffer.bind(1, draw_context.render_pass);
                 draw_context
                     .render_pass
                     .set_bind_group(0, &self.bind_group, &[]);
                 draw_context
                     .assets
-                    .quad_mesh
+                    .mesh(MeshNames::QUAD)
                     .draw(draw_context.render_pass, 1);
             }
         }

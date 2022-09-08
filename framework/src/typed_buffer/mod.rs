@@ -1,3 +1,5 @@
+use std::cell::RefCell;
+
 use as_slice::AsSlice;
 use wgpu::{util::DeviceExt, BufferUsages, RenderPass};
 
@@ -13,10 +15,19 @@ pub enum BufferType {
     Storage,
 }
 
-pub struct TypedBuffer<'framework> {
-    buffer: wgpu::Buffer,
-    buffer_type: BufferType,
+struct BufferInfo {
+    pub buffer: wgpu::Buffer,
+    pub num_items: usize,
+}
 
+pub struct InnerBufferConfiguration {
+    pub buffer_type: BufferType,
+    pub allow_write: bool,
+    pub allow_read: bool,
+}
+pub struct TypedBuffer<'framework> {
+    buffer: BufferInfo,
+    configuration: InnerBufferConfiguration,
     owner_framework: &'framework Framework,
 }
 
@@ -37,58 +48,92 @@ pub struct TypedBufferConfiguration<T> {
     pub allow_read: bool,
 }
 
+fn recreate_buffer<T: AsSlice>(
+    data: &T,
+    config: &InnerBufferConfiguration,
+    framework: &'_ Framework,
+) -> BufferInfo
+where
+    T::Element: bytemuck::Pod + bytemuck::Zeroable,
+{
+    use std::mem;
+    let buffer_usage: BufferUsages = config.buffer_type.into();
+    let usage: BufferUsages = buffer_usage
+        | if config.allow_write {
+            wgpu::BufferUsages::MAP_WRITE | wgpu::BufferUsages::COPY_DST
+        } else {
+            wgpu::BufferUsages::empty()
+        }
+        | if config.allow_write {
+            wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_SRC
+        } else {
+            wgpu::BufferUsages::empty()
+        };
+    let buffer = if data.as_slice().len() > 0 {
+        framework
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: None,
+                contents: &bytemuck::cast_slice(data.as_slice()),
+                usage,
+            })
+    } else {
+        framework.device.create_buffer(&wgpu::BufferDescriptor {
+            label: None,
+            size: mem::size_of::<T>() as u64,
+            usage,
+            mapped_at_creation: false,
+        })
+    };
+    BufferInfo {
+        buffer,
+        num_items: data.as_slice().len(),
+    }
+}
+
 impl<'framework> TypedBuffer<'framework> {
     pub fn new<T: bytemuck::Pod + bytemuck::Zeroable>(
         framework: &'framework Framework,
         initial_configuration: TypedBufferConfiguration<T>,
     ) -> Self {
-        use std::mem;
-        let buffer_usage: BufferUsages = initial_configuration.buffer_type.into();
-        let usage: BufferUsages = buffer_usage
-            | if initial_configuration.allow_write {
-                wgpu::BufferUsages::MAP_WRITE | wgpu::BufferUsages::COPY_DST
-            } else {
-                wgpu::BufferUsages::empty()
-            }
-            | if initial_configuration.allow_write {
-                wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_SRC
-            } else {
-                wgpu::BufferUsages::empty()
-            };
-        let buffer = if initial_configuration.initial_data.len() > 0 {
-            framework
-                .device
-                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: None,
-                    contents: &bytemuck::cast_slice(&initial_configuration.initial_data),
-                    usage,
-                })
-        } else {
-            framework.device.create_buffer(&wgpu::BufferDescriptor {
-                label: None,
-                size: mem::size_of::<T>() as u64,
-                usage,
-                mapped_at_creation: false,
-            })
-        };
-        TypedBuffer {
-            buffer,
+        let configuration = InnerBufferConfiguration {
+            allow_read: initial_configuration.allow_read,
+            allow_write: initial_configuration.allow_write,
             buffer_type: initial_configuration.buffer_type,
+        };
+        let buffer = recreate_buffer(
+            &initial_configuration.initial_data.as_slice(),
+            &configuration,
+            framework,
+        );
+        TypedBuffer {
+            buffer: buffer,
+            configuration,
             owner_framework: framework,
         }
     }
 
-    pub fn write_sync<T: AsSlice>(&self, data: &T)
+    pub fn write_sync<T: AsSlice>(&mut self, data: &T)
     where
         T::Element: bytemuck::Pod + bytemuck::Zeroable,
     {
         let queue = &self.owner_framework.queue;
-        queue.write_buffer(&self.buffer, 0, &bytemuck::cast_slice(&data.as_slice()));
+        let length = data.as_slice().len();
+        let current_items = self.buffer.num_items;
+        if length > current_items {
+            self.buffer = recreate_buffer(data, &self.configuration, self.owner_framework);
+        }
+        let buffer = &self.buffer.buffer;
+        queue.write_buffer(&buffer, 0, &bytemuck::cast_slice(&data.as_slice()));
     }
 
     pub fn bind<'a>(&'a self, index: u32, render_pass: &mut RenderPass<'a>) {
-        match self.buffer_type {
-            BufferType::Vertex => render_pass.set_vertex_buffer(index, self.buffer.slice(..)),
+        match self.configuration.buffer_type {
+            BufferType::Vertex => {
+                let buffer = &self.buffer.buffer;
+
+                render_pass.set_vertex_buffer(index, buffer.slice(..));
+            }
             BufferType::Uniform => {
                 panic!("Uniform buffers should be set by using the associated bind group!")
             }
@@ -97,6 +142,7 @@ impl<'framework> TypedBuffer<'framework> {
     }
 
     pub fn binding_resource(&self) -> wgpu::BufferBinding {
-        self.buffer.as_entire_buffer_binding()
+        let buffer = &self.buffer.buffer;
+        buffer.as_entire_buffer_binding()
     }
 }

@@ -53,7 +53,11 @@ impl InputState {
                 winit::event::WindowEvent::ModifiersChanged(_) => {}
                 winit::event::WindowEvent::CursorMoved { position, .. } => {
                     self.last_update_cursor_position = self.current_cursor_position;
-                    self.current_cursor_position = position.cast::<f32>();
+                    let mouse_position = position.cast::<f32>();
+                    self.current_cursor_position = PhysicalPosition {
+                        x: mouse_position.x,
+                        y: mouse_position.y,
+                    };
                 }
                 winit::event::WindowEvent::MouseWheel { delta, .. } => {
                     self.current_wheel_delta = match delta {

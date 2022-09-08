@@ -25,36 +25,6 @@ impl<'framework> AppState<'framework> {
         };
         final_surface.configure(&framework.device, &final_surface_configuration);
 
-        let quad_mesh_vertices = [
-            Vertex {
-                position: point3(-1.0, 1.0, 0.0),
-                tex_coords: point2(0.0, 1.0),
-            },
-            Vertex {
-                position: point3(1.0, 1.0, 0.0),
-                tex_coords: point2(1.0, 1.0),
-            },
-            Vertex {
-                position: point3(-1.0, -1.0, 0.0),
-                tex_coords: point2(0.0, 0.0),
-            },
-            Vertex {
-                position: point3(1.0, -1.0, 0.0),
-                tex_coords: point2(1.0, 0.0),
-            },
-        ]
-        .into();
-
-        let indices = [0u16, 1, 2, 2, 1, 3].into();
-        let quad_mesh = Mesh::new(
-            &framework,
-            MeshConstructionDetails {
-                vertices: quad_mesh_vertices,
-                indices,
-                allow_editing: false,
-            },
-        );
-
         let module = framework
             .device
             .create_shader_module(wgpu::include_wgsl!("shaders/final_present.wgsl"));
@@ -128,11 +98,9 @@ impl<'framework> AppState<'framework> {
                         unclipped_depth: false,
                     },
                 });
-
-        let assets = Rc::new(AssetsLibrary {
-            quad_mesh,
-            final_present_pipeline,
-        });
+        let mut library = AssetsLibrary::new(framework);
+        library.add_pipeline(AppPipelineNames::FINAL_RENDER, final_present_pipeline);
+        let assets = Rc::new(library);
         Self {
             window,
             assets: assets.clone(),
@@ -170,4 +138,8 @@ impl<'framework> AppState<'framework> {
             .configure(&self.framework.device, &new_surface_configuration);
         image_editor.on_resize(left_right_top_bottom);
     }
+}
+
+pub mod AppPipelineNames {
+    pub const FINAL_RENDER: &'static str = "FINAL_RENDER";
 }

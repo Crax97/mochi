@@ -1,14 +1,14 @@
 use std::{collections::HashMap, rc::Rc};
 
 use cgmath::{point2, vec2, vec3, vec4, ElementWise, Point2, Transform, Vector2};
-use framework::{Framework, Mesh, MeshInstance2D};
+use framework::{Framework, Mesh, MeshInstance2D, TypedBuffer};
 use scene::Camera2d;
 use wgpu::{
     ColorTargetState, CommandBuffer, CommandEncoderDescriptor, FragmentState,
     RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, VertexState,
 };
 
-use crate::asset_library::AssetsLibrary;
+use crate::{asset_library::AssetsLibrary, PipelineNames};
 
 use super::{
     document::Document,
@@ -24,7 +24,6 @@ pub struct ImageEditor<'framework> {
     pan_camera: Camera2d<'framework>,
 
     document: Document<'framework>,
-    simple_diffuse_pipeline: RenderPipeline,
 }
 
 impl<'framework> ImageEditor<'framework> {
@@ -87,101 +86,26 @@ impl<'framework> ImageEditor<'framework> {
             current_layer_index: test_layer_index,
         };
 
-        let module = framework
-            .device
-            .create_shader_module(wgpu::include_wgsl!("../shaders/simple_shader.wgsl"));
-
-        let bind_group_layout =
-            framework
-                .device
-                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    label: Some("Simple shader layout"),
-                    entries: &[
-                        wgpu::BindGroupLayoutEntry {
-                            binding: 0,
-                            visibility: wgpu::ShaderStages::FRAGMENT,
-                            ty: wgpu::BindingType::Texture {
-                                sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                                view_dimension: wgpu::TextureViewDimension::D2,
-                                multisampled: false,
-                            },
-                            count: None,
-                        },
-                        wgpu::BindGroupLayoutEntry {
-                            binding: 1,
-                            visibility: wgpu::ShaderStages::FRAGMENT,
-                            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                            count: None,
-                        },
-                        wgpu::BindGroupLayoutEntry {
-                            binding: 2,
-                            visibility: wgpu::ShaderStages::VERTEX,
-                            ty: wgpu::BindingType::Buffer {
-                                ty: wgpu::BufferBindingType::Uniform,
-                                has_dynamic_offset: false,
-                                min_binding_size: None,
-                            },
-                            count: None,
-                        },
-                    ],
-                });
-        let render_pipeline_layout =
-            framework
-                .device
-                .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label: Some("Simple Render Pipeline Layout"),
-                    bind_group_layouts: &[&bind_group_layout],
-                    push_constant_ranges: &[],
-                });
-
-        let simple_diffuse_pipeline =
-            framework
-                .device
-                .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                    label: Some("Simple render pipeline"),
-                    layout: Some(&render_pipeline_layout),
-                    depth_stencil: None,
-                    vertex: VertexState {
-                        module: &module,
-                        entry_point: "vs",
-                        buffers: &[Mesh::layout(), MeshInstance2D::layout()],
-                    },
-                    fragment: Some(FragmentState {
-                        module: &module,
-                        entry_point: "fs",
-                        targets: &[Some(ColorTargetState {
-                            format: wgpu::TextureFormat::Rgba8UnormSrgb,
-                            blend: Some(wgpu::BlendState::REPLACE),
-                            write_mask: wgpu::ColorWrites::ALL,
-                        })],
-                    }),
-                    multisample: wgpu::MultisampleState {
-                        count: 1,
-                        mask: !0,
-                        alpha_to_coverage_enabled: false,
-                    },
-                    multiview: None,
-                    primitive: wgpu::PrimitiveState {
-                        topology: wgpu::PrimitiveTopology::TriangleList,
-                        strip_index_format: None,
-                        front_face: wgpu::FrontFace::Cw,
-                        conservative: false,
-                        cull_mode: Some(wgpu::Face::Back),
-                        polygon_mode: wgpu::PolygonMode::Fill,
-                        unclipped_depth: false,
-                    },
-                });
         ImageEditor {
             framework,
             assets,
             pan_camera,
             document: test_document,
-            simple_diffuse_pipeline,
         }
+    }
+
+    pub fn framework(&'framework self) -> &'framework Framework {
+        self.framework
     }
 
     pub fn on_resize(&mut self, new_bounds: [f32; 4]) {
         self.pan_camera.set_new_bounds(new_bounds);
+    }
+
+    pub fn update_layers(&mut self) {
+        for (_, layer) in self.document.layers.iter_mut() {
+            layer.update();
+        }
     }
 
     pub fn redraw_full_image(&mut self) -> CommandBuffer {
@@ -212,14 +136,14 @@ impl<'framework> ImageEditor<'framework> {
 
         {
             let mut render_pass = command_encoder.begin_render_pass(&render_pass_description);
-            render_pass.set_pipeline(&self.simple_diffuse_pipeline);
+            render_pass.set_pipeline(&self.assets.pipeline(PipelineNames::SIMPLE_TEXTURED));
 
             let mut draw_context = LayerDrawContext {
                 render_pass: &mut render_pass,
                 assets: &self.assets,
             };
 
-            for layer_node in self.document.tree_root.0.iter_mut() {
+            for layer_node in self.document.tree_root.0.iter() {
                 match layer_node {
                     LayerTree::SingleLayer(index) => {
                         let layer = self.document.layers.get(index).expect("Nonexistent layer");
@@ -279,5 +203,13 @@ impl<'framework> ImageEditor<'framework> {
 
     pub(crate) fn selected_layer(&self) -> &Layer {
         self.document.current_layer()
+    }
+
+    pub(crate) fn assets(&self) -> &AssetsLibrary {
+        &self.assets
+    }
+
+    pub fn camera(&self) -> &Camera2d {
+        &self.pan_camera
     }
 }
