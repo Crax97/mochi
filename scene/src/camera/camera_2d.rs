@@ -1,4 +1,6 @@
-use cgmath::{point2, point3, vec3, Matrix4, Point2, SquareMatrix, Vector2, Vector3};
+use cgmath::{
+    point2, point3, vec2, vec3, vec4, Matrix4, Point2, SquareMatrix, Transform, Vector2, Vector3,
+};
 
 use super::super::transform::Transform2d;
 use framework::{
@@ -106,6 +108,22 @@ impl<'framework> Camera2d<'framework> {
     }
     pub fn view_projection(&self) -> Matrix4<f32> {
         self.projection() * self.view()
+    }
+    pub fn ndc_into_world(&self, pos: Point2<f32>) -> Point2<f32> {
+        let inv_view_camera = self
+            .view_projection()
+            .invert()
+            .expect("Invalid transform matrix!");
+        let v4 = inv_view_camera.transform_point(point3(pos.x, pos.y, 0.0));
+        point2(v4.x, v4.y)
+    }
+    pub fn vec_ndc_into_world(&self, pos: Vector2<f32>) -> Vector2<f32> {
+        let inv_view_camera = self
+            .view_projection()
+            .invert()
+            .expect("Invalid transform matrix!");
+        let v4 = inv_view_camera * vec4(pos.x, pos.y, 0.0, 0.0);
+        vec2(v4.x / v4.w, v4.y / v4.w)
     }
 }
 #[repr(C)]

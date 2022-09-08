@@ -31,7 +31,8 @@ impl Tool for BrushTool {
         self.is_active = true;
         self.last_mouse_position = context
             .image_editor
-            .ndc_position_into_world(pointer_click.pointer_location);
+            .camera()
+            .ndc_into_world(pointer_click.pointer_location);
     }
 
     fn on_pointer_move(&mut self, pointer_motion: PointerMove, context: EditorContext) {
@@ -40,7 +41,8 @@ impl Tool for BrushTool {
         }
         let new_pointer_position = context
             .image_editor
-            .ndc_position_into_world(pointer_motion.new_pointer_location);
+            .camera()
+            .ndc_into_world(pointer_motion.new_pointer_location);
         let path = StrokePath::linear_start_to_end(
             self.last_mouse_position,
             new_pointer_position,
@@ -60,6 +62,7 @@ impl Tool for BrushTool {
         };
         self.engine.stroke(path, context);
         framework.queue.submit(std::iter::once(encoder.finish()));
+        self.last_mouse_position = new_pointer_position;
     }
 
     fn on_pointer_release(

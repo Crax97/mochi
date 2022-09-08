@@ -92,13 +92,13 @@ impl InputState {
     pub(crate) fn normalized_mouse_position(&self) -> Point2<f32> {
         Point2 {
             x: (self.current_cursor_position.x / self.window_size.width as f32) * 2.0 - 1.0,
-            y: (self.current_cursor_position.y / self.window_size.height as f32) * 2.0 - 1.0,
+            y: -((self.current_cursor_position.y / self.window_size.height as f32) * 2.0 - 1.0),
         }
     }
     pub(crate) fn normalized_last_mouse_position(&self) -> Point2<f32> {
         Point2 {
             x: (self.last_update_cursor_position.x / self.window_size.width as f32) * 2.0 - 1.0,
-            y: (self.last_update_cursor_position.y / self.window_size.height as f32) * 2.0 - 1.0,
+            y: -((self.last_update_cursor_position.y / self.window_size.height as f32) * 2.0 - 1.0),
         }
     }
     pub(crate) fn mouse_delta(&self) -> Vector2<f32> {

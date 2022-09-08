@@ -178,27 +178,8 @@ impl<'framework> ImageEditor<'framework> {
     }
 
     pub fn scale_view(&mut self, delta: f32) {
-        const SCALE_SPEED: f32 = 4.0; // TODO: Make this customizable
+        const SCALE_SPEED: f32 = 10.0; // TODO: Make this customizable
         self.pan_camera.scale(delta * SCALE_SPEED);
-    }
-
-    pub(crate) fn ndc_vector_into_world(&self, vector: Vector2<f32>) -> Vector2<f32> {
-        let inv_view_camera = self
-            .pan_camera
-            .view_projection()
-            .inverse_transform()
-            .expect("Invalid transform matrix!");
-        let v4 = inv_view_camera * vec4(vector.x, vector.y, 0.0, 0.0);
-        vec2(v4.x, v4.y)
-    }
-    pub(crate) fn ndc_position_into_world(&self, pos: Point2<f32>) -> Point2<f32> {
-        let inv_view_camera = self
-            .pan_camera
-            .view_projection()
-            .inverse_transform()
-            .expect("Invalid transform matrix!");
-        let v4 = inv_view_camera * vec4(pos.x, pos.y, 0.0, 1.0);
-        point2(v4.x, v4.y) * 1.0 / self.pan_camera.current_scale()
     }
 
     pub(crate) fn selected_layer(&self) -> &Layer {
