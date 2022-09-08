@@ -1,4 +1,4 @@
-use cgmath::vec2;
+use cgmath::{vec2, Point2};
 use framework::{Framework, MeshInstance2D, TypedBuffer, TypedBufferConfiguration};
 use wgpu::{
     BindGroup, CommandEncoder, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline,
@@ -7,7 +7,7 @@ use wgpu::{
 
 use crate::{
     layers::{BitmapLayer, Layer},
-    MeshNames, PipelineNames, StrokeContext, StrokePath,
+    ImageEditor, MeshNames, PipelineNames, StrokeContext, StrokePath,
 };
 
 use super::BrushEngine;
@@ -113,6 +113,14 @@ impl<'framework> StrokingEngine<'framework> {
     }
 }
 
+fn correct_point_for_stroke(point: Point2<f32>, editor: &ImageEditor) -> Point2<f32> {
+    // When the user clicks on the canvas, the canvas is probably zoomed
+    // but when the stroke points are rendered, the canvas is loaded without the zoom
+    // so we have to "correct" the points position based on the zoom level.
+    // This might change if we stroke by blitting the image
+    point / (editor.camera().current_scale())
+}
+
 impl<'framework> BrushEngine for StrokingEngine<'framework> {
     fn stroke(&mut self, path: StrokePath, context: StrokeContext) {
         match context.layer.layer_type {
@@ -121,12 +129,15 @@ impl<'framework> BrushEngine for StrokingEngine<'framework> {
                 let instances: Vec<MeshInstance2D> = path
                     .points
                     .iter()
-                    .map(|pt| MeshInstance2D {
-                        position: *pt,
-                        scale: vec2(1.0, 1.0),
-                        rotation: 0.0,
+                    .map(|pt| {
+                        MeshInstance2D::new(
+                            correct_point_for_stroke(*pt, context.editor),
+                            vec2(5.0, 5.0),
+                            0.0,
+                        )
                     })
                     .collect();
+
                 self.instance_buffer.write_sync(&instances.as_slice());
                 // 2. Do draw
                 let stroking_engine_render_pass = RenderPassDescriptor {
@@ -150,7 +161,7 @@ impl<'framework> BrushEngine for StrokingEngine<'framework> {
                 context
                     .assets
                     .mesh(MeshNames::QUAD)
-                    .draw(&mut render_pass, path.points.len() as u32);
+                    .draw(&mut render_pass, instances.len() as u32);
             }
             _ => {}
         }

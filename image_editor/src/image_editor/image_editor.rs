@@ -64,7 +64,7 @@ impl<'framework> ImageEditor<'framework> {
             test_layer.size().y / initial_window_bounds[1]
         } * 0.25;
         println!("Initial scale: {initial_camera_scale}");
-        pan_camera.set_scale(initial_camera_scale);
+        // pan_camera.set_scale(initial_camera_scale);
 
         let test_layer_index = LayerIndex(0);
         let test_document = Document {

@@ -114,14 +114,14 @@ impl<'framework> Layer<'framework> {
         match &self.layer_type {
             LayerType::Bitmap(bitmap_layer) => {
                 let real_scale = Vector2 {
-                    x: self.scale.x * bitmap_layer.size().x,
-                    y: self.scale.y * bitmap_layer.size().y,
+                    x: self.scale.x * bitmap_layer.size().x * 0.5,
+                    y: self.scale.y * bitmap_layer.size().y * 0.5,
                 };
-                self.instance_buffer.write_sync(&[MeshInstance2D {
-                    position: self.position.clone(),
-                    scale: real_scale,
-                    rotation: self.rotation_radians,
-                }]);
+                self.instance_buffer.write_sync(&[MeshInstance2D::new(
+                    self.position.clone(),
+                    real_scale,
+                    self.rotation_radians,
+                )]);
             }
         }
     }

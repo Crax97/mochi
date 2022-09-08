@@ -2,12 +2,14 @@ mod app_state;
 mod input_state;
 
 use app_state::{AppState, AppPipelineNames};
+use cgmath::{Vector2, Point2, point2};
 use framework::{Framework, TypedBuffer};
 use image_editor::{*, stamping_engine::{StrokingEngine, Stamp, StampCreationInfo}, layers::{BitmapLayer, BitmapLayerConfiguration}};
 use input_state::InputState;
 use lazy_static::lazy_static;
 
 use log::info;
+use rand::Rng;
 use wgpu::{
     BindGroup, CommandBuffer, CommandEncoderDescriptor, RenderPassColorAttachment,
     RenderPassDescriptor, SurfaceTexture,
@@ -102,7 +104,6 @@ async fn run_app() -> anyhow::Result<()> {
         let mut brush_tool = BrushTool::new(Box::new(StrokingEngine::new(test_stamp, &FRAMEWORK)), 5.0);
         let mut hand_tool = HandTool::new();
 
-
     event_loop.run(move |event, _, control_flow| {
         input_state.update(&event);
         match event {
@@ -162,6 +163,20 @@ async fn run_app() -> anyhow::Result<()> {
         if input_state.mouse_wheel_delta().abs() > 0.0 {
             image_editor.scale_view(input_state.mouse_wheel_delta());
         }
+
+        if input_state.is_mouse_button_just_pressed(MouseButton::Right) {
+        let random_vec = ||{
+            let mut rng = rand::thread_rng();
+            Point2::<f32> {
+                x: rng.gen_range(-1.0..1.0),
+                y: rng.gen_range(-1.0..1.0)
+            }
+        };
+        brush_tool.on_pointer_click(PointerClick {pointer_location: point2(-1.0, 0.0)}, EditorContext { image_editor: &mut image_editor });
+        brush_tool.on_pointer_move(PointerMove {new_pointer_location: random_vec(), delta_normalized: input_state.normalized_mouse_delta()}, EditorContext { image_editor: &mut image_editor });
+        brush_tool.on_pointer_release(PointerRelease {}, EditorContext { image_editor: &mut image_editor });
+    }
+
 });
     
 }

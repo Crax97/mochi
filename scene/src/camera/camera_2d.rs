@@ -90,16 +90,25 @@ impl<'framework> Camera2d<'framework> {
     }
 
     pub fn view(&self) -> Matrix4<f32> {
-        Matrix4::from_translation(Vector3 {
-            x: self.transform.position.x,
-            y: self.transform.position.y,
-            z: self.transform.position.z,
-        }) * Matrix4::from_angle_z(self.transform.rotation_radians)
-            * Matrix4::from_nonuniform_scale(
-                self.transform.scale.x,
-                self.transform.scale.y,
-                self.transform.scale.z,
-            )
+        Matrix4::from_nonuniform_scale(
+            self.transform.scale.x,
+            self.transform.scale.y,
+            self.transform.scale.z,
+        ) * Matrix4::from_angle_z(self.transform.rotation_radians)
+            * Matrix4::from_translation(Vector3 {
+                x: self.transform.position.x,
+                y: self.transform.position.y,
+                z: self.transform.position.z,
+            })
+    }
+
+    pub fn view_no_scale(&self) -> Matrix4<f32> {
+        Matrix4::from_angle_z(self.transform.rotation_radians)
+            * Matrix4::from_translation(Vector3 {
+                x: self.transform.position.x,
+                y: self.transform.position.y,
+                z: self.transform.position.z,
+            })
     }
 
     pub fn projection(&self) -> Matrix4<f32> {

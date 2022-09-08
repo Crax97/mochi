@@ -1,12 +1,22 @@
-use cgmath::{Point2, Vector2};
+use cgmath::{vec4, Point2, Vector2, Vector4};
 use wgpu::{VertexAttribute, VertexBufferLayout};
 
+use crate::Mesh;
+
 #[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct MeshInstance2D {
-    pub position: Point2<f32>,
-    pub scale: Vector2<f32>,
-    pub rotation: f32,
+    position_and_scale: Vector4<f32>,
+    rotation: f32,
+}
+
+impl MeshInstance2D {
+    pub fn new(position: Point2<f32>, scale: Vector2<f32>, rotation_rads: f32) -> Self {
+        Self {
+            position_and_scale: vec4(position.x, position.y, scale.x, scale.y),
+            rotation: rotation_rads,
+        }
+    }
 }
 
 impl<'a> MeshInstance2D {

@@ -3,7 +3,7 @@ use wgpu::CommandEncoderDescriptor;
 
 use crate::{
     tools::{EditorContext, PointerClick, PointerMove},
-    StrokeContext,
+    ImageEditor, StrokeContext,
 };
 
 use super::{BrushEngine, StrokePath, Tool};
@@ -26,23 +26,29 @@ impl BrushTool {
     }
 }
 
+impl BrushTool {
+    fn reposition_point_for_draw(image_editor: &ImageEditor, point: Point2<f32>) -> Point2<f32> {
+        image_editor.camera().ndc_into_world(point)
+    }
+}
+
 impl Tool for BrushTool {
     fn on_pointer_click(&mut self, pointer_click: PointerClick, context: EditorContext) {
         self.is_active = true;
-        self.last_mouse_position = context
-            .image_editor
-            .camera()
-            .ndc_into_world(pointer_click.pointer_location);
+        self.last_mouse_position = BrushTool::reposition_point_for_draw(
+            &context.image_editor,
+            pointer_click.pointer_location,
+        );
     }
 
     fn on_pointer_move(&mut self, pointer_motion: PointerMove, context: EditorContext) {
         if !self.is_active {
             return;
         }
-        let new_pointer_position = context
-            .image_editor
-            .camera()
-            .ndc_into_world(pointer_motion.new_pointer_location);
+        let new_pointer_position = BrushTool::reposition_point_for_draw(
+            context.image_editor,
+            pointer_motion.new_pointer_location,
+        );
         let path = StrokePath::linear_start_to_end(
             self.last_mouse_position,
             new_pointer_position,
@@ -57,6 +63,7 @@ impl Tool for BrushTool {
 
         let context = StrokeContext {
             layer: context.image_editor.selected_layer(),
+            editor: &context.image_editor,
             command_encoder: &mut encoder,
             assets: context.image_editor.assets(),
         };

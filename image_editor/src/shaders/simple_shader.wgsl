@@ -55,11 +55,14 @@ fn vs(in: VertexInput, instance: PerInstanceData) -> VertexOutput {
     );
 
     var out : VertexOutput;
-    var model = translation(instance.position_and_size.xy) * rot_z(instance.rotation_radians) * scale(instance.position_and_size.zw);
+    var vp = OPENGL_CORRECT * uniform_data.vp;
+    var trans = translation(instance.position_and_size.xy);
+    var rot = rot_z(instance.rotation_radians);
+    var scale = scale(instance.position_and_size.zw);
+    var model = rot * scale * trans;
     var projected = vec4<f32>(in.position, 1.0) * model;
 
-    var vp = uniform_data.vp;
-    out.coordinates_position = OPENGL_CORRECT * vp * projected;
+    out.coordinates_position = vp * projected;
     out.position = in.position;
     out.tex_uv = in.tex_uv;
     return out;
