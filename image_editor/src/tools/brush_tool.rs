@@ -1,4 +1,4 @@
-use cgmath::{point2, Point2};
+use cgmath::{point2, vec2, Point2};
 use wgpu::CommandEncoderDescriptor;
 
 use crate::{
@@ -45,9 +45,16 @@ impl Tool for BrushTool {
         if !self.is_active {
             return;
         }
+
         let new_pointer_position = BrushTool::reposition_point_for_draw(
             context.image_editor,
             pointer_motion.new_pointer_location,
+        );
+
+        context.debug.borrow_mut().draw_debug_point(
+            pointer_motion.new_pointer_location,
+            vec2(3.0, 3.0),
+            [1.0, 0.0, 0.0, 1.0],
         );
         let path = StrokePath::linear_start_to_end(
             self.last_mouse_position,
@@ -66,6 +73,7 @@ impl Tool for BrushTool {
             editor: &context.image_editor,
             command_encoder: &mut encoder,
             assets: context.image_editor.assets(),
+            debug: context.debug.clone(),
         };
         self.engine.stroke(path, context);
         framework.queue.submit(std::iter::once(encoder.finish()));
@@ -79,8 +87,4 @@ impl Tool for BrushTool {
     ) {
         self.is_active = false
     }
-
-    fn on_selected(&mut self, context: EditorContext) {}
-
-    fn on_deselected(&mut self, context: EditorContext) {}
 }

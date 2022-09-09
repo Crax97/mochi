@@ -1,5 +1,3 @@
-use std::cell::RefCell;
-
 use as_slice::AsSlice;
 use wgpu::{util::DeviceExt, BufferUsages, RenderPass};
 
@@ -144,5 +142,9 @@ impl<'framework> TypedBuffer<'framework> {
     pub fn binding_resource(&self) -> wgpu::BufferBinding {
         let buffer = &self.buffer.buffer;
         buffer.as_entire_buffer_binding()
+    }
+
+    pub fn elem_count(&self) -> usize {
+        self.buffer.num_items
     }
 }

@@ -1,14 +1,13 @@
 use std::{collections::HashMap, rc::Rc};
 
-use cgmath::{point2, vec2, vec3, vec4, ElementWise, Point2, Transform, Vector2};
-use framework::{Framework, Mesh, MeshInstance2D, TypedBuffer};
+use cgmath::{point2, vec2};
+use framework::Framework;
 use scene::Camera2d;
 use wgpu::{
-    ColorTargetState, CommandBuffer, CommandEncoderDescriptor, FragmentState,
-    RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, VertexState,
+    CommandBuffer, CommandEncoderDescriptor, RenderPassColorAttachment, RenderPassDescriptor,
 };
 
-use crate::{asset_library::AssetsLibrary, PipelineNames};
+use framework::{asset_library::AssetsLibrary, pipeline_names};
 
 use super::{
     document::Document,
@@ -62,7 +61,7 @@ impl<'framework> ImageEditor<'framework> {
             test_layer.size().x / initial_window_bounds[0]
         } else {
             test_layer.size().y / initial_window_bounds[1]
-        } * 0.5;
+        } * 1.5;
         println!("Initial scale: {initial_camera_scale}");
         pan_camera.set_scale(initial_camera_scale);
 
@@ -85,7 +84,6 @@ impl<'framework> ImageEditor<'framework> {
             final_layer,
             current_layer_index: test_layer_index,
         };
-
         ImageEditor {
             framework,
             assets,
@@ -136,7 +134,7 @@ impl<'framework> ImageEditor<'framework> {
 
         {
             let mut render_pass = command_encoder.begin_render_pass(&render_pass_description);
-            render_pass.set_pipeline(&self.assets.pipeline(PipelineNames::SIMPLE_TEXTURED));
+            render_pass.set_pipeline(&self.assets.pipeline(pipeline_names::SIMPLE_TEXTURED));
 
             let mut draw_context = LayerDrawContext {
                 render_pass: &mut render_pass,
@@ -192,5 +190,8 @@ impl<'framework> ImageEditor<'framework> {
 
     pub fn camera(&self) -> &Camera2d {
         &self.pan_camera
+    }
+    pub fn camera_mut(&mut self) -> &mut Camera2d<'framework> {
+        &mut self.pan_camera
     }
 }

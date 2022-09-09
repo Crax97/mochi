@@ -1,4 +1,4 @@
-use crate::tools::{EditorContext, PointerClick, PointerMove, PointerRelease};
+use crate::tools::{EditorContext, PointerRelease};
 use cgmath::{point2, Point2};
 
 use super::tool::Tool;

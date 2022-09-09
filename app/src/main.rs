@@ -1,20 +1,27 @@
 mod app_state;
 mod input_state;
 
-use app_state::{AppState, AppPipelineNames};
-use cgmath::{Vector2, Point2, point2};
-use framework::{Framework, TypedBuffer};
-use image_editor::{*, stamping_engine::{StrokingEngine, Stamp, StampCreationInfo}, layers::{BitmapLayer, BitmapLayerConfiguration}};
+use app_state::{app_pipeline_names, AppState};
+use cgmath::{point2};
+use framework::{Framework, TypedBuffer, mesh_names};
+use image_editor::{
+    layers::{BitmapLayer, BitmapLayerConfiguration},
+    stamping_engine::{Stamp, StampCreationInfo, StrokingEngine},
+    *,
+};
 use input_state::InputState;
 use lazy_static::lazy_static;
 
 use log::info;
-use rand::Rng;
 use wgpu::{
     BindGroup, CommandBuffer, CommandEncoderDescriptor, RenderPassColorAttachment,
-    RenderPassDescriptor, SurfaceTexture,
+    RenderPassDescriptor, TextureView,
 };
-use winit::{dpi::PhysicalSize, event::{WindowEvent, MouseButton}, event_loop::ControlFlow};
+use winit::{
+    dpi::PhysicalSize,
+    event::{MouseButton, WindowEvent},
+    event_loop::ControlFlow,
+};
 
 lazy_static! {
     static ref FRAMEWORK: Framework = pollster::block_on(async {
@@ -100,12 +107,36 @@ async fn run_app() -> anyhow::Result<()> {
                 },
             ],
         });
-        let test_stamp = create_test_stamp(image_editor.camera().buffer());
-        let mut brush_tool = BrushTool::new(Box::new(StrokingEngine::new(test_stamp, &FRAMEWORK)), 5.0);
-        let mut hand_tool = HandTool::new();
+    let test_stamp = create_test_stamp(image_editor.camera().buffer());
+    let mut brush_tool = BrushTool::new(Box::new(StrokingEngine::new(test_stamp, &FRAMEWORK)), 5.0);
+    let mut hand_tool = HandTool::new();
 
     event_loop.run(move |event, _, control_flow| {
         input_state.update(&event);
+        let debug = app_state.debug.clone();
+        debug.borrow_mut().begin_debug();
+
+        if input_state.is_mouse_button_just_pressed(MouseButton::Left) {
+            brush_tool.on_pointer_click(PointerClick {pointer_location: input_state.normalized_mouse_position()}, EditorContext { image_editor: &mut image_editor, debug: debug.clone() });
+        } else if input_state.is_mouse_button_just_released(MouseButton::Left) {
+            brush_tool.on_pointer_release(PointerRelease {}, EditorContext { image_editor: &mut image_editor,  debug: debug.clone() });
+        } else {
+            brush_tool.on_pointer_move(PointerMove {new_pointer_location: input_state.normalized_mouse_position(), delta_normalized: input_state.normalized_mouse_delta()}, EditorContext { image_editor: &mut image_editor,  debug: debug.clone() });
+        }
+        if input_state.is_mouse_button_just_pressed(MouseButton::Right) {
+            hand_tool.on_pointer_click(PointerClick {pointer_location: input_state.normalized_mouse_position()}, EditorContext { image_editor: &mut image_editor,  debug: debug.clone() });
+        } else if input_state.is_mouse_button_just_released(MouseButton::Right) {
+            hand_tool.on_pointer_release(PointerRelease {}, EditorContext { image_editor: &mut image_editor, debug: debug.clone() });
+        } else {
+            hand_tool.on_pointer_move(PointerMove {new_pointer_location: input_state.normalized_mouse_position(), delta_normalized: input_state.normalized_mouse_delta()}, EditorContext { image_editor: &mut image_editor,  debug: debug.clone() });
+        }
+        if input_state.is_mouse_button_just_pressed(MouseButton::Middle) {
+            image_editor.camera_mut().set_position(point2(0.0, 0.0));
+        }
+        if input_state.mouse_wheel_delta().abs() > 0.0 {
+            image_editor.scale_view(input_state.mouse_wheel_delta());
+        }
+
         match event {
         winit::event::Event::WindowEvent { event, .. } => match event {
             WindowEvent::CloseRequested => {
@@ -141,10 +172,19 @@ async fn run_app() -> anyhow::Result<()> {
             };
             let mut commands: Vec<CommandBuffer> = vec![];
 
+            
             let draw_image_in_editor = { image_editor.redraw_full_image() };
             commands.push(draw_image_in_editor);
+    
+            
+            let app_surface_view = current_texture
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
 
-            let final_present_command = render_into_texture(&current_texture, &app_state, &bind_group);
+            let debug_command = debug.borrow_mut().end_debug(&image_editor.get_full_image_texture().texture_view(), &app_state.assets, image_editor.camera().buffer(), &FRAMEWORK);
+            commands.push(debug_command);
+
+            let final_present_command = render_into_texture(&app_surface_view, &app_state, &bind_group);
             commands.push(final_present_command);
 
             app_state.framework.queue.submit(commands);
@@ -152,50 +192,36 @@ async fn run_app() -> anyhow::Result<()> {
         }
         _ => {}
     }
-        if input_state.is_mouse_button_just_pressed(MouseButton::Left) {
-            brush_tool.on_pointer_click(PointerClick {pointer_location: input_state.normalized_mouse_position()}, EditorContext { image_editor: &mut image_editor });
-        } else if input_state.is_mouse_button_just_released(MouseButton::Left) {
-            brush_tool.on_pointer_release(PointerRelease {}, EditorContext { image_editor: &mut image_editor });
-        } else {
-            brush_tool.on_pointer_move(PointerMove {new_pointer_location: input_state.normalized_mouse_position(), delta_normalized: input_state.normalized_mouse_delta()}, EditorContext { image_editor: &mut image_editor });
-        }
-        
-        if input_state.mouse_wheel_delta().abs() > 0.0 {
-            image_editor.scale_view(input_state.mouse_wheel_delta());
-        }
-
-        if input_state.is_mouse_button_just_pressed(MouseButton::Right) {
-        let random_vec = ||{
-            let mut rng = rand::thread_rng();
-            Point2::<f32> {
-                x: rng.gen_range(-1.0..1.0),
-                y: rng.gen_range(-1.0..1.0)
-            }
-        };
-        brush_tool.on_pointer_click(PointerClick {pointer_location: point2(-1.0, 0.0)}, EditorContext { image_editor: &mut image_editor });
-        brush_tool.on_pointer_move(PointerMove {new_pointer_location: random_vec(), delta_normalized: input_state.normalized_mouse_delta()}, EditorContext { image_editor: &mut image_editor });
-        brush_tool.on_pointer_release(PointerRelease {}, EditorContext { image_editor: &mut image_editor });
-    }
-
-});
     
+
+    });
 }
 
 fn create_test_stamp(camera_buffer: &TypedBuffer) -> Stamp {
     let test_stamp_bytes = include_bytes!("test/test_brush.png");
     let image = image::load_from_memory(test_stamp_bytes).unwrap();
-    let brush_bitmap = BitmapLayer::new_from_bytes(&FRAMEWORK, image.as_bytes(), BitmapLayerConfiguration {
-        label: "Test brush".to_owned(),
-        width: image.width(),
-        initial_background_color: [0.0, 0.0, 0.0, 0.0],
-        height: image.height(),
-    });
-    Stamp::new(brush_bitmap, &FRAMEWORK, StampCreationInfo {
-        camera_buffer,
-    })
+    let brush_bitmap = BitmapLayer::new_from_bytes(
+        &FRAMEWORK,
+        image.as_bytes(),
+        BitmapLayerConfiguration {
+            label: "Test brush".to_owned(),
+            width: image.width(),
+            initial_background_color: [0.0, 0.0, 0.0, 0.0],
+            height: image.height(),
+        },
+    );
+    Stamp::new(
+        brush_bitmap,
+        &FRAMEWORK,
+        StampCreationInfo { camera_buffer },
+    )
 }
 
-fn render_into_texture(current_texture: &SurfaceTexture, app_state: &AppState, bind_group: &BindGroup) -> CommandBuffer {
+fn render_into_texture(
+    current_texture: &TextureView,
+    app_state: &AppState,
+    bind_group: &BindGroup,
+) -> CommandBuffer {
     let command_encoder_description = CommandEncoderDescriptor {
         label: Some("Final image presentation"),
     };
@@ -204,14 +230,10 @@ fn render_into_texture(current_texture: &SurfaceTexture, app_state: &AppState, b
         .device
         .create_command_encoder(&command_encoder_description);
 
-
-    let app_surface_view = current_texture
-        .texture
-        .create_view(&wgpu::TextureViewDescriptor::default());
     let render_pass_description = RenderPassDescriptor {
         label: Some("ImageEditor present render pass"),
         color_attachments: &[Some(RenderPassColorAttachment {
-            view: &app_surface_view,
+            view: &current_texture,
             resolve_target: None,
             ops: wgpu::Operations {
                 load: wgpu::LoadOp::Clear(wgpu::Color {
@@ -228,9 +250,12 @@ fn render_into_texture(current_texture: &SurfaceTexture, app_state: &AppState, b
 
     {
         let mut render_pass = command_encoder.begin_render_pass(&render_pass_description);
-        render_pass.set_pipeline(&app_state.assets.pipeline(AppPipelineNames::FINAL_RENDER));
+        render_pass.set_pipeline(&app_state.assets.pipeline(app_pipeline_names::FINAL_RENDER));
         render_pass.set_bind_group(0, &bind_group, &[]);
-        app_state.assets.mesh(MeshNames::QUAD).draw(&mut render_pass, 1);
+        app_state
+            .assets
+            .mesh(mesh_names::QUAD)
+            .draw(&mut render_pass, 1);
     }
     command_encoder.finish()
 }

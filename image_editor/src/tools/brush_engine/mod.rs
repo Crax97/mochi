@@ -1,9 +1,12 @@
 pub mod stamping_engine;
 
-use cgmath::{InnerSpace, MetricSpace, Point2};
+use std::{cell::RefCell, rc::Rc};
+
+use cgmath::{InnerSpace, Point2};
+use framework::{asset_library::AssetsLibrary, Debug};
 use wgpu::CommandEncoder;
 
-use crate::{layers::Layer, AssetsLibrary, ImageEditor};
+use crate::{layers::Layer, ImageEditor};
 
 #[derive(Debug)]
 pub struct StrokePath {
@@ -15,6 +18,7 @@ pub struct StrokeContext<'editor, 'stroke> {
     pub editor: &'stroke ImageEditor<'editor>,
     pub command_encoder: &'stroke mut CommandEncoder,
     pub assets: &'editor AssetsLibrary,
+    pub debug: Rc<RefCell<Debug>>,
 }
 
 pub trait BrushEngine {

@@ -64,7 +64,7 @@ fn vs(in: VertexInput, instance: PerInstanceData) -> VertexOutput {
 
     out.coordinates_position = vp * projected;
     out.position = in.position;
-    out.tex_uv = in.tex_uv;
+    out.tex_uv = vec2<f32>(in.tex_uv.x, 1.0 - in.tex_uv.y);
     return out;
 }
 

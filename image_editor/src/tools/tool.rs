@@ -1,9 +1,13 @@
+use std::{cell::RefCell, rc::Rc};
+
 use cgmath::{Point2, Vector2};
 
 use crate::ImageEditor;
+use framework::Debug;
 
 pub struct EditorContext<'editor, 'framework> {
     pub image_editor: &'editor mut ImageEditor<'framework>,
+    pub debug: Rc<RefCell<Debug>>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -19,9 +23,9 @@ pub struct PointerMove {
 pub struct PointerRelease {}
 
 pub trait Tool {
-    fn on_selected(&mut self, context: EditorContext) {}
-    fn on_deselected(&mut self, context: EditorContext) {}
-    fn on_pointer_click(&mut self, pointer_click: PointerClick, context: EditorContext) {}
-    fn on_pointer_move(&mut self, pointer_motion: PointerMove, context: EditorContext) {}
-    fn on_pointer_release(&mut self, pointer_release: PointerRelease, context: EditorContext) {}
+    fn on_selected(&mut self, _context: EditorContext) {}
+    fn on_deselected(&mut self, _context: EditorContext) {}
+    fn on_pointer_click(&mut self, _pointer_click: PointerClick, _context: EditorContext) {}
+    fn on_pointer_move(&mut self, _pointer_motion: PointerMove, _context: EditorContext) {}
+    fn on_pointer_release(&mut self, _pointer_release: PointerRelease, _context: EditorContext) {}
 }

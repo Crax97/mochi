@@ -2,7 +2,7 @@ use cgmath::{Point2, Vector2};
 use framework::{Framework, MeshInstance2D, TypedBuffer, TypedBufferConfiguration};
 use wgpu::{BindGroup, RenderPass};
 
-use crate::{asset_library::AssetsLibrary, MeshNames};
+use framework::{asset_library::AssetsLibrary, mesh_names};
 
 use super::{bitmap_layer, BitmapLayer};
 
@@ -137,7 +137,7 @@ impl<'framework> Layer<'framework> {
                     .set_bind_group(0, &self.bind_group, &[]);
                 draw_context
                     .assets
-                    .mesh(MeshNames::QUAD)
+                    .mesh(mesh_names::QUAD)
                     .draw(draw_context.render_pass, 1);
             }
         }

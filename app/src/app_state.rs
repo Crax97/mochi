@@ -1,8 +1,8 @@
-use std::rc::Rc;
+use std::{cell::RefCell, rc::Rc};
 
-use cgmath::{point2, point3};
-use framework::{Framework, Mesh, MeshConstructionDetails, Vertex};
-use image_editor::{AssetsLibrary, ImageEditor};
+use framework::AssetsLibrary;
+use framework::{Debug, Framework, Mesh};
+use image_editor::ImageEditor;
 use wgpu::{ColorTargetState, FragmentState, Surface, SurfaceConfiguration, VertexState};
 use winit::{dpi::PhysicalSize, window::Window};
 
@@ -12,6 +12,7 @@ pub(crate) struct AppState<'framework> {
     pub(crate) window: Window,
     pub(crate) final_surface: Surface,
     pub(crate) final_surface_configuration: SurfaceConfiguration,
+    pub(crate) debug: Rc<RefCell<Debug>>,
 }
 impl<'framework> AppState<'framework> {
     pub(crate) fn new(window: Window, framework: &'framework Framework) -> Self {
@@ -99,14 +100,17 @@ impl<'framework> AppState<'framework> {
                     },
                 });
         let mut library = AssetsLibrary::new(framework);
-        library.add_pipeline(AppPipelineNames::FINAL_RENDER, final_present_pipeline);
+        library.add_pipeline(app_pipeline_names::FINAL_RENDER, final_present_pipeline);
         let assets = Rc::new(library);
+
+        let debug = Rc::new(RefCell::new(Debug::new()));
         Self {
             window,
             assets: assets.clone(),
             framework,
             final_surface,
             final_surface_configuration,
+            debug,
         }
     }
 
@@ -140,6 +144,6 @@ impl<'framework> AppState<'framework> {
     }
 }
 
-pub mod AppPipelineNames {
+pub mod app_pipeline_names {
     pub const FINAL_RENDER: &'static str = "FINAL_RENDER";
 }
