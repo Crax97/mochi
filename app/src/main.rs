@@ -166,7 +166,9 @@ async fn run_app() -> anyhow::Result<()> {
         } else {
             hand_tool.on_pointer_move(PointerMove {new_pointer_location: input_state.normalized_mouse_position(), delta_normalized: input_state.normalized_mouse_delta()}, EditorContext { image_editor: &mut image_editor });
         }
-        
+        if input_state.is_mouse_button_just_pressed(MouseButton::Middle) {
+            image_editor.camera_mut().set_position(point2(0.0, 0.0));
+        }
         if input_state.mouse_wheel_delta().abs() > 0.0 {
             image_editor.scale_view(input_state.mouse_wheel_delta());
         }

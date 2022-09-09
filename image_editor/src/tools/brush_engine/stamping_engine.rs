@@ -1,4 +1,4 @@
-use cgmath::{vec2, Point2};
+use cgmath::{vec2, Point2, EuclideanSpace, ElementWise, Transform, point3, point2, Matrix4, Vector3, Rad, vec3};
 use framework::{Framework, MeshInstance2D, TypedBuffer, TypedBufferConfiguration};
 use wgpu::{
     BindGroup, CommandEncoder, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline,
@@ -113,12 +113,25 @@ impl<'framework> StrokingEngine<'framework> {
     }
 }
 
-fn correct_point_for_stroke(point: Point2<f32>, editor: &ImageEditor) -> Point2<f32> {
+fn correct_point_for_stroke(point: Point2<f32>, editor: &ImageEditor, layer: &Layer) -> Point2<f32> {
     // When the user clicks on the canvas, the canvas is probably zoomed
     // but when the stroke points are rendered, the canvas is loaded without the zoom
     // so we have to "correct" the points position based on the zoom level.
     // This might change if we stroke by blitting the image
-    point / (editor.camera().current_scale())
+
+    match layer.layer_type {
+        crate::layers::LayerType::Bitmap(ref bitmap_layer) => {
+            let one_over_scale = 1.0 / editor.camera().current_scale();
+            let actual_layer_scale = bitmap_layer.size().mul_element_wise(layer.scale) * one_over_scale;
+            let layer_ratio = actual_layer_scale.div_element_wise(bitmap_layer.size());
+            let lrp = point2(layer_ratio.x, layer_ratio.y);
+            println!("Actual layer scale {:?}, ratio is {:?}", actual_layer_scale, lrp);
+            let point = point.div_element_wise(lrp);
+            let camera_displace = editor.camera().position().mul_element_wise(point2(-1.0, 1.0 / lrp.y));
+            point.add_element_wise(camera_displace)
+        }
+        _ => point
+    }
 }
 
 impl<'framework> BrushEngine for StrokingEngine<'framework> {
@@ -131,7 +144,7 @@ impl<'framework> BrushEngine for StrokingEngine<'framework> {
                     .iter()
                     .map(|pt| {
                         MeshInstance2D::new(
-                            correct_point_for_stroke(*pt, context.editor),
+                            correct_point_for_stroke(*pt, context.editor, context.layer),
                             vec2(5.0, 5.0),
                             0.0,
                         )

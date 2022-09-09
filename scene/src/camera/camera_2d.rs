@@ -91,9 +91,9 @@ impl<'framework> Camera2d<'framework> {
 
     pub fn view(&self) -> Matrix4<f32> {
         Matrix4::from_nonuniform_scale(
-            self.transform.scale.x,
-            self.transform.scale.y,
-            self.transform.scale.z,
+            1.0 / self.transform.scale.x,
+            1.0 / self.transform.scale.y,
+            1.0 / self.transform.scale.z,
         ) * Matrix4::from_angle_z(self.transform.rotation_radians)
             * Matrix4::from_translation(Vector3 {
                 x: self.transform.position.x,
@@ -133,6 +133,14 @@ impl<'framework> Camera2d<'framework> {
             .expect("Invalid transform matrix!");
         let v3 = inv_view_camera.transform_vector(vec3(pos.x, pos.y, 0.0));
         vec2(v3.x, v3.y)
+    }
+
+    pub fn width(&self) -> f32 {
+        (self.left_right_top_bottom[1] - self.left_right_top_bottom[0]).abs()
+    }
+
+    pub fn height(&self) -> f32 {
+        (self.left_right_top_bottom[2] - self.left_right_top_bottom[3]).abs()
     }
 }
 #[repr(C)]

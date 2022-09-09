@@ -193,4 +193,7 @@ impl<'framework> ImageEditor<'framework> {
     pub fn camera(&self) -> &Camera2d {
         &self.pan_camera
     }
+    pub fn camera_mut(&mut self) -> &mut Camera2d<'framework> {
+        &mut self.pan_camera
+    }
 }
