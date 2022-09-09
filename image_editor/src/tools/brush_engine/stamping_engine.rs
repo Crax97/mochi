@@ -1,10 +1,12 @@
+use std::{cell::RefCell, rc::Rc};
+
 use cgmath::{
     point2, point3, vec2, vec3, ElementWise, EuclideanSpace, Matrix4, Point2, Rad, Transform,
     Vector3,
 };
 use framework::{
     asset_library::{MeshNames, PipelineNames},
-    Framework, MeshInstance2D, TypedBuffer, TypedBufferConfiguration,
+    Debug, Framework, MeshInstance2D, TypedBuffer, TypedBufferConfiguration,
 };
 use wgpu::{
     BindGroup, CommandEncoder, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline,
@@ -123,6 +125,7 @@ fn correct_point_for_stroke(
     point: Point2<f32>,
     editor: &ImageEditor,
     layer: &Layer,
+    debug: Rc<RefCell<Debug>>,
 ) -> Point2<f32> {
     // When the user clicks on the canvas, the canvas is probably zoomed
     // but when the stroke points are rendered, the canvas is loaded without the zoom
@@ -138,11 +141,12 @@ fn correct_point_for_stroke(
             let lrp = point2(layer_ratio.x, layer_ratio.y);
             // println!("Actual layer scale {:?}, ratio is {:?}", actual_layer_scale, lrp);
             let point = point.div_element_wise(lrp);
-            let camera_displace = editor
-                .camera()
-                .position()
-                .mul_element_wise(point2(-1.0, 1.0 / lrp.y));
-            point.add_element_wise(camera_displace)
+            let camera_displace = editor.camera().position().mul_element_wise(-1.0);
+            let pt = point.add_element_wise(camera_displace);
+            debug
+                .borrow_mut()
+                .draw_debug_point(pt, vec2(3.0, 3.0), [0.0, 1.0, 0.0, 1.0]);
+            pt
         }
         _ => point,
     }
@@ -158,7 +162,12 @@ impl<'framework> BrushEngine for StrokingEngine<'framework> {
                     .iter()
                     .map(|pt| {
                         MeshInstance2D::new(
-                            correct_point_for_stroke(*pt, context.editor, context.layer),
+                            correct_point_for_stroke(
+                                *pt,
+                                context.editor,
+                                context.layer,
+                                context.debug.clone(),
+                            ),
                             vec2(5.0, 5.0),
                             0.0,
                         )

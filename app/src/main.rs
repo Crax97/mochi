@@ -118,9 +118,7 @@ async fn run_app() -> anyhow::Result<()> {
         input_state.update(&event);
         let debug = app_state.debug.clone();
         debug.borrow_mut().begin_debug();
-
-        debug.borrow_mut().draw_debug_point(image_editor.camera().ndc_into_world(input_state.normalized_mouse_position()), vec2(5.0, 5.0), [0.0, 0.0, 1.0, 1.0]);
-
+        
         if input_state.is_mouse_button_just_pressed(MouseButton::Left) {
             brush_tool.on_pointer_click(PointerClick {pointer_location: input_state.normalized_mouse_position()}, EditorContext { image_editor: &mut image_editor, debug: debug.clone() });
         } else if input_state.is_mouse_button_just_released(MouseButton::Left) {
