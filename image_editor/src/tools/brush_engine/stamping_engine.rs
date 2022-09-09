@@ -161,7 +161,7 @@ impl<'framework> BrushEngine for StrokingEngine<'framework> {
                                 context.layer,
                                 context.debug.clone(),
                             ),
-                            vec2(5.0, 5.0),
+                            vec2(5.0, 5.0) * context.editor.camera().current_scale(),
                             0.0,
                         )
                     })
