@@ -18,6 +18,7 @@ pub enum BufferType {
 struct BufferInfo {
     pub buffer: wgpu::Buffer,
     pub num_items: usize,
+    pub max_num_items: usize,
 }
 
 pub struct InnerBufferConfiguration {
@@ -88,6 +89,7 @@ where
     BufferInfo {
         buffer,
         num_items: data.as_slice().len(),
+        max_num_items: data.as_slice().len(),
     }
 }
 
@@ -144,5 +146,9 @@ impl<'framework> TypedBuffer<'framework> {
     pub fn binding_resource(&self) -> wgpu::BufferBinding {
         let buffer = &self.buffer.buffer;
         buffer.as_entire_buffer_binding()
+    }
+
+    pub fn elem_count(&self) -> usize {
+        self.buffer.num_items
     }
 }

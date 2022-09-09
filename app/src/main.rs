@@ -1,10 +1,14 @@
 mod app_state;
 mod input_state;
 
-use app_state::{AppState, AppPipelineNames};
-use cgmath::{Vector2, Point2, point2};
+use app_state::{AppPipelineNames, AppState};
+use cgmath::{point2, vec2, Point2, Vector2};
 use framework::{Framework, TypedBuffer};
-use image_editor::{*, stamping_engine::{StrokingEngine, Stamp, StampCreationInfo}, layers::{BitmapLayer, BitmapLayerConfiguration}};
+use image_editor::{
+    layers::{BitmapLayer, BitmapLayerConfiguration},
+    stamping_engine::{Stamp, StampCreationInfo, StrokingEngine},
+    *,
+};
 use input_state::InputState;
 use lazy_static::lazy_static;
 
@@ -14,7 +18,11 @@ use wgpu::{
     BindGroup, CommandBuffer, CommandEncoderDescriptor, RenderPassColorAttachment,
     RenderPassDescriptor, SurfaceTexture,
 };
-use winit::{dpi::PhysicalSize, event::{WindowEvent, MouseButton}, event_loop::ControlFlow};
+use winit::{
+    dpi::PhysicalSize,
+    event::{MouseButton, WindowEvent},
+    event_loop::ControlFlow,
+};
 
 lazy_static! {
     static ref FRAMEWORK: Framework = pollster::block_on(async {
@@ -100,9 +108,9 @@ async fn run_app() -> anyhow::Result<()> {
                 },
             ],
         });
-        let test_stamp = create_test_stamp(image_editor.camera().buffer());
-        let mut brush_tool = BrushTool::new(Box::new(StrokingEngine::new(test_stamp, &FRAMEWORK)), 5.0);
-        let mut hand_tool = HandTool::new();
+    let test_stamp = create_test_stamp(image_editor.camera().buffer());
+    let mut brush_tool = BrushTool::new(Box::new(StrokingEngine::new(test_stamp, &FRAMEWORK)), 5.0);
+    let mut hand_tool = HandTool::new();
 
     event_loop.run(move |event, _, control_flow| {
         input_state.update(&event);
@@ -143,7 +151,12 @@ async fn run_app() -> anyhow::Result<()> {
 
             let draw_image_in_editor = { image_editor.redraw_full_image() };
             commands.push(draw_image_in_editor);
-
+    
+            image_editor.begin_debug();
+            image_editor.draw_debug_point(image_editor.camera().ndc_into_world(input_state.normalized_mouse_position()), vec2(10.0, 10.0));
+            let debug = image_editor.end_debug();
+            commands.push(debug);   
+            
             let final_present_command = render_into_texture(&current_texture, &app_state, &bind_group);
             commands.push(final_present_command);
 
@@ -172,24 +185,35 @@ async fn run_app() -> anyhow::Result<()> {
         if input_state.mouse_wheel_delta().abs() > 0.0 {
             image_editor.scale_view(input_state.mouse_wheel_delta());
         }
+
     });
 }
 
 fn create_test_stamp(camera_buffer: &TypedBuffer) -> Stamp {
     let test_stamp_bytes = include_bytes!("test/test_brush.png");
     let image = image::load_from_memory(test_stamp_bytes).unwrap();
-    let brush_bitmap = BitmapLayer::new_from_bytes(&FRAMEWORK, image.as_bytes(), BitmapLayerConfiguration {
-        label: "Test brush".to_owned(),
-        width: image.width(),
-        initial_background_color: [0.0, 0.0, 0.0, 0.0],
-        height: image.height(),
-    });
-    Stamp::new(brush_bitmap, &FRAMEWORK, StampCreationInfo {
-        camera_buffer,
-    })
+    let brush_bitmap = BitmapLayer::new_from_bytes(
+        &FRAMEWORK,
+        image.as_bytes(),
+        BitmapLayerConfiguration {
+            label: "Test brush".to_owned(),
+            width: image.width(),
+            initial_background_color: [0.0, 0.0, 0.0, 0.0],
+            height: image.height(),
+        },
+    );
+    Stamp::new(
+        brush_bitmap,
+        &FRAMEWORK,
+        StampCreationInfo { camera_buffer },
+    )
 }
 
-fn render_into_texture(current_texture: &SurfaceTexture, app_state: &AppState, bind_group: &BindGroup) -> CommandBuffer {
+fn render_into_texture(
+    current_texture: &SurfaceTexture,
+    app_state: &AppState,
+    bind_group: &BindGroup,
+) -> CommandBuffer {
     let command_encoder_description = CommandEncoderDescriptor {
         label: Some("Final image presentation"),
     };
@@ -197,7 +221,6 @@ fn render_into_texture(current_texture: &SurfaceTexture, app_state: &AppState, b
         .framework
         .device
         .create_command_encoder(&command_encoder_description);
-
 
     let app_surface_view = current_texture
         .texture
@@ -224,7 +247,10 @@ fn render_into_texture(current_texture: &SurfaceTexture, app_state: &AppState, b
         let mut render_pass = command_encoder.begin_render_pass(&render_pass_description);
         render_pass.set_pipeline(&app_state.assets.pipeline(AppPipelineNames::FINAL_RENDER));
         render_pass.set_bind_group(0, &bind_group, &[]);
-        app_state.assets.mesh(MeshNames::QUAD).draw(&mut render_pass, 1);
+        app_state
+            .assets
+            .mesh(MeshNames::QUAD)
+            .draw(&mut render_pass, 1);
     }
     command_encoder.finish()
 }
