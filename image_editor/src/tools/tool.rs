@@ -1,9 +1,13 @@
+use std::{cell::RefCell, rc::Rc};
+
 use cgmath::{Point2, Vector2};
 
 use crate::ImageEditor;
+use framework::Debug;
 
 pub struct EditorContext<'editor, 'framework> {
     pub image_editor: &'editor mut ImageEditor<'framework>,
+    pub debug: Rc<RefCell<Debug>>,
 }
 
 #[derive(Debug, Clone, Copy)]

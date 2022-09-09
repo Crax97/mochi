@@ -12,7 +12,7 @@ struct PerFrameData {
        vp: mat4x4<f32>,
 }
 
-@group(0) @binding(0)
+@group(0) @binding(2)
 var<uniform> uniform_data: PerFrameData;
 
 
@@ -64,11 +64,14 @@ fn vs(in: VertexInput, instance: PerInstanceData) -> VertexOutput {
 
     out.coordinates_position = vp * projected;
     out.position = in.position;
-    out.tex_uv = in.tex_uv;
+    out.tex_uv = vec2<f32>(in.tex_uv.x, 1.0 - in.tex_uv.y);
     return out;
 }
 
+
+@group(0) @binding(0) var diffuse: texture_2d<f32>;
+@group(0) @binding(1) var s_diffuse: sampler;
 @fragment
 fn fs(in: VertexOutput) -> @location(0) vec4<f32> {
-    return vec4<f32>(0.3, 0.3, 0.3, 1.0);
+    return textureSample(diffuse, s_diffuse, in.tex_uv);
 }

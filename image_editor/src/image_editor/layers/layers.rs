@@ -2,7 +2,7 @@ use cgmath::{Point2, Vector2};
 use framework::{Framework, MeshInstance2D, TypedBuffer, TypedBufferConfiguration};
 use wgpu::{BindGroup, RenderPass};
 
-use crate::{asset_library::AssetsLibrary, MeshNames};
+use framework::{asset_library::AssetsLibrary, MeshNames};
 
 use super::{bitmap_layer, BitmapLayer};
 

@@ -2,7 +2,10 @@ use cgmath::{
     point2, point3, vec2, vec3, ElementWise, EuclideanSpace, Matrix4, Point2, Rad, Transform,
     Vector3,
 };
-use framework::{Framework, MeshInstance2D, TypedBuffer, TypedBufferConfiguration};
+use framework::{
+    asset_library::{MeshNames, PipelineNames},
+    Framework, MeshInstance2D, TypedBuffer, TypedBufferConfiguration,
+};
 use wgpu::{
     BindGroup, CommandEncoder, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline,
     Texture, TextureView,
@@ -10,7 +13,7 @@ use wgpu::{
 
 use crate::{
     layers::{BitmapLayer, Layer},
-    ImageEditor, MeshNames, PipelineNames, StrokeContext, StrokePath,
+    ImageEditor, StrokeContext, StrokePath,
 };
 
 use super::BrushEngine;

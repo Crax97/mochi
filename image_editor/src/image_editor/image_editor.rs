@@ -10,7 +10,7 @@ use wgpu::{
     RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, VertexState,
 };
 
-use crate::{asset_library::AssetsLibrary, MeshNames, PipelineNames};
+use framework::{asset_library::AssetsLibrary, MeshNames, PipelineNames};
 
 use super::{
     document::Document,
@@ -26,8 +26,6 @@ pub struct ImageEditor<'framework> {
     pan_camera: Camera2d<'framework>,
 
     document: Document<'framework>,
-    debug_points_buffer: TypedBuffer<'framework>,
-    debug_points: Vec<MeshInstance2D>,
 }
 
 impl<'framework> ImageEditor<'framework> {
@@ -89,23 +87,11 @@ impl<'framework> ImageEditor<'framework> {
             final_layer,
             current_layer_index: test_layer_index,
         };
-
-        let debug_points_buffer = TypedBuffer::new(
-            framework,
-            TypedBufferConfiguration::<MeshInstance2D> {
-                initial_data: vec![],
-                buffer_type: framework::BufferType::Vertex,
-                allow_write: true,
-                allow_read: false,
-            },
-        );
         ImageEditor {
             framework,
             assets,
             pan_camera,
             document: test_document,
-            debug_points_buffer,
-            debug_points: vec![],
         }
     }
 
@@ -176,79 +162,6 @@ impl<'framework> ImageEditor<'framework> {
         command_encoder.finish()
     }
 
-    pub fn begin_debug(&mut self) {
-        self.debug_points.clear();
-    }
-
-    pub fn draw_debug_point(&mut self, position: Point2<f32>, scale: Vector2<f32>) {
-        self.debug_points
-            .push(MeshInstance2D::new(position, scale, 0.0));
-    }
-
-    pub fn end_debug(&mut self) -> CommandBuffer {
-        let bind_group_layout =
-            self.framework
-                .device
-                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    label: Some("Debug bind group layout"),
-                    entries: &[wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::VERTEX,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Uniform,
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
-                    }],
-                });
-        let bind_group = self
-            .framework
-            .device
-            .create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("Debug bind group"),
-                layout: &bind_group_layout,
-                entries: &[wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::Buffer(
-                        self.camera().buffer().binding_resource(),
-                    ),
-                }],
-            });
-        let command_encoder_description = CommandEncoderDescriptor {
-            label: Some("Debug draw render encoder"),
-        };
-        let render_pass_description = RenderPassDescriptor {
-            label: Some("ImageEditor Debug Pass"),
-            color_attachments: &[Some(RenderPassColorAttachment {
-                view: self.document.final_layer.texture_view(),
-                resolve_target: None,
-                ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Load,
-                    store: true,
-                },
-            })],
-            depth_stencil_attachment: None,
-        };
-        self.debug_points_buffer
-            .write_sync(&self.debug_points.as_slice());
-        let mut command_encoder = self
-            .framework
-            .device
-            .create_command_encoder(&command_encoder_description);
-
-        {
-            let mut render_pass = command_encoder.begin_render_pass(&render_pass_description);
-            render_pass.set_pipeline(&self.assets.pipeline(PipelineNames::SIMPLE_COLORED));
-            render_pass.set_bind_group(0, &bind_group, &[]);
-            self.debug_points_buffer.bind(1, &mut render_pass);
-
-            self.assets
-                .mesh(MeshNames::QUAD)
-                .draw(&mut render_pass, self.debug_points.len() as u32);
-        }
-        command_encoder.finish()
-    }
     pub fn get_full_image_texture(&self) -> &BitmapLayer {
         &self.document.final_layer
     }

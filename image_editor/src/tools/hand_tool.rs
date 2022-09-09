@@ -39,10 +39,6 @@ impl Tool for HandTool {
             .image_editor
             .camera()
             .vec_ndc_into_world(pointer_motion.delta_normalized);
-        let scaled_movement = Vector2 {
-            x: scaled_movement.x,
-            y: -scaled_movement.y
-        };
         context.image_editor.pan_camera(scaled_movement);
         self.last_frame_location = pointer_motion.new_pointer_location;
     }
