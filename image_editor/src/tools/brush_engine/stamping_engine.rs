@@ -1,16 +1,11 @@
-use std::{cell::RefCell, rc::Rc};
-
 use cgmath::{point2, vec2, ElementWise, Point2};
 use framework::{
     asset_library::{mesh_names, pipeline_names},
-    Debug, Framework, MeshInstance2D, TypedBuffer, TypedBufferConfiguration,
+    Framework, MeshInstance2D, TypedBuffer, TypedBufferConfiguration,
 };
 use wgpu::{BindGroup, RenderPassColorAttachment, RenderPassDescriptor};
 
-use crate::{
-    layers::{BitmapLayer, Layer},
-    ImageEditor, StrokeContext, StrokePath,
-};
+use crate::{layers::BitmapLayer, StrokeContext, StrokePath};
 
 use super::BrushEngine;
 
@@ -115,52 +110,34 @@ impl<'framework> StrokingEngine<'framework> {
     }
 }
 
-fn correct_point_for_stroke(
-    point: Point2<f32>,
-    editor: &ImageEditor,
-    layer: &Layer,
-    debug: Rc<RefCell<Debug>>,
-) -> Point2<f32> {
-    // When the user clicks on the canvas, the canvas is probably zoomed
-    // but when the stroke points are rendered, the canvas is loaded without the zoom
-    // so we have to "correct" the points position based on the zoom level.
-    // This might change if we stroke by blitting the image
-
-    match layer.layer_type {
-        crate::layers::LayerType::Bitmap(ref bitmap_layer) => {
-            let one_over_scale = 1.0 / editor.camera().current_scale();
-            let actual_layer_scale =
-                bitmap_layer.size().mul_element_wise(layer.scale) * one_over_scale;
-            let layer_ratio = actual_layer_scale.div_element_wise(bitmap_layer.size());
-            let lrp = point2(layer_ratio.x, layer_ratio.y);
-            // println!("Actual layer scale {:?}, ratio is {:?}", actual_layer_scale, lrp);
-            let point = point.div_element_wise(lrp);
-            let camera_displace = editor.camera().position().mul_element_wise(-1.0);
-            let pt = point.add_element_wise(camera_displace);
-            debug
-                .borrow_mut()
-                .draw_debug_point(pt, vec2(3.0, 3.0), [0.0, 1.0, 0.0, 1.0]);
-            pt
-        }
-    }
-}
-
 impl<'framework> BrushEngine for StrokingEngine<'framework> {
     fn stroke(&mut self, path: StrokePath, context: StrokeContext) {
         match context.layer.layer_type {
             crate::layers::LayerType::Bitmap(ref bitmap_layer) => {
+                let one_over_scale = 1.0 / context.editor.camera().current_scale();
+                let actual_layer_scale =
+                    bitmap_layer.size().mul_element_wise(context.layer.scale) * one_over_scale;
+                let layer_ratio = actual_layer_scale.div_element_wise(bitmap_layer.size());
+                let lrp = point2(layer_ratio.x, layer_ratio.y);
+
+                let correct_point = |point: Point2<f32>| {
+                    let point = point.div_element_wise(lrp);
+                    let camera_displace = context.editor.camera().position().mul_element_wise(-1.0);
+                    let pt = point.add_element_wise(camera_displace);
+                    context.debug.borrow_mut().draw_debug_point(
+                        pt,
+                        vec2(3.0, 3.0),
+                        [0.0, 1.0, 0.0, 1.0],
+                    );
+                    pt
+                };
                 // 1. Update buffer
                 let instances: Vec<MeshInstance2D> = path
                     .points
                     .iter()
                     .map(|pt| {
                         MeshInstance2D::new(
-                            correct_point_for_stroke(
-                                *pt,
-                                context.editor,
-                                context.layer,
-                                context.debug.clone(),
-                            ),
+                            correct_point(*pt),
                             vec2(5.0, 5.0) * context.editor.camera().current_scale(),
                             0.0,
                         )
