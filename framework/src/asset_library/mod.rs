@@ -2,7 +2,9 @@ use std::{collections::HashMap, iter::FromIterator};
 
 use crate::{DebugInstance2D, Framework, Mesh, MeshConstructionDetails, MeshInstance2D, Vertex};
 use cgmath::{point2, point3};
-use wgpu::{ColorTargetState, FragmentState, RenderPipeline, VertexState};
+use wgpu::{
+    BlendComponent, BlendFactor, ColorTargetState, FragmentState, RenderPipeline, VertexState,
+};
 
 pub struct AssetsLibrary {
     pipelines: HashMap<String, RenderPipeline>,
@@ -104,7 +106,7 @@ impl AssetsLibrary {
                         entry_point: "fs",
                         targets: &[Some(ColorTargetState {
                             format: wgpu::TextureFormat::Rgba8UnormSrgb,
-                            blend: Some(wgpu::BlendState::REPLACE),
+                            blend: Some(wgpu::BlendState::ALPHA_BLENDING),
                             write_mask: wgpu::ColorWrites::ALL,
                         })],
                     }),
