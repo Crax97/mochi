@@ -159,26 +159,18 @@ async fn run_app() -> anyhow::Result<()> {
         } else {
             brush_tool.on_pointer_move(PointerMove {new_pointer_location: input_state.normalized_mouse_position(), delta_normalized: input_state.normalized_mouse_delta()}, EditorContext { image_editor: &mut image_editor });
         }
+        if input_state.is_mouse_button_just_pressed(MouseButton::Right) {
+            hand_tool.on_pointer_click(PointerClick {pointer_location: input_state.normalized_mouse_position()}, EditorContext { image_editor: &mut image_editor });
+        } else if input_state.is_mouse_button_just_released(MouseButton::Right) {
+            hand_tool.on_pointer_release(PointerRelease {}, EditorContext { image_editor: &mut image_editor });
+        } else {
+            hand_tool.on_pointer_move(PointerMove {new_pointer_location: input_state.normalized_mouse_position(), delta_normalized: input_state.normalized_mouse_delta()}, EditorContext { image_editor: &mut image_editor });
+        }
         
         if input_state.mouse_wheel_delta().abs() > 0.0 {
             image_editor.scale_view(input_state.mouse_wheel_delta());
         }
-
-        if input_state.is_mouse_button_just_pressed(MouseButton::Right) {
-        let random_vec = ||{
-            let mut rng = rand::thread_rng();
-            Point2::<f32> {
-                x: rng.gen_range(-1.0..1.0),
-                y: rng.gen_range(-1.0..1.0)
-            }
-        };
-        brush_tool.on_pointer_click(PointerClick {pointer_location: point2(-1.0, 0.0)}, EditorContext { image_editor: &mut image_editor });
-        brush_tool.on_pointer_move(PointerMove {new_pointer_location: random_vec(), delta_normalized: input_state.normalized_mouse_delta()}, EditorContext { image_editor: &mut image_editor });
-        brush_tool.on_pointer_release(PointerRelease {}, EditorContext { image_editor: &mut image_editor });
-    }
-
-});
-    
+    });
 }
 
 fn create_test_stamp(camera_buffer: &TypedBuffer) -> Stamp {

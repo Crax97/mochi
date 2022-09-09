@@ -131,8 +131,8 @@ impl<'framework> Camera2d<'framework> {
             .view_projection()
             .invert()
             .expect("Invalid transform matrix!");
-        let v4 = inv_view_camera * vec4(pos.x, pos.y, 0.0, 0.0);
-        vec2(v4.x / v4.w, v4.y / v4.w)
+        let v3 = inv_view_camera.transform_vector(vec3(pos.x, pos.y, 0.0));
+        vec2(v3.x, v3.y)
     }
 }
 #[repr(C)]
