@@ -2,7 +2,7 @@ pub mod stamping_engine;
 
 use std::{cell::RefCell, rc::Rc};
 
-use cgmath::{InnerSpace, MetricSpace, Point2};
+use cgmath::{InnerSpace, Point2};
 use framework::{asset_library::AssetsLibrary, Debug};
 use wgpu::CommandEncoder;
 

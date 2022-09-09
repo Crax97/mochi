@@ -87,8 +87,4 @@ impl Tool for BrushTool {
     ) {
         self.is_active = false
     }
-
-    fn on_selected(&mut self, context: EditorContext) {}
-
-    fn on_deselected(&mut self, context: EditorContext) {}
 }

@@ -1,11 +1,9 @@
 mod app_state;
 mod input_state;
 
-use std::{cell::RefCell, rc::Rc};
-
-use app_state::{AppPipelineNames, AppState};
-use cgmath::{point2, vec2, Point2, Vector2};
-use framework::{Framework, TypedBuffer, Debug, MeshNames};
+use app_state::{app_pipeline_names, AppState};
+use cgmath::{point2};
+use framework::{Framework, TypedBuffer, mesh_names};
 use image_editor::{
     layers::{BitmapLayer, BitmapLayerConfiguration},
     stamping_engine::{Stamp, StampCreationInfo, StrokingEngine},
@@ -15,10 +13,9 @@ use input_state::InputState;
 use lazy_static::lazy_static;
 
 use log::info;
-use rand::Rng;
 use wgpu::{
     BindGroup, CommandBuffer, CommandEncoderDescriptor, RenderPassColorAttachment,
-    RenderPassDescriptor, SurfaceTexture, TextureView,
+    RenderPassDescriptor, TextureView,
 };
 use winit::{
     dpi::PhysicalSize,
@@ -118,7 +115,7 @@ async fn run_app() -> anyhow::Result<()> {
         input_state.update(&event);
         let debug = app_state.debug.clone();
         debug.borrow_mut().begin_debug();
-        
+
         if input_state.is_mouse_button_just_pressed(MouseButton::Left) {
             brush_tool.on_pointer_click(PointerClick {pointer_location: input_state.normalized_mouse_position()}, EditorContext { image_editor: &mut image_editor, debug: debug.clone() });
         } else if input_state.is_mouse_button_just_released(MouseButton::Left) {
@@ -253,11 +250,11 @@ fn render_into_texture(
 
     {
         let mut render_pass = command_encoder.begin_render_pass(&render_pass_description);
-        render_pass.set_pipeline(&app_state.assets.pipeline(AppPipelineNames::FINAL_RENDER));
+        render_pass.set_pipeline(&app_state.assets.pipeline(app_pipeline_names::FINAL_RENDER));
         render_pass.set_bind_group(0, &bind_group, &[]);
         app_state
             .assets
-            .mesh(MeshNames::QUAD)
+            .mesh(mesh_names::QUAD)
             .draw(&mut render_pass, 1);
     }
     command_encoder.finish()

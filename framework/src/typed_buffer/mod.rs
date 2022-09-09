@@ -1,5 +1,3 @@
-use std::cell::RefCell;
-
 use as_slice::AsSlice;
 use wgpu::{util::DeviceExt, BufferUsages, RenderPass};
 
@@ -18,7 +16,6 @@ pub enum BufferType {
 struct BufferInfo {
     pub buffer: wgpu::Buffer,
     pub num_items: usize,
-    pub max_num_items: usize,
 }
 
 pub struct InnerBufferConfiguration {
@@ -89,7 +86,6 @@ where
     BufferInfo {
         buffer,
         num_items: data.as_slice().len(),
-        max_num_items: data.as_slice().len(),
     }
 }
 

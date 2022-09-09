@@ -195,17 +195,17 @@ impl AssetsLibrary {
             pipelines: HashMap::from_iter(
                 [
                     (
-                        PipelineNames::SIMPLE_TEXTURED.to_owned(),
+                        pipeline_names::SIMPLE_TEXTURED.to_owned(),
                         simple_diffuse_pipeline,
                     ),
                     (
-                        PipelineNames::SIMPLE_COLORED.to_owned(),
+                        pipeline_names::SIMPLE_COLORED.to_owned(),
                         simple_colored_pipeline,
                     ),
                 ]
                 .into_iter(),
             ),
-            meshes: HashMap::from_iter(std::iter::once((MeshNames::QUAD.to_owned(), quad_mesh))),
+            meshes: HashMap::from_iter(std::iter::once((mesh_names::QUAD.to_owned(), quad_mesh))),
         }
     }
     pub fn add_pipeline(&mut self, name: &str, pipeline: RenderPipeline) {
@@ -227,11 +227,11 @@ impl<'assetlib> AssetsLibrary {
     }
 }
 
-pub mod PipelineNames {
+pub mod pipeline_names {
     pub const SIMPLE_TEXTURED: &'static str = "SIMPLE_TEXTURED";
     pub const SIMPLE_COLORED: &'static str = "SIMPLE_COLORED";
 }
 
-pub mod MeshNames {
+pub mod mesh_names {
     pub const QUAD: &'static str = "QUAD";
 }

@@ -1,8 +1,6 @@
 use cgmath::{vec4, Point2, Vector2, Vector4};
 use wgpu::{VertexAttribute, VertexBufferLayout};
 
-use crate::Mesh;
-
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
 pub struct MeshInstance2D {

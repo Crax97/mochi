@@ -1,17 +1,11 @@
 use std::{cell::RefCell, rc::Rc};
 
-use cgmath::{
-    point2, point3, vec2, vec3, ElementWise, EuclideanSpace, Matrix4, Point2, Rad, Transform,
-    Vector3,
-};
+use cgmath::{point2, vec2, ElementWise, Point2};
 use framework::{
-    asset_library::{MeshNames, PipelineNames},
+    asset_library::{mesh_names, pipeline_names},
     Debug, Framework, MeshInstance2D, TypedBuffer, TypedBufferConfiguration,
 };
-use wgpu::{
-    BindGroup, CommandEncoder, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline,
-    Texture, TextureView,
-};
+use wgpu::{BindGroup, RenderPassColorAttachment, RenderPassDescriptor};
 
 use crate::{
     layers::{BitmapLayer, Layer},
@@ -148,7 +142,6 @@ fn correct_point_for_stroke(
                 .draw_debug_point(pt, vec2(3.0, 3.0), [0.0, 1.0, 0.0, 1.0]);
             pt
         }
-        _ => point,
     }
 }
 
@@ -191,15 +184,14 @@ impl<'framework> BrushEngine for StrokingEngine<'framework> {
                 let mut render_pass = context
                     .command_encoder
                     .begin_render_pass(&stroking_engine_render_pass);
-                render_pass.set_pipeline(&context.assets.pipeline(PipelineNames::SIMPLE_TEXTURED));
+                render_pass.set_pipeline(&context.assets.pipeline(pipeline_names::SIMPLE_TEXTURED));
                 render_pass.set_bind_group(0, &self.current_stamp.bind_group, &[]);
                 self.instance_buffer.bind(1, &mut render_pass);
                 context
                     .assets
-                    .mesh(MeshNames::QUAD)
+                    .mesh(mesh_names::QUAD)
                     .draw(&mut render_pass, instances.len() as u32);
             }
-            _ => {}
         }
     }
 }

@@ -1,12 +1,11 @@
 use cgmath::{vec4, Point2, Vector2, Vector4};
 use wgpu::{
-    BindGroup, CommandBuffer, CommandEncoderDescriptor, RenderPassColorAttachment,
-    RenderPassDescriptor, TextureView, VertexAttribute, VertexBufferLayout,
+    CommandBuffer, CommandEncoderDescriptor, RenderPassColorAttachment, RenderPassDescriptor,
+    TextureView, VertexAttribute, VertexBufferLayout,
 };
 
 use crate::{
-    framework, AssetsLibrary, Framework, MeshNames, PipelineNames, TypedBuffer,
-    TypedBufferConfiguration,
+    mesh_names, pipeline_names, AssetsLibrary, Framework, TypedBuffer, TypedBufferConfiguration,
 };
 
 #[repr(C)]
@@ -129,12 +128,12 @@ impl Debug {
 
         {
             let mut render_pass = command_encoder.begin_render_pass(&render_pass_description);
-            render_pass.set_pipeline(&asset_library.pipeline(PipelineNames::SIMPLE_COLORED));
+            render_pass.set_pipeline(&asset_library.pipeline(pipeline_names::SIMPLE_COLORED));
             render_pass.set_bind_group(0, &bind_group, &[]);
             debug_points_buffer.bind(1, &mut render_pass);
 
             asset_library
-                .mesh(MeshNames::QUAD)
+                .mesh(mesh_names::QUAD)
                 .draw(&mut render_pass, self.debug_items.len() as u32);
         }
         command_encoder.finish()

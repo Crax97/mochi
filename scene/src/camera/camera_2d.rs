@@ -1,5 +1,5 @@
 use cgmath::{
-    point2, point3, vec2, vec3, vec4, Matrix4, Point2, SquareMatrix, Transform, Vector2, Vector3,
+    point2, point3, vec2, vec3, Matrix4, Point2, SquareMatrix, Transform, Vector2, Vector3,
 };
 
 use super::super::transform::Transform2d;

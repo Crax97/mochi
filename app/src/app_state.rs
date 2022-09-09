@@ -1,8 +1,7 @@
 use std::{cell::RefCell, rc::Rc};
 
-use cgmath::{point2, point3};
 use framework::AssetsLibrary;
-use framework::{Debug, Framework, Mesh, MeshConstructionDetails, Vertex};
+use framework::{Debug, Framework, Mesh};
 use image_editor::ImageEditor;
 use wgpu::{ColorTargetState, FragmentState, Surface, SurfaceConfiguration, VertexState};
 use winit::{dpi::PhysicalSize, window::Window};
@@ -101,7 +100,7 @@ impl<'framework> AppState<'framework> {
                     },
                 });
         let mut library = AssetsLibrary::new(framework);
-        library.add_pipeline(AppPipelineNames::FINAL_RENDER, final_present_pipeline);
+        library.add_pipeline(app_pipeline_names::FINAL_RENDER, final_present_pipeline);
         let assets = Rc::new(library);
 
         let debug = Rc::new(RefCell::new(Debug::new()));
@@ -145,6 +144,6 @@ impl<'framework> AppState<'framework> {
     }
 }
 
-pub mod AppPipelineNames {
+pub mod app_pipeline_names {
     pub const FINAL_RENDER: &'static str = "FINAL_RENDER";
 }
