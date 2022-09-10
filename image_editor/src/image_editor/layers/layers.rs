@@ -7,6 +7,7 @@ use framework::{asset_library::AssetsLibrary, mesh_names};
 use super::{bitmap_layer, BitmapLayer};
 
 pub struct Layer<'framework> {
+    pub name: String,
     pub layer_type: LayerType,
     pub position: Point2<f32>,
     pub scale: Vector2<f32>,
@@ -17,6 +18,7 @@ pub struct Layer<'framework> {
 }
 
 pub struct LayerCreationInfo<'framework> {
+    pub name: String,
     pub position: Point2<f32>,
     pub scale: Vector2<f32>,
     pub rotation_radians: f32,
@@ -102,6 +104,7 @@ impl<'framework> Layer<'framework> {
             allow_read: false,
         });
         Self {
+            name: creation_info.name,
             layer_type: LayerType::Bitmap(bitmap_layer),
             position: creation_info.position,
             scale: creation_info.scale,

@@ -23,6 +23,7 @@ pub struct ImageEditor<'framework> {
     pan_camera: Camera2d<'framework>,
 
     document: Document<'framework>,
+    layers_created: u16,
 }
 
 impl<'framework> ImageEditor<'framework> {
@@ -72,6 +73,7 @@ impl<'framework> ImageEditor<'framework> {
                 Layer::new_bitmap(
                     test_layer,
                     LayerCreationInfo {
+                        name: "Test Layer".to_owned(),
                         position: point2(0.0, 0.0),
                         scale: vec2(1.0, 1.0),
                         rotation_radians: 0.0,
@@ -89,6 +91,7 @@ impl<'framework> ImageEditor<'framework> {
             assets,
             pan_camera,
             document: test_document,
+            layers_created: 0,
         }
     }
 
@@ -101,7 +104,34 @@ impl<'framework> ImageEditor<'framework> {
     }
 
     pub fn add_layer_to_document(&mut self) {
-        todo!()
+        let layer_name = format!("Layer {}", self.layers_created);
+        self.layers_created += 1;
+        let layer_index = LayerIndex(self.layers_created);
+        let new_layer = BitmapLayer::new(
+            &self.framework,
+            BitmapLayerConfiguration {
+                label: layer_name.clone(),
+                width: 800,
+                height: 600,
+                initial_background_color: [0.0, 0.0, 0.0, 0.0],
+            },
+        );
+        let new_layer = Layer::new_bitmap(
+            new_layer,
+            LayerCreationInfo {
+                name: layer_name,
+                position: point2(0.0, 0.0),
+                scale: vec2(1.0, 1.0),
+                rotation_radians: 0.0,
+                camera_buffer: self.camera().buffer(),
+            },
+            self.framework,
+        );
+        self.document.layers.insert(layer_index.clone(), new_layer);
+        self.document
+            .tree_root
+            .0
+            .push(LayerTree::SingleLayer(layer_index));
     }
 
     pub fn select_new_layer(&mut self, layer_idx: LayerIndex) {
@@ -109,7 +139,7 @@ impl<'framework> ImageEditor<'framework> {
     }
 
     pub fn delete_layer(&mut self, layer_idx: LayerIndex) {
-        todo!()
+        self.document.delete_layer(layer_idx);
     }
 
     pub fn on_resize(&mut self, new_bounds: [f32; 4]) {

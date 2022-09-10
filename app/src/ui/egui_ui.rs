@@ -1,4 +1,4 @@
-use egui::{Color32, FontDefinitions, InnerResponse, Pos2};
+use egui::{Color32, FontDefinitions, InnerResponse, Label, Pos2, Sense};
 use egui_wgpu_backend::{RenderPass, ScreenDescriptor};
 use egui_winit_platform::PlatformDescriptor;
 use framework::Framework;
@@ -96,7 +96,6 @@ impl EguiUI {
     }
 
     fn layer_settings(&mut self, app_ctx: &mut UiContext) -> (bool, LayerAction) {
-        let mut event_handled = false;
         let ctx = self.platform.context();
         let document = app_ctx.image_editor.document();
         use image_editor::layers::LayerTree::*;
@@ -104,14 +103,29 @@ impl EguiUI {
         let mut action = LayerAction::None;
 
         let window_handled = egui::Window::new("Layers").show(&ctx, |ui| {
+            if ui.button("New layer").clicked() {
+                action = LayerAction::NewLayer;
+            }
+
             let mut lay_layer_ui = |idx: &LayerIndex| {
-                let layer = document.get_layer(idx);
-                let color = if *idx == document.current_layer_index {
-                    Color32::LIGHT_BLUE
-                } else {
-                    Color32::WHITE
-                };
-                if ui.colored_label(color, "Layer").clicked() {}
+                ui.horizontal(|ui| {
+                    let layer = document.get_layer(idx);
+                    let color = if *idx == document.current_layer_index {
+                        Color32::LIGHT_BLUE
+                    } else {
+                        Color32::WHITE
+                    };
+                    if ui
+                        .add(Label::new(&layer.name).sense(Sense::click()))
+                        .clicked()
+                    {
+                        action = LayerAction::SelectLayer(idx.clone());
+                    }
+
+                    if ui.button("Delete layer").clicked() {
+                        action = LayerAction::DeleteLayer(idx.clone());
+                    }
+                });
             };
             for layer in document.tree_root.0.iter() {
                 match layer {
