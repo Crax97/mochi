@@ -97,6 +97,7 @@ impl<'framework> Stamp {
 struct StampUniformData {
     pub color: [f32; 4],
     pub flow: f32,
+    pub softness: f32,
     pub padding: [f32; 3],
 }
 struct UsableStamp<'framework> {
@@ -125,6 +126,7 @@ impl<'framework> StrokingEngine<'framework> {
         let initial_setup = StampUniformData {
             color: [0.0, 1.0, 0.0, 1.0],
             flow: 1.0,
+            softness: 0.5,
             padding: [0.0, 0.0, 0.0],
         };
         let stamp_pipeline = StrokingEngine::create_pipeline(framework);

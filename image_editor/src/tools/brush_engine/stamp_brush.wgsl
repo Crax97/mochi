@@ -15,6 +15,7 @@ struct PerFrameData {
 struct BrushData {
     color: vec4<f32>,
     flow: f32,
+    softness: f32,
 }
 
 @group(0) @binding(2)
@@ -76,6 +77,13 @@ fn vs(in: VertexInput, instance: PerInstanceData) -> VertexOutput {
     return out;
 }
 
+fn soft_circle(uv: vec2<f32>, s: f32) -> f32 {
+    let s = clamp(s, 0.0, 1.0);
+    let dist = distance(uv, vec2(0.5, 0.5)) / 0.5;
+    let one_min_dist = 1.0 - dist;
+    let diff = s * 0.5;
+    return smoothstep(0.5 - diff, 0.5 + diff, one_min_dist);
+}
 
 @group(0) @binding(0) var diffuse: texture_2d<f32>;
 @group(0) @binding(1) var s_diffuse: sampler;
@@ -83,5 +91,8 @@ fn vs(in: VertexInput, instance: PerInstanceData) -> VertexOutput {
 fn fs(in: VertexOutput) -> @location(0) vec4<f32> {
     let sample_a = textureSample(diffuse, s_diffuse, in.tex_uv).a;
     let opacity = brush_data.color.a;
-    return brush_data.color * sample_a * opacity;
+    let softness = soft_circle(in.tex_uv, brush_data.softness);
+
+    let brush_alpha = sample_a * opacity * softness;
+    return brush_data.color * brush_alpha;
 }
