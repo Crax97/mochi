@@ -18,7 +18,7 @@ pub struct Toolbox<'framework> {
     tools: Vec<Box<dyn Tool>>,
     brush_engines: Vec<Rc<RefCell<Box<dyn BrushEngine>>>>,
     framework: &'framework Framework,
-    brush_tool: BrushTool<'framework>,
+    pub brush_tool: BrushTool<'framework>,
     hand_tool: HandTool,
     stamping_engine: Rc<RefCell<StrokingEngine<'framework>>>,
     enabled: bool,

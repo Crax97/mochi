@@ -14,7 +14,7 @@ pub struct BrushTool<'framework> {
     engine: Rc<RefCell<dyn BrushEngine + 'framework>>,
     is_active: bool,
     last_mouse_position: Point2<f32>,
-    step: f32,
+    pub step: f32,
 }
 
 impl<'framework> BrushTool<'framework> {

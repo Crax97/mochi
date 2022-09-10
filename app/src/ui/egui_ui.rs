@@ -60,6 +60,16 @@ impl Ui for EguiUI {
             if new_config != engine_config {
                 app_ctx.toolbox.update_stamping_engine_data(new_config);
             }
+
+            ui.separator();
+            ui.label("Brush tool settings");
+            ui.horizontal(|ui| {
+                ui.label("Step");
+                ui.add(
+                    egui::DragValue::new(&mut app_ctx.toolbox.brush_tool.step)
+                        .clamp_range(1.0..=1000.0),
+                );
+            })
         });
         if let Some(InnerResponse { response, .. }) = window_handled {
             let mouse_pos = app_ctx.input_state.mouse_position();
