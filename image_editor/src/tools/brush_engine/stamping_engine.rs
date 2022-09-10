@@ -100,19 +100,17 @@ struct StampUniformData {
     pub softness: f32,
     pub padding: [f32; 3],
 }
-struct UsableStamp<'framework> {
-    pub stamp: Stamp,
-    pub brush_bind_group: BindGroup,
-    pub stamp_data_buffer: TypedBuffer<'framework>,
-    pub current_uniform_data: StampUniformData,
-}
 pub struct StrokingEngine<'framework> {
-    current_stamp: UsableStamp<'framework>,
+    current_stamp: usize,
     instance_buffer: TypedBuffer<'framework>,
     stamp_pipeline: RenderPipeline,
+    stamps: Vec<Stamp>,
+    stamp_data_buffer: TypedBuffer<'framework>,
+    current_uniform_data: StampUniformData,
+    pub brush_bind_group: BindGroup,
 }
 
-impl<'framework> StrokingEngine<'framework> {
+impl<'framework, 'stamp> StrokingEngine<'framework> {
     pub fn new(initial_stamp: Stamp, framework: &'framework Framework) -> Self {
         let instance_buffer = TypedBuffer::new(
             framework,
@@ -129,7 +127,7 @@ impl<'framework> StrokingEngine<'framework> {
             softness: 0.5,
             padding: [0.0, 0.0, 0.0],
         };
-        let stamp_pipeline = StrokingEngine::create_pipeline(framework);
+        let stamp_pipeline = StrokingEngine::create_stamp_pipeline(framework);
         let stamp_uniform_buffer = TypedBuffer::new(
             framework,
             TypedBufferConfiguration::<StampUniformData> {
@@ -168,18 +166,17 @@ impl<'framework> StrokingEngine<'framework> {
                 }],
             });
         Self {
-            current_stamp: UsableStamp {
-                stamp: initial_stamp,
-                stamp_data_buffer: stamp_uniform_buffer,
-                brush_bind_group,
-                current_uniform_data: initial_setup,
-            },
+            stamps: vec![initial_stamp],
+            current_stamp: 0,
+            brush_bind_group,
+            stamp_data_buffer: stamp_uniform_buffer,
+            current_uniform_data: initial_setup,
             instance_buffer,
             stamp_pipeline,
         }
     }
 
-    fn create_pipeline(framework: &Framework) -> RenderPipeline {
+    fn create_stamp_pipeline(framework: &Framework) -> RenderPipeline {
         let texture_bind_layout =
             framework
                 .device
@@ -293,12 +290,19 @@ impl<'framework> StrokingEngine<'framework> {
     }
 
     pub fn set_stamp_color(&mut self, new_color: [f32; 4]) {
-        let old_data = self.current_stamp.current_uniform_data.clone();
+        let old_data = self.current_uniform_data.clone();
         let new_data = StampUniformData {
             color: new_color,
             ..old_data
         };
-        self.current_stamp.stamp_data_buffer.write_sync(&[new_data]);
+        self.stamp_data_buffer.write_sync(&[new_data]);
+        self.current_uniform_data = new_data;
+    }
+
+    fn current_stamp(&self) -> &Stamp {
+        self.stamps
+            .get(self.current_stamp)
+            .expect("Could not find the given index in stamp array")
     }
 }
 
@@ -354,8 +358,8 @@ impl<'framework> BrushEngine for StrokingEngine<'framework> {
                     .command_encoder
                     .begin_render_pass(&stroking_engine_render_pass);
                 render_pass.set_pipeline(&self.stamp_pipeline);
-                render_pass.set_bind_group(0, &self.current_stamp.stamp.bind_group, &[]);
-                render_pass.set_bind_group(1, &self.current_stamp.brush_bind_group, &[]);
+                render_pass.set_bind_group(0, &self.current_stamp().bind_group, &[]);
+                render_pass.set_bind_group(1, &self.brush_bind_group, &[]);
                 self.instance_buffer.bind(1, &mut render_pass);
                 context
                     .assets

@@ -1,3 +1,5 @@
+use std::{cell::RefCell, rc::Rc};
+
 use cgmath::{point2, vec2, MetricSpace, Point2};
 use wgpu::CommandEncoderDescriptor;
 
@@ -9,14 +11,14 @@ use crate::{
 use super::{BrushEngine, StrokePath, Tool};
 
 pub struct BrushTool {
-    engine: Box<dyn BrushEngine>,
+    engine: Rc<RefCell<Box<dyn BrushEngine>>>,
     is_active: bool,
     last_mouse_position: Point2<f32>,
     step: f32,
 }
 
 impl BrushTool {
-    pub fn new(initial_engine: Box<dyn BrushEngine>, step: f32) -> Self {
+    pub fn new(initial_engine: Rc<RefCell<Box<dyn BrushEngine>>>, step: f32) -> Self {
         Self {
             engine: initial_engine,
             step,
@@ -80,7 +82,7 @@ impl Tool for BrushTool {
             assets: context.image_editor.assets(),
             debug: context.debug.clone(),
         };
-        self.engine.stroke(path, context);
+        self.engine.borrow_mut().stroke(path, context);
         framework.queue.submit(std::iter::once(encoder.finish()));
         self.last_mouse_position = new_pointer_position;
     }

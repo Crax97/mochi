@@ -1,6 +1,8 @@
 mod app_state;
 mod input_state;
 
+use std::{cell::RefCell, rc::Rc};
+
 use app_state::{app_pipeline_names, AppState};
 use cgmath::{point2};
 use framework::{Framework, TypedBuffer, mesh_names};
@@ -108,7 +110,8 @@ async fn run_app() -> anyhow::Result<()> {
             ],
         });
     let test_stamp = create_test_stamp(image_editor.camera().buffer());
-    let mut brush_tool = BrushTool::new(Box::new(StrokingEngine::new(test_stamp, &FRAMEWORK)), 5.0);
+    let stamping_engine: Rc<RefCell<Box<dyn BrushEngine>>> = Rc::new(RefCell::new(Box::new(StrokingEngine::new(test_stamp, &FRAMEWORK))));
+    let mut brush_tool = BrushTool::new(stamping_engine.clone(), 5.0);
     let mut hand_tool = HandTool::new();
 
     event_loop.run(move |event, _, control_flow| {
