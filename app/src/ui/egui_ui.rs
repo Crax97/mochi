@@ -5,7 +5,7 @@ use egui_wgpu_backend::{RenderPass, ScreenDescriptor};
 use egui_winit_platform::PlatformDescriptor;
 use framework::Framework;
 use log::warn;
-use wgpu::{SurfaceConfiguration, TextureView};
+use wgpu::{CommandBuffer, SurfaceConfiguration, TextureView};
 use winit::window::Window;
 
 use crate::{app_state::ImageApplication, toolbox::Toolbox};
@@ -43,13 +43,18 @@ impl Ui for EguiUI {
     fn on_new_winit_event(&mut self, event: &winit::event::Event<()>) {
         self.platform.handle_event(&event);
     }
-    fn do_ui(&mut self, ctx: UiContext) {}
+    fn do_ui(&mut self, app_ctx: UiContext) {
+        let ctx = self.platform.context();
+        egui::Window::new("Brush settings").show(&ctx, |ui| {
+            ui.label("Hello|");
+        });
+    }
     fn present(
         &mut self,
         framework: &Framework,
         surface_configuration: SurfaceConfiguration,
         output_view: &TextureView,
-    ) {
+    ) -> CommandBuffer {
         let output = self.platform.end_frame(None);
         let paint_jobs = self.platform.context().tessellate(output.shapes);
         let mut encoder =
@@ -81,14 +86,13 @@ impl Ui for EguiUI {
                 &output_view,
                 &paint_jobs,
                 &screen_descriptor,
-                Some(wgpu::Color::BLACK),
+                None,
             )
             .unwrap();
-        // Submit the commands.
-        framework.queue.submit(iter::once(encoder.finish()));
 
         if let Err(e) = self.backend_pass.remove_textures(tdelta) {
             warn!("While executing ui pass: {e}");
         }
+        encoder.finish()
     }
 }

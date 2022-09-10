@@ -1,6 +1,6 @@
 use framework::Framework;
 use image_editor::ImageEditor;
-use wgpu::{SurfaceConfiguration, TextureView};
+use wgpu::{CommandBuffer, SurfaceConfiguration, TextureView};
 use winit::window::Window;
 
 use crate::toolbox::Toolbox;
@@ -21,7 +21,7 @@ pub trait Ui {
         framework: &Framework,
         surface_configuration: SurfaceConfiguration,
         output_view: &TextureView,
-    );
+    ) -> CommandBuffer;
 }
 
 pub fn create_ui(

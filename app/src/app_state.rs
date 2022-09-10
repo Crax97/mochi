@@ -263,12 +263,15 @@ impl<'framework> ImageApplication<'framework> {
                 );
                 commands.push(debug_command);
 
+                let surface_configuration = self.final_surface_configuration.clone();
+
                 let final_present_command = self.render_into_texture(&app_surface_view);
                 commands.push(final_present_command);
 
-                let surface_configuration = self.final_surface_configuration.clone();
-                self.ui
-                    .present(&self.framework, surface_configuration, &app_surface_view);
+                let ui_command =
+                    self.ui
+                        .present(&self.framework, surface_configuration, &app_surface_view);
+                commands.push(ui_command);
 
                 self.framework.queue.submit(commands);
                 current_texture.present();
