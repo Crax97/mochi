@@ -310,10 +310,17 @@ impl<'framework> BrushEngine for StrokingEngine<'framework> {
         match context.layer.layer_type {
             crate::layers::LayerType::Bitmap(ref bitmap_layer) => {
                 let one_over_scale = 1.0 / context.editor.camera().current_scale();
+                let top_left = context.editor.camera().ndc_into_world(point2(-1.0, 1.0));
+                let bottom_right = context.editor.camera().ndc_into_world(point2(1.0, -1.0));
+                let width = (bottom_right.x - top_left.x).abs() * one_over_scale;
+                let height = (top_left.y - bottom_right.y).abs() * one_over_scale;
+                let x_ratio = bitmap_layer.size().x / width;
+                let y_ratio = bitmap_layer.size().y / height;
+
                 let actual_layer_scale =
                     bitmap_layer.size().mul_element_wise(context.layer.scale) * one_over_scale;
                 let layer_ratio = actual_layer_scale.div_element_wise(bitmap_layer.size());
-                let lrp = point2(layer_ratio.x, layer_ratio.y);
+                let lrp = point2(layer_ratio.x * x_ratio, layer_ratio.y * y_ratio);
 
                 let correct_point = |point: Point2<f32>| {
                     let point = point.div_element_wise(lrp);
