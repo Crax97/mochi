@@ -67,6 +67,22 @@ impl Ui for EguiUI {
             ui.separator();
             ui.label("Brush tool settings");
             ui.horizontal(|ui| {
+                let max = app_ctx.toolbox.brush_tool.max_size;
+                ui.label("Min brush size");
+                ui.add(
+                    egui::DragValue::new(&mut app_ctx.toolbox.brush_tool.min_size)
+                        .clamp_range(1.0..=max),
+                );
+            });
+            ui.horizontal(|ui| {
+                let min = app_ctx.toolbox.brush_tool.min_size;
+                ui.label("Max brush size");
+                ui.add(
+                    egui::DragValue::new(&mut app_ctx.toolbox.brush_tool.max_size)
+                        .clamp_range(min..=1000.0),
+                );
+            });
+            ui.horizontal(|ui| {
                 ui.label("Step");
                 ui.add(
                     egui::DragValue::new(&mut app_ctx.toolbox.brush_tool.step)
