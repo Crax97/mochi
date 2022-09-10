@@ -51,16 +51,11 @@ impl<'framework> Tool for BrushTool<'framework> {
             pointer_motion.new_pointer_location,
         );
 
-        let distance_from_prev_point = new_pointer_position.distance(self.last_mouse_position);
-        if distance_from_prev_point < self.step {
+        let distance_from_last_point = self.last_mouse_position.distance(new_pointer_position);
+        if distance_from_last_point < self.step {
             return;
         }
 
-        context.debug.borrow_mut().draw_debug_point(
-            pointer_motion.new_pointer_location,
-            vec2(3.0, 3.0),
-            [1.0, 0.0, 0.0, 1.0],
-        );
         let path = StrokePath::linear_start_to_end(
             self.last_mouse_position,
             new_pointer_position,
@@ -80,6 +75,7 @@ impl<'framework> Tool for BrushTool<'framework> {
             assets: context.image_editor.assets(),
             debug: context.debug.clone(),
         };
+
         self.engine.borrow_mut().stroke(path, context);
         framework.queue.submit(std::iter::once(encoder.finish()));
         self.last_mouse_position = new_pointer_position;

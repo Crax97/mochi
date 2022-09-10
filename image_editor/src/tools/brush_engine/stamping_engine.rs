@@ -326,6 +326,7 @@ impl<'framework> BrushEngine for StrokingEngine<'framework> {
                     );
                     pt
                 };
+
                 // 1. Update buffer
                 let instances: Vec<MeshInstance2D> = path
                     .points
