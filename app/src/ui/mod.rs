@@ -1,0 +1,33 @@
+use framework::Framework;
+use image_editor::ImageEditor;
+use wgpu::{SurfaceConfiguration, TextureView};
+use winit::window::Window;
+
+use crate::toolbox::Toolbox;
+
+mod egui_ui;
+
+pub struct UiContext<'app, 'framework> {
+    pub image_editor: &'app mut ImageEditor<'framework>,
+    pub toolbox: &'app mut Toolbox<'framework>,
+}
+
+pub trait Ui {
+    fn begin(&mut self);
+    fn on_new_winit_event(&mut self, event: &winit::event::Event<()>);
+    fn do_ui(&mut self, ctx: UiContext);
+    fn present(
+        &mut self,
+        framework: &Framework,
+        surface_configuration: SurfaceConfiguration,
+        output_view: &TextureView,
+    );
+}
+
+pub fn create_ui(
+    framework: &Framework,
+    surface_configuration: &SurfaceConfiguration,
+    window: &Window,
+) -> impl Ui {
+    egui_ui::EguiUI::new(framework, surface_configuration, window)
+}

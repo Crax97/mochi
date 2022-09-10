@@ -16,8 +16,9 @@ use winit::{dpi::PhysicalSize, window::Window};
 
 use crate::input_state::InputState;
 use crate::toolbox::Toolbox;
+use crate::ui::{self, Ui, UiContext};
 
-pub(crate) struct ImageApplication<'framework> {
+pub struct ImageApplication<'framework> {
     pub(crate) framework: &'framework Framework,
     pub(crate) assets: Rc<AssetsLibrary>,
     pub(crate) window: Window,
@@ -28,6 +29,7 @@ pub(crate) struct ImageApplication<'framework> {
     input_state: InputState,
     toolbox: Toolbox<'framework>,
     final_present_bind_group: BindGroup,
+    ui: Box<dyn Ui>,
 }
 impl<'framework> ImageApplication<'framework> {
     pub(crate) fn new(window: Window, framework: &'framework Framework) -> Self {
@@ -150,6 +152,7 @@ impl<'framework> ImageApplication<'framework> {
                 ],
             });
         let toolbox = Toolbox::new(framework, stamping_engine.clone());
+        let ui = ui::create_ui(&framework, &final_surface_configuration, &window);
         Self {
             window,
             assets: assets.clone(),
@@ -161,6 +164,7 @@ impl<'framework> ImageApplication<'framework> {
             input_state: InputState::default(),
             toolbox,
             final_present_bind_group: bind_group,
+            ui: Box::new(ui),
         }
     }
 
@@ -190,7 +194,11 @@ impl<'framework> ImageApplication<'framework> {
     }
 
     pub(crate) fn on_event(&mut self, event: &winit::event::Event<()>) -> ControlFlow {
+        self.ui.begin();
+
         self.input_state.update(&event);
+        self.ui.on_new_winit_event(&event);
+
         let debug = self.debug.clone();
         debug.borrow_mut().begin_debug();
         self.toolbox
@@ -231,6 +239,13 @@ impl<'framework> ImageApplication<'framework> {
                         }
                     },
                 };
+
+                let ui_ctx = UiContext {
+                    image_editor: &mut self.image_editor,
+                    toolbox: &mut self.toolbox,
+                };
+                self.ui.do_ui(ui_ctx);
+
                 let mut commands: Vec<CommandBuffer> = vec![];
 
                 let draw_image_in_editor = { self.image_editor.redraw_full_image() };
@@ -250,6 +265,10 @@ impl<'framework> ImageApplication<'framework> {
 
                 let final_present_command = self.render_into_texture(&app_surface_view);
                 commands.push(final_present_command);
+
+                let surface_configuration = self.final_surface_configuration.clone();
+                self.ui
+                    .present(&self.framework, surface_configuration, &app_surface_view);
 
                 self.framework.queue.submit(commands);
                 current_texture.present();
@@ -295,6 +314,8 @@ impl<'framework> ImageApplication<'framework> {
         }
         command_encoder.finish()
     }
+
+    fn ui(&mut self) {}
 }
 
 pub mod app_pipeline_names {

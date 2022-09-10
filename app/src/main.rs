@@ -1,6 +1,7 @@
 mod app_state;
 mod input_state;
 mod toolbox;
+mod ui;
 
 use app_state::ImageApplication;
 use framework::Framework;
