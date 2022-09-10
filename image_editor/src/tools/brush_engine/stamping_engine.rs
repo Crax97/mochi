@@ -94,7 +94,7 @@ impl<'framework> Stamp {
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-struct StampUniformData {
+pub struct StampUniformData {
     pub color: [f32; 4],
     pub flow: f32,
     pub softness: f32,
@@ -289,14 +289,13 @@ impl<'framework, 'stamp> StrokingEngine<'framework> {
         Stamp::new(brush_texture, framework, info)
     }
 
-    pub fn set_stamp_color(&mut self, new_color: [f32; 4]) {
-        let old_data = self.current_uniform_data.clone();
-        let new_data = StampUniformData {
-            color: new_color,
-            ..old_data
-        };
-        self.stamp_data_buffer.write_sync(&[new_data]);
-        self.current_uniform_data = new_data;
+    pub fn settings(&self) -> StampUniformData {
+        self.current_uniform_data.clone()
+    }
+
+    pub fn set_new_settings(&mut self, settings: StampUniformData) {
+        self.stamp_data_buffer.write_sync(&[settings]);
+        self.current_uniform_data = settings;
     }
 
     fn current_stamp(&self) -> &Stamp {

@@ -11,16 +11,16 @@ use crate::{
 use super::{BrushEngine, StrokePath, Tool};
 
 pub struct BrushTool {
-    engine: Rc<RefCell<Box<dyn BrushEngine>>>,
+    engine: Option<Rc<RefCell<dyn BrushEngine>>>,
     is_active: bool,
     last_mouse_position: Point2<f32>,
     step: f32,
 }
 
 impl BrushTool {
-    pub fn new(initial_engine: Rc<RefCell<Box<dyn BrushEngine>>>, step: f32) -> Self {
+    pub fn new(step: f32) -> Self {
         Self {
-            engine: initial_engine,
+            engine: None,
             step,
             is_active: false,
             last_mouse_position: point2(0.0, 0.0),
@@ -36,6 +36,9 @@ impl BrushTool {
 
 impl Tool for BrushTool {
     fn on_pointer_click(&mut self, pointer_click: PointerClick, context: EditorContext) {
+        if !self.engine.is_some() {
+            return;
+        }
         self.is_active = true;
         self.last_mouse_position = BrushTool::reposition_point_for_draw(
             &context.image_editor,
@@ -45,6 +48,9 @@ impl Tool for BrushTool {
 
     fn on_pointer_move(&mut self, pointer_motion: PointerMove, context: EditorContext) {
         if !self.is_active {
+            return;
+        }
+        if !self.engine.is_some() {
             return;
         }
 
@@ -82,7 +88,11 @@ impl Tool for BrushTool {
             assets: context.image_editor.assets(),
             debug: context.debug.clone(),
         };
-        self.engine.borrow_mut().stroke(path, context);
+        self.engine
+            .as_deref()
+            .unwrap()
+            .borrow_mut()
+            .stroke(path, context);
         framework.queue.submit(std::iter::once(encoder.finish()));
         self.last_mouse_position = new_pointer_position;
     }
@@ -92,6 +102,9 @@ impl Tool for BrushTool {
         _pointer_release: crate::PointerRelease,
         _context: EditorContext,
     ) {
+        if !self.engine.is_some() {
+            return;
+        }
         self.is_active = false
     }
 }

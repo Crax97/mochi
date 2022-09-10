@@ -7,7 +7,7 @@ use winit::{
 };
 
 #[derive(Debug)]
-pub(crate) struct InputState {
+pub struct InputState {
     current_cursor_position: PhysicalPosition<f32>,
     last_update_cursor_position: PhysicalPosition<f32>,
     current_pointer_pressure: f32,
