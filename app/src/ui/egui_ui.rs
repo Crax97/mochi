@@ -49,13 +49,16 @@ impl Ui for EguiUI {
         let window_handled = egui::Window::new("Brush settings").show(&ctx, |ui| {
             let engine_config = app_ctx.toolbox.stamping_engine().settings();
             let mut new_config = engine_config.clone();
-            ui.add(egui::Label::new("Brush color"));
-            ui.color_edit_button_rgba_premultiplied(&mut new_config.color);
-            ui.end_row();
 
-            ui.label("Brush smoothness");
-            ui.add(egui::Slider::new(&mut new_config.softness, 0.0..=1.0));
-            ui.end_row();
+            ui.horizontal(|ui| {
+                ui.label("Brush color");
+                ui.color_edit_button_rgba_premultiplied(&mut new_config.color);
+            });
+
+            ui.horizontal(|ui| {
+                ui.label("Brush smoothness");
+                ui.add(egui::Slider::new(&mut new_config.softness, 0.0..=1.0));
+            });
 
             if new_config != engine_config {
                 app_ctx.toolbox.update_stamping_engine_data(new_config);
