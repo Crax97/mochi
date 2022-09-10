@@ -1,4 +1,4 @@
-use cgmath::{point2, vec2, Point2};
+use cgmath::{point2, vec2, MetricSpace, Point2};
 use wgpu::CommandEncoderDescriptor;
 
 use crate::{
@@ -50,6 +50,11 @@ impl Tool for BrushTool {
             context.image_editor,
             pointer_motion.new_pointer_location,
         );
+
+        let distance_from_prev_point = new_pointer_position.distance(self.last_mouse_position);
+        if distance_from_prev_point < self.step {
+            return;
+        }
 
         context.debug.borrow_mut().draw_debug_point(
             pointer_motion.new_pointer_location,
