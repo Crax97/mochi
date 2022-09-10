@@ -333,8 +333,8 @@ impl<'framework> BrushEngine for StrokingEngine<'framework> {
                     .iter()
                     .map(|pt| {
                         MeshInstance2D::new(
-                            correct_point(*pt),
-                            vec2(5.0, 5.0) * context.editor.camera().current_scale(),
+                            correct_point(pt.position),
+                            vec2(pt.size, pt.size) * context.editor.camera().current_scale(),
                             0.0,
                         )
                     })

@@ -5,7 +5,7 @@ use wgpu::CommandEncoderDescriptor;
 
 use crate::{
     tools::{EditorContext, PointerClick, PointerMove},
-    ImageEditor, StrokeContext,
+    ImageEditor, StrokeContext, StrokePoint,
 };
 
 use super::{BrushEngine, StrokePath, Tool};
@@ -14,6 +14,8 @@ pub struct BrushTool<'framework> {
     engine: Rc<RefCell<dyn BrushEngine + 'framework>>,
     is_active: bool,
     last_mouse_position: Point2<f32>,
+    pub min_size: f32,
+    pub max_size: f32,
     pub step: f32,
 }
 
@@ -24,6 +26,8 @@ impl<'framework> BrushTool<'framework> {
             step,
             is_active: false,
             last_mouse_position: point2(0.0, 0.0),
+            min_size: 5.0,
+            max_size: 6.0,
         }
     }
 
@@ -56,11 +60,16 @@ impl<'framework> Tool for BrushTool<'framework> {
             return;
         }
 
-        let path = StrokePath::linear_start_to_end(
-            self.last_mouse_position,
-            new_pointer_position,
-            self.step,
-        );
+        let start = StrokePoint {
+            position: self.last_mouse_position,
+            size: self.min_size,
+        };
+        let end = StrokePoint {
+            position: new_pointer_position,
+            size: self.min_size,
+        };
+
+        let path = StrokePath::linear_start_to_end(start, end, self.step);
         let framework = context.image_editor.framework();
         let mut encoder = framework
             .device
