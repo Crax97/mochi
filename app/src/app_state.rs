@@ -2,6 +2,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use framework::{mesh_names, AssetsLibrary};
 use framework::{Debug, Framework, Mesh};
+use image_editor::stamping_engine::StrokingEngine;
 use image_editor::ImageEditor;
 use log::info;
 use wgpu::{
@@ -127,6 +128,10 @@ impl<'framework> ImageApplication<'framework> {
                 final_surface_configuration.height as f32,
             ],
         );
+
+        let test_stamp = Toolbox::create_test_stamp(image_editor.camera().buffer(), framework);
+        let stamping_engine = StrokingEngine::new(test_stamp, framework);
+        let stamping_engine = Rc::new(RefCell::new(stamping_engine));
         let final_render = image_editor.get_full_image_texture();
         let bind_group = framework
             .device
@@ -144,8 +149,7 @@ impl<'framework> ImageApplication<'framework> {
                     },
                 ],
             });
-        let toolbox = Toolbox::new(framework);
-        toolbox.setup(image_editor.camera().buffer());
+        let toolbox = Toolbox::new(framework, stamping_engine.clone());
         Self {
             window,
             assets: assets.clone(),

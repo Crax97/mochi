@@ -13,28 +13,33 @@ use winit::event::MouseButton;
 
 pub struct Toolbox<'framework> {
     tools: Vec<Box<dyn Tool>>,
-    brush_engines: Vec<Box<dyn BrushEngine>>,
+    brush_engines: Vec<Rc<RefCell<Box<dyn BrushEngine>>>>,
     framework: &'framework Framework,
-    brush_tool: BrushTool,
+    brush_tool: BrushTool<'framework>,
     hand_tool: HandTool,
+    stamping_engine: Rc<RefCell<StrokingEngine<'framework>>>,
 }
 
 impl<'framework> Toolbox<'framework> {
-    pub fn new(framework: &'framework Framework) -> Self {
+    pub fn new(
+        framework: &'framework Framework,
+        stamping_engine: Rc<RefCell<StrokingEngine<'framework>>>,
+    ) -> Self {
         Self {
             tools: vec![],
             brush_engines: vec![],
             framework,
-            brush_tool: BrushTool::new(5.0),
+            brush_tool: BrushTool::new(stamping_engine.clone(), 5.0),
             hand_tool: HandTool::new(),
+            stamping_engine,
         }
     }
 
-    fn create_test_stamp(&self, camera_buffer: &TypedBuffer) -> Stamp {
+    pub fn create_test_stamp(camera_buffer: &TypedBuffer, framework: &Framework) -> Stamp {
         let test_stamp_bytes = include_bytes!("test/test_brush.png");
         let image = image::load_from_memory(test_stamp_bytes).unwrap();
         let brush_bitmap = BitmapLayer::new_from_bytes(
-            &self.framework,
+            &framework,
             image.as_bytes(),
             BitmapLayerConfiguration {
                 label: "Test brush".to_owned(),
@@ -45,7 +50,7 @@ impl<'framework> Toolbox<'framework> {
         );
         Stamp::new(
             brush_bitmap,
-            &self.framework,
+            &framework,
             StampCreationInfo { camera_buffer },
         )
     }
@@ -121,13 +126,5 @@ impl<'framework> Toolbox<'framework> {
         if input_state.mouse_wheel_delta().abs() > 0.0 {
             image_editor.scale_view(input_state.mouse_wheel_delta());
         }
-    }
-
-    pub(crate) fn setup(&self, camera_buffer: &TypedBuffer) {
-        let test_stamp = self.create_test_stamp(camera_buffer);
-        let stamping_engine = Rc::new(RefCell::new(StrokingEngine::new(
-            test_stamp,
-            &self.framework,
-        )));
     }
 }
