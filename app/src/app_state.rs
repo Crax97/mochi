@@ -194,22 +194,13 @@ impl<'framework> ImageApplication<'framework> {
     }
 
     pub(crate) fn on_event(&mut self, event: &winit::event::Event<()>) -> ControlFlow {
-        self.input_state.update(&event);
-        self.ui.on_new_winit_event(&event);
-
         let debug = self.debug.clone();
         debug.borrow_mut().begin_debug();
 
-        self.ui.begin();
-
-        let ui_ctx = UiContext {
-            image_editor: &mut self.image_editor,
-            toolbox: &mut self.toolbox,
-        };
-        if !self.ui.do_ui(ui_ctx) {
-            self.toolbox
-                .update(&self.input_state, &mut self.image_editor, debug.clone());
-        }
+        self.input_state.update(&event);
+        self.ui.on_new_winit_event(&event);
+        self.toolbox
+            .update(&self.input_state, &mut self.image_editor, debug.clone());
 
         match event {
             winit::event::Event::WindowEvent { event, .. } => {
@@ -233,6 +224,16 @@ impl<'framework> ImageApplication<'framework> {
             },
             winit::event::Event::UserEvent(_) => {}
             winit::event::Event::RedrawRequested(_) => {
+                self.ui.begin();
+
+                let ui_ctx = UiContext {
+                    image_editor: &mut self.image_editor,
+                    toolbox: &mut self.toolbox,
+                    input_state: &self.input_state,
+                };
+                let ui_handled_event = self.ui.do_ui(ui_ctx);
+                self.toolbox.set_enabled(!ui_handled_event);
+
                 self.image_editor.update_layers();
 
                 let current_texture = match self.final_surface.get_current_texture() {
@@ -277,6 +278,8 @@ impl<'framework> ImageApplication<'framework> {
 
                 self.framework.queue.submit(commands);
                 current_texture.present();
+
+                self.window.request_redraw();
             }
             _ => {}
         }

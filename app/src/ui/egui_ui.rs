@@ -1,6 +1,6 @@
 use std::iter;
 
-use egui::{Color32, FontDefinitions};
+use egui::{Color32, FontDefinitions, InnerResponse, Pos2};
 use egui_wgpu_backend::{RenderPass, ScreenDescriptor};
 use egui_winit_platform::PlatformDescriptor;
 use framework::Framework;
@@ -46,7 +46,7 @@ impl Ui for EguiUI {
     fn do_ui(&mut self, app_ctx: UiContext) -> bool {
         let ctx = self.platform.context();
         let mut event_handled = false;
-        egui::Window::new("Brush settings").show(&ctx, |ui| {
+        let window_handled = egui::Window::new("Brush settings").show(&ctx, |ui| {
             let engine_config = app_ctx.toolbox.stamping_engine().settings();
             let mut new_config = engine_config.clone();
             ui.add(egui::Label::new("Brush color"));
@@ -58,10 +58,13 @@ impl Ui for EguiUI {
             ui.end_row();
 
             if new_config != engine_config {
-                event_handled = true;
                 app_ctx.toolbox.update_stamping_engine_data(new_config);
             }
         });
+        if let Some(InnerResponse { response, .. }) = window_handled {
+            let mouse_pos = app_ctx.input_state.mouse_position();
+            event_handled = response.rect.contains(Pos2::new(mouse_pos.x, mouse_pos.y));
+        }
         event_handled
     }
     fn present(

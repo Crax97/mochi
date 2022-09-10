@@ -21,6 +21,7 @@ pub struct Toolbox<'framework> {
     brush_tool: BrushTool<'framework>,
     hand_tool: HandTool,
     stamping_engine: Rc<RefCell<StrokingEngine<'framework>>>,
+    enabled: bool,
 }
 
 impl<'framework> Toolbox<'framework> {
@@ -35,6 +36,7 @@ impl<'framework> Toolbox<'framework> {
             brush_tool: BrushTool::new(stamping_engine.clone(), 5.0),
             hand_tool: HandTool::new(),
             stamping_engine,
+            enabled: true,
         }
     }
 
@@ -71,6 +73,9 @@ impl<'framework> Toolbox<'framework> {
         mut image_editor: &mut ImageEditor,
         debug: Rc<RefCell<Debug>>,
     ) {
+        if !self.enabled {
+            return;
+        }
         if input_state.is_mouse_button_just_pressed(MouseButton::Left) {
             self.brush_tool.on_pointer_click(
                 PointerClick {
@@ -137,5 +142,9 @@ impl<'framework> Toolbox<'framework> {
         if input_state.mouse_wheel_delta().abs() > 0.0 {
             image_editor.scale_view(input_state.mouse_wheel_delta());
         }
+    }
+
+    pub(crate) fn set_enabled(&mut self, toolbox_enabled: bool) {
+        self.enabled = toolbox_enabled;
     }
 }
