@@ -1,4 +1,4 @@
-use egui::{Color32, FontDefinitions, InnerResponse, Label, Pos2, Sense};
+use egui::{Color32, FontDefinitions, InnerResponse, Label, Pos2, RichText, Sense};
 use egui_wgpu_backend::{RenderPass, ScreenDescriptor};
 use egui_winit_platform::PlatformDescriptor;
 use framework::Framework;
@@ -116,7 +116,10 @@ impl EguiUI {
                         Color32::WHITE
                     };
                     if ui
-                        .add(Label::new(&layer.name).sense(Sense::click()))
+                        .add(
+                            Label::new(RichText::from(&layer.name).color(color))
+                                .sense(Sense::click()),
+                        )
                         .clicked()
                     {
                         action = LayerAction::SelectLayer(idx.clone());
