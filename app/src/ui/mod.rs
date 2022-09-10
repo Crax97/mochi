@@ -15,7 +15,7 @@ pub struct UiContext<'app, 'framework> {
 pub trait Ui {
     fn begin(&mut self);
     fn on_new_winit_event(&mut self, event: &winit::event::Event<()>);
-    fn do_ui(&mut self, ctx: UiContext);
+    fn do_ui(&mut self, ctx: UiContext) -> bool;
     fn present(
         &mut self,
         framework: &Framework,

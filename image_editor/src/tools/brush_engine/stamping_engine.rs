@@ -93,7 +93,7 @@ impl<'framework> Stamp {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable, PartialEq)]
 pub struct StampUniformData {
     pub color: [f32; 4],
     pub flow: f32,

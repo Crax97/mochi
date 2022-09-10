@@ -1,5 +1,5 @@
 use std::{
-    cell::{Ref, RefCell},
+    cell::{Ref, RefCell, RefMut},
     rc::Rc,
 };
 
@@ -8,7 +8,7 @@ use cgmath::point2;
 use framework::{Debug, Framework, TypedBuffer};
 use image_editor::{
     layers::{BitmapLayer, BitmapLayerConfiguration},
-    stamping_engine::{Stamp, StampCreationInfo, StrokingEngine},
+    stamping_engine::{Stamp, StampCreationInfo, StampUniformData, StrokingEngine},
     BrushTool, EditorContext, HandTool, ImageEditor, PointerClick, PointerMove, PointerRelease,
 };
 use image_editor::{BrushEngine, Tool};
@@ -40,6 +40,10 @@ impl<'framework> Toolbox<'framework> {
 
     pub fn stamping_engine(&self) -> Ref<StrokingEngine> {
         self.stamping_engine.borrow()
+    }
+
+    pub fn update_stamping_engine_data(&mut self, new_data: StampUniformData) {
+        self.stamping_engine.borrow_mut().set_new_settings(new_data);
     }
 
     pub fn create_test_stamp(camera_buffer: &TypedBuffer, framework: &Framework) -> Stamp {

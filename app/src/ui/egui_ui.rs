@@ -43,19 +43,26 @@ impl Ui for EguiUI {
     fn on_new_winit_event(&mut self, event: &winit::event::Event<()>) {
         self.platform.handle_event(&event);
     }
-    fn do_ui(&mut self, app_ctx: UiContext) {
+    fn do_ui(&mut self, app_ctx: UiContext) -> bool {
         let ctx = self.platform.context();
+        let mut event_handled = false;
         egui::Window::new("Brush settings").show(&ctx, |ui| {
-            let stamping_engine = app_ctx.toolbox.stamping_engine();
-            let mut engine_config = stamping_engine.settings();
+            let engine_config = app_ctx.toolbox.stamping_engine().settings();
+            let mut new_config = engine_config.clone();
             ui.add(egui::Label::new("Brush color"));
-            ui.color_edit_button_rgba_premultiplied(&mut engine_config.color);
+            ui.color_edit_button_rgba_premultiplied(&mut new_config.color);
             ui.end_row();
 
-            if ui.button("Test").clicked() {
-                println!("Button click");
+            ui.label("Brush smoothness");
+            ui.add(egui::Slider::new(&mut new_config.softness, 0.0..=1.0));
+            ui.end_row();
+
+            if new_config != engine_config {
+                event_handled = true;
+                app_ctx.toolbox.update_stamping_engine_data(new_config);
             }
         });
+        event_handled
     }
     fn present(
         &mut self,

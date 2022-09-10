@@ -199,10 +199,17 @@ impl<'framework> ImageApplication<'framework> {
 
         let debug = self.debug.clone();
         debug.borrow_mut().begin_debug();
-        self.toolbox
-            .update(&self.input_state, &mut self.image_editor, debug.clone());
 
         self.ui.begin();
+
+        let ui_ctx = UiContext {
+            image_editor: &mut self.image_editor,
+            toolbox: &mut self.toolbox,
+        };
+        if !self.ui.do_ui(ui_ctx) {
+            self.toolbox
+                .update(&self.input_state, &mut self.image_editor, debug.clone());
+        }
 
         match event {
             winit::event::Event::WindowEvent { event, .. } => {
@@ -240,12 +247,6 @@ impl<'framework> ImageApplication<'framework> {
                         }
                     },
                 };
-
-                let ui_ctx = UiContext {
-                    image_editor: &mut self.image_editor,
-                    toolbox: &mut self.toolbox,
-                };
-                self.ui.do_ui(ui_ctx);
 
                 let mut commands: Vec<CommandBuffer> = vec![];
 
