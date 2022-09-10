@@ -158,6 +158,7 @@ async fn run_app() -> anyhow::Result<()> {
         winit::event::Event::UserEvent(_) => {}
         winit::event::Event::RedrawRequested(_) => {
             image_editor.update_layers();
+            
             let current_texture = match app_state.final_surface.get_current_texture() {
                 Ok(surface) => surface,
                 Err(e) => match e {

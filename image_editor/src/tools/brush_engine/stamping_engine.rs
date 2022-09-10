@@ -1,9 +1,12 @@
 use cgmath::{point2, vec2, ElementWise, Point2};
 use framework::{
     asset_library::{mesh_names, pipeline_names},
-    Framework, MeshInstance2D, TypedBuffer, TypedBufferConfiguration,
+    Framework, Mesh, MeshInstance2D, TypedBuffer, TypedBufferConfiguration,
 };
-use wgpu::{BindGroup, RenderPassColorAttachment, RenderPassDescriptor};
+use wgpu::{
+    BindGroup, BindGroupLayout, ColorTargetState, FragmentState, RenderPassColorAttachment,
+    RenderPassDescriptor, RenderPipeline, VertexState,
+};
 
 use crate::{layers::BitmapLayer, StrokeContext, StrokePath};
 
@@ -12,6 +15,7 @@ use super::BrushEngine;
 pub struct Stamp {
     brush_texture: BitmapLayer,
     bind_group: BindGroup,
+    bind_group_layout: BindGroupLayout,
 }
 
 pub struct StampCreationInfo<'framework> {
@@ -61,7 +65,7 @@ impl<'framework> Stamp {
         let bind_group = framework
             .device
             .create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("Layer render pass"),
+                label: Some("Stamp render bind group"),
                 layout: &bind_group_layout,
                 entries: &[
                     wgpu::BindGroupEntry {
@@ -83,13 +87,28 @@ impl<'framework> Stamp {
         Self {
             brush_texture,
             bind_group,
+            bind_group_layout,
         }
     }
 }
 
+#[repr(C)]
+#[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+struct StampUniformData {
+    pub color: [f32; 4],
+    pub flow: f32,
+    pub padding: [f32; 3],
+}
+struct UsableStamp<'framework> {
+    pub stamp: Stamp,
+    pub brush_bind_group: BindGroup,
+    pub stamp_data_buffer: TypedBuffer<'framework>,
+    pub current_uniform_data: StampUniformData,
+}
 pub struct StrokingEngine<'framework> {
-    current_stamp: Stamp,
+    current_stamp: UsableStamp<'framework>,
     instance_buffer: TypedBuffer<'framework>,
+    stamp_pipeline: RenderPipeline,
 }
 
 impl<'framework> StrokingEngine<'framework> {
@@ -103,10 +122,181 @@ impl<'framework> StrokingEngine<'framework> {
                 allow_read: false,
             },
         );
+        let initial_setup = StampUniformData {
+            color: [0.0, 1.0, 0.0, 1.0],
+            flow: 1.0,
+            padding: [0.0, 0.0, 0.0],
+        };
+        let stamp_pipeline = StrokingEngine::create_pipeline(framework);
+        let stamp_uniform_buffer = TypedBuffer::new(
+            framework,
+            TypedBufferConfiguration::<StampUniformData> {
+                initial_data: vec![initial_setup.clone()],
+                buffer_type: framework::BufferType::Uniform,
+                allow_write: true,
+                allow_read: false,
+            },
+        );
+        let texture_bind_layout =
+            framework
+                .device
+                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                    label: Some("PaintBrush BindGroupLayout"),
+                    entries: &[wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    }],
+                });
+        let brush_bind_group = framework
+            .device
+            .create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some("Stamp data bind group"),
+                layout: &texture_bind_layout,
+                entries: &[wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::Buffer(
+                        stamp_uniform_buffer.binding_resource(),
+                    ),
+                }],
+            });
         Self {
-            current_stamp: initial_stamp,
+            current_stamp: UsableStamp {
+                stamp: initial_stamp,
+                stamp_data_buffer: stamp_uniform_buffer,
+                brush_bind_group,
+                current_uniform_data: initial_setup,
+            },
             instance_buffer,
+            stamp_pipeline,
         }
+    }
+
+    fn create_pipeline(framework: &Framework) -> RenderPipeline {
+        let texture_bind_layout =
+            framework
+                .device
+                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                    label: Some("PaintBrush BindGroupLayout"),
+                    entries: &[
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 0,
+                            visibility: wgpu::ShaderStages::FRAGMENT,
+                            ty: wgpu::BindingType::Texture {
+                                sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                                view_dimension: wgpu::TextureViewDimension::D2,
+                                multisampled: false,
+                            },
+                            count: None,
+                        },
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 1,
+                            visibility: wgpu::ShaderStages::FRAGMENT,
+                            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                            count: None,
+                        },
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 2,
+                            visibility: wgpu::ShaderStages::VERTEX,
+                            ty: wgpu::BindingType::Buffer {
+                                ty: wgpu::BufferBindingType::Uniform,
+                                has_dynamic_offset: false,
+                                min_binding_size: None,
+                            },
+                            count: None,
+                        },
+                    ],
+                });
+        let brush_bind_layout =
+            framework
+                .device
+                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                    label: Some("Brush bind layout"),
+                    entries: &[wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    }],
+                });
+        let render_pipeline_layout =
+            framework
+                .device
+                .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                    label: Some("StampingEngine Layout"),
+                    bind_group_layouts: &[&texture_bind_layout, &brush_bind_layout],
+                    push_constant_ranges: &[],
+                });
+
+        let module = framework
+            .device
+            .create_shader_module(wgpu::include_wgsl!("./stamp_brush.wgsl"));
+
+        let simple_colored_pipeline =
+            framework
+                .device
+                .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                    label: Some("StampingEngine pipeline"),
+                    layout: Some(&render_pipeline_layout),
+                    depth_stencil: None,
+                    vertex: VertexState {
+                        module: &module,
+                        entry_point: "vs",
+                        buffers: &[Mesh::layout(), MeshInstance2D::layout()],
+                    },
+                    fragment: Some(FragmentState {
+                        module: &module,
+                        entry_point: "fs",
+                        targets: &[Some(ColorTargetState {
+                            format: wgpu::TextureFormat::Rgba8UnormSrgb,
+                            blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                            write_mask: wgpu::ColorWrites::ALL,
+                        })],
+                    }),
+                    multisample: wgpu::MultisampleState {
+                        count: 1,
+                        mask: !0,
+                        alpha_to_coverage_enabled: false,
+                    },
+                    multiview: None,
+                    primitive: wgpu::PrimitiveState {
+                        topology: wgpu::PrimitiveTopology::TriangleList,
+                        strip_index_format: None,
+                        front_face: wgpu::FrontFace::Cw,
+                        conservative: false,
+                        cull_mode: Some(wgpu::Face::Back),
+                        polygon_mode: wgpu::PolygonMode::Fill,
+                        unclipped_depth: false,
+                    },
+                });
+        simple_colored_pipeline
+    }
+
+    pub fn create_stamp(
+        &self,
+        brush_texture: BitmapLayer,
+        framework: &Framework,
+        info: StampCreationInfo,
+    ) -> Stamp {
+        Stamp::new(brush_texture, framework, info)
+    }
+
+    pub fn set_stamp_color(&mut self, new_color: [f32; 4]) {
+        let old_data = self.current_stamp.current_uniform_data.clone();
+        let new_data = StampUniformData {
+            color: new_color,
+            ..old_data
+        };
+        self.current_stamp.stamp_data_buffer.write_sync(&[new_data]);
     }
 }
 
@@ -161,8 +351,9 @@ impl<'framework> BrushEngine for StrokingEngine<'framework> {
                 let mut render_pass = context
                     .command_encoder
                     .begin_render_pass(&stroking_engine_render_pass);
-                render_pass.set_pipeline(&context.assets.pipeline(pipeline_names::SIMPLE_TEXTURED));
-                render_pass.set_bind_group(0, &self.current_stamp.bind_group, &[]);
+                render_pass.set_pipeline(&self.stamp_pipeline);
+                render_pass.set_bind_group(0, &self.current_stamp.stamp.bind_group, &[]);
+                render_pass.set_bind_group(1, &self.current_stamp.brush_bind_group, &[]);
                 self.instance_buffer.bind(1, &mut render_pass);
                 context
                     .assets
