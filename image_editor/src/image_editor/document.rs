@@ -4,7 +4,7 @@ use cgmath::Vector2;
 
 use super::layers::{BitmapLayer, Layer, LayerIndex, RootLayer};
 
-pub(crate) struct Document<'framework> {
+pub struct Document<'framework> {
     pub layers: HashMap<LayerIndex, Layer<'framework>>,
     pub tree_root: RootLayer,
     pub final_layer: BitmapLayer,
@@ -17,9 +17,18 @@ impl Document<'_> {
         self.final_layer.size()
     }
 
-    pub(crate) fn current_layer(&self) -> &Layer {
+    pub fn current_layer(&self) -> &Layer {
+        self.get_layer(&self.current_layer_index)
+    }
+
+    pub fn select_layer(&mut self, new_current_layer: LayerIndex) {
+        assert!(self.layers.contains_key(&new_current_layer));
+        self.current_layer_index = new_current_layer;
+    }
+
+    pub fn get_layer(&self, layer_index: &LayerIndex) -> &Layer {
         self.layers
-            .get(&self.current_layer_index)
+            .get(&layer_index)
             .expect("Invalid layer index passed to document!")
     }
 }

@@ -96,6 +96,22 @@ impl<'framework> ImageEditor<'framework> {
         self.framework
     }
 
+    pub fn document(&self) -> &Document {
+        &self.document
+    }
+
+    pub fn add_layer_to_document(&mut self) {
+        todo!()
+    }
+
+    pub fn select_new_layer(&mut self, layer_idx: LayerIndex) {
+        self.document.select_layer(layer_idx);
+    }
+
+    pub fn delete_layer(&mut self, layer_idx: LayerIndex) {
+        todo!()
+    }
+
     pub fn on_resize(&mut self, new_bounds: [f32; 4]) {
         self.pan_camera.set_new_bounds(new_bounds);
     }

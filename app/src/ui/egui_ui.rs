@@ -1,16 +1,20 @@
-use std::iter;
-
 use egui::{Color32, FontDefinitions, InnerResponse, Pos2};
 use egui_wgpu_backend::{RenderPass, ScreenDescriptor};
 use egui_winit_platform::PlatformDescriptor;
 use framework::Framework;
+use image_editor::layers::LayerIndex;
 use log::warn;
 use wgpu::{CommandBuffer, SurfaceConfiguration, TextureView};
 use winit::window::Window;
 
-use crate::{app_state::ImageApplication, toolbox::Toolbox};
-
 use super::{Ui, UiContext};
+
+enum LayerAction {
+    NewLayer,
+    DeleteLayer(LayerIndex),
+    SelectLayer(LayerIndex),
+    None,
+}
 
 pub struct EguiUI {
     platform: egui_winit_platform::Platform,
@@ -36,16 +40,10 @@ impl EguiUI {
     }
 }
 
-impl Ui for EguiUI {
-    fn begin(&mut self) {
-        self.platform.begin_frame();
-    }
-    fn on_new_winit_event(&mut self, event: &winit::event::Event<()>) {
-        self.platform.handle_event(&event);
-    }
-    fn do_ui(&mut self, app_ctx: UiContext) -> bool {
-        let ctx = self.platform.context();
+impl EguiUI {
+    fn brush_settings(&mut self, app_ctx: &mut UiContext) -> bool {
         let mut event_handled = false;
+        let ctx = self.platform.context();
         let window_handled = egui::Window::new("Brush settings").show(&ctx, |ui| {
             let engine_config = app_ctx.toolbox.stamping_engine().settings();
             let mut new_config = engine_config.clone();
@@ -95,6 +93,68 @@ impl Ui for EguiUI {
             event_handled = response.rect.contains(Pos2::new(mouse_pos.x, mouse_pos.y));
         }
         event_handled
+    }
+
+    fn layer_settings(&mut self, app_ctx: &mut UiContext) -> (bool, LayerAction) {
+        let mut event_handled = false;
+        let ctx = self.platform.context();
+        let document = app_ctx.image_editor.document();
+        use image_editor::layers::LayerTree::*;
+
+        let mut action = LayerAction::None;
+
+        let window_handled = egui::Window::new("Layers").show(&ctx, |ui| {
+            let mut lay_layer_ui = |idx: &LayerIndex| {
+                let layer = document.get_layer(idx);
+                let color = if *idx == document.current_layer_index {
+                    Color32::LIGHT_BLUE
+                } else {
+                    Color32::WHITE
+                };
+                if ui.colored_label(color, "Layer").clicked() {}
+            };
+            for layer in document.tree_root.0.iter() {
+                match layer {
+                    SingleLayer(idx) => {
+                        lay_layer_ui(idx);
+                    }
+                    Group(indices) => {
+                        for idx in indices.iter() {
+                            lay_layer_ui(idx);
+                        }
+                    }
+                }
+            }
+        });
+        let hover = if let Some(InnerResponse { response, .. }) = window_handled {
+            let mouse_pos = app_ctx.input_state.mouse_position();
+            response.rect.contains(Pos2::new(mouse_pos.x, mouse_pos.y))
+        } else {
+            false
+        };
+        (hover, action)
+    }
+}
+
+impl Ui for EguiUI {
+    fn begin(&mut self) {
+        self.platform.begin_frame();
+    }
+    fn on_new_winit_event(&mut self, event: &winit::event::Event<()>) {
+        self.platform.handle_event(&event);
+    }
+    fn do_ui(&mut self, mut app_ctx: UiContext) -> bool {
+        let brush = self.brush_settings(&mut app_ctx);
+        let (hover_layer, layer_action) = self.layer_settings(&mut app_ctx);
+
+        match layer_action {
+            LayerAction::NewLayer => app_ctx.image_editor.add_layer_to_document(),
+            LayerAction::DeleteLayer(idx) => app_ctx.image_editor.delete_layer(idx),
+            LayerAction::SelectLayer(idx) => app_ctx.image_editor.select_new_layer(idx),
+            LayerAction::None => {}
+        }
+
+        brush || hover_layer
     }
     fn present(
         &mut self,

@@ -1,7 +1,7 @@
 #[derive(Clone, Copy, PartialEq, PartialOrd, Eq, Hash)]
-pub(crate) struct LayerIndex(pub u16);
-pub(crate) enum LayerTree {
+pub struct LayerIndex(pub u16);
+pub enum LayerTree {
     SingleLayer(LayerIndex),
     Group(Vec<LayerIndex>),
 }
-pub(crate) struct RootLayer(pub Vec<LayerTree>);
+pub struct RootLayer(pub Vec<LayerTree>);
