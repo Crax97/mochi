@@ -1,6 +1,6 @@
 use std::iter;
 
-use egui::FontDefinitions;
+use egui::{Color32, FontDefinitions};
 use egui_wgpu_backend::{RenderPass, ScreenDescriptor};
 use egui_winit_platform::PlatformDescriptor;
 use framework::Framework;
@@ -46,7 +46,15 @@ impl Ui for EguiUI {
     fn do_ui(&mut self, app_ctx: UiContext) {
         let ctx = self.platform.context();
         egui::Window::new("Brush settings").show(&ctx, |ui| {
-            ui.label("Hello|");
+            let stamping_engine = app_ctx.toolbox.stamping_engine();
+            let mut engine_config = stamping_engine.settings();
+            ui.add(egui::Label::new("Brush color"));
+            ui.color_edit_button_rgba_premultiplied(&mut engine_config.color);
+            ui.end_row();
+
+            if ui.button("Test").clicked() {
+                println!("Button click");
+            }
         });
     }
     fn present(

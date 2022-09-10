@@ -194,8 +194,6 @@ impl<'framework> ImageApplication<'framework> {
     }
 
     pub(crate) fn on_event(&mut self, event: &winit::event::Event<()>) -> ControlFlow {
-        self.ui.begin();
-
         self.input_state.update(&event);
         self.ui.on_new_winit_event(&event);
 
@@ -203,6 +201,9 @@ impl<'framework> ImageApplication<'framework> {
         debug.borrow_mut().begin_debug();
         self.toolbox
             .update(&self.input_state, &mut self.image_editor, debug.clone());
+
+        self.ui.begin();
+
         match event {
             winit::event::Event::WindowEvent { event, .. } => {
                 match event {

@@ -1,4 +1,7 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{
+    cell::{Ref, RefCell},
+    rc::Rc,
+};
 
 use crate::input_state::InputState;
 use cgmath::point2;
@@ -33,6 +36,10 @@ impl<'framework> Toolbox<'framework> {
             hand_tool: HandTool::new(),
             stamping_engine,
         }
+    }
+
+    pub fn stamping_engine(&self) -> Ref<StrokingEngine> {
+        self.stamping_engine.borrow()
     }
 
     pub fn create_test_stamp(camera_buffer: &TypedBuffer, framework: &Framework) -> Stamp {
