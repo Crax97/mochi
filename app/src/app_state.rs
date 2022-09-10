@@ -190,6 +190,7 @@ impl<'framework> ImageApplication<'framework> {
         };
         self.final_surface
             .configure(&self.framework.device, &new_surface_configuration);
+        self.final_surface_configuration = new_surface_configuration;
         self.image_editor.on_resize(left_right_top_bottom);
     }
 
@@ -271,9 +272,12 @@ impl<'framework> ImageApplication<'framework> {
                 let final_present_command = self.render_into_texture(&app_surface_view);
                 commands.push(final_present_command);
 
-                let ui_command =
-                    self.ui
-                        .present(&self.framework, surface_configuration, &app_surface_view);
+                let ui_command = self.ui.present(
+                    &self.framework,
+                    &self.window,
+                    surface_configuration,
+                    &app_surface_view,
+                );
                 commands.push(ui_command);
 
                 self.framework.queue.submit(commands);

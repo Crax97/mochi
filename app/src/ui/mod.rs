@@ -20,6 +20,7 @@ pub trait Ui {
     fn present(
         &mut self,
         framework: &Framework,
+        window: &Window,
         surface_configuration: SurfaceConfiguration,
         output_view: &TextureView,
     ) -> CommandBuffer;

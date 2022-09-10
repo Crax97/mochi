@@ -176,6 +176,7 @@ impl Ui for EguiUI {
     fn present(
         &mut self,
         framework: &Framework,
+        window: &Window,
         surface_configuration: SurfaceConfiguration,
         output_view: &TextureView,
     ) -> CommandBuffer {
@@ -190,7 +191,7 @@ impl Ui for EguiUI {
         let screen_descriptor = ScreenDescriptor {
             physical_width: surface_configuration.width,
             physical_height: surface_configuration.height,
-            scale_factor: 1.0,
+            scale_factor: window.scale_factor() as f32,
         };
         let tdelta: egui::TexturesDelta = output.textures_delta;
         self.backend_pass
