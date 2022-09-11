@@ -58,6 +58,10 @@ impl EguiUI {
                 ui.add(egui::Slider::new(&mut new_config.softness, 0.0..=1.0));
             });
 
+            ui.horizontal(|ui| {
+                ui.add(egui::Checkbox::new(&mut new_config.is_eraser, "Eraser"));
+            });
+
             if new_config != engine_config {
                 app_ctx.toolbox.update_stamping_engine_data(new_config);
             }
@@ -86,7 +90,7 @@ impl EguiUI {
                     egui::DragValue::new(&mut app_ctx.toolbox.brush_tool.step)
                         .clamp_range(1.0..=1000.0),
                 );
-            })
+            });
         });
         if let Some(InnerResponse { response, .. }) = window_handled {
             let mouse_pos = app_ctx.input_state.mouse_position();

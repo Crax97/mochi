@@ -1,11 +1,11 @@
 use cgmath::{point2, vec2, ElementWise, Point2};
 use framework::{
-    asset_library::{mesh_names, pipeline_names},
-    Framework, Mesh, MeshInstance2D, TypedBuffer, TypedBufferConfiguration,
+    asset_library::mesh_names, Framework, Mesh, MeshInstance2D, TypedBuffer,
+    TypedBufferConfiguration,
 };
 use wgpu::{
-    BindGroup, BindGroupLayout, ColorTargetState, FragmentState, RenderPassColorAttachment,
-    RenderPassDescriptor, RenderPipeline, VertexState,
+    BindGroup, BindGroupLayout, BlendComponent, ColorTargetState, FragmentState,
+    RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, VertexState,
 };
 
 use crate::{layers::BitmapLayer, StrokeContext, StrokePath};
@@ -92,21 +92,43 @@ impl<'framework> Stamp {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct StampConfiguration {
+    pub color: [f32; 4],
+    pub flow: f32,
+    pub softness: f32,
+    pub padding: [f32; 3],
+    pub is_eraser: bool,
+}
+
 #[repr(C)]
-#[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable, PartialEq)]
+#[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct StampUniformData {
     pub color: [f32; 4],
     pub flow: f32,
     pub softness: f32,
     pub padding: [f32; 3],
 }
+
+impl From<StampConfiguration> for StampUniformData {
+    fn from(cfg: StampConfiguration) -> Self {
+        Self {
+            color: cfg.color,
+            flow: cfg.flow,
+            softness: cfg.softness,
+            padding: cfg.padding,
+        }
+    }
+}
+
 pub struct StrokingEngine<'framework> {
     current_stamp: usize,
     instance_buffer: TypedBuffer<'framework>,
     stamp_pipeline: RenderPipeline,
+    eraser_pipeline: RenderPipeline,
     stamps: Vec<Stamp>,
     stamp_data_buffer: TypedBuffer<'framework>,
-    current_uniform_data: StampUniformData,
+    configuration: StampConfiguration,
     pub brush_bind_group: BindGroup,
 }
 
@@ -121,17 +143,19 @@ impl<'framework, 'stamp> StrokingEngine<'framework> {
                 allow_read: false,
             },
         );
-        let initial_setup = StampUniformData {
+        let initial_setup = StampConfiguration {
             color: [0.0, 1.0, 0.0, 1.0],
             flow: 1.0,
             softness: 0.5,
             padding: [0.0, 0.0, 0.0],
+            is_eraser: false,
         };
-        let stamp_pipeline = StrokingEngine::create_stamp_pipeline(framework);
+        let stamp_pipeline = StrokingEngine::create_stamp_pipeline(framework, false);
+        let eraser_pipeline = StrokingEngine::create_stamp_pipeline(framework, true);
         let stamp_uniform_buffer = TypedBuffer::new(
             framework,
             TypedBufferConfiguration::<StampUniformData> {
-                initial_data: vec![initial_setup.clone()],
+                initial_data: vec![initial_setup.into()],
                 buffer_type: framework::BufferType::Uniform,
                 allow_write: true,
                 allow_read: false,
@@ -170,13 +194,14 @@ impl<'framework, 'stamp> StrokingEngine<'framework> {
             current_stamp: 0,
             brush_bind_group,
             stamp_data_buffer: stamp_uniform_buffer,
-            current_uniform_data: initial_setup,
+            configuration: initial_setup,
             instance_buffer,
             stamp_pipeline,
+            eraser_pipeline,
         }
     }
 
-    fn create_stamp_pipeline(framework: &Framework) -> RenderPipeline {
+    fn create_stamp_pipeline(framework: &Framework, is_eraser: bool) -> RenderPipeline {
         let texture_bind_layout =
             framework
                 .device
@@ -240,6 +265,19 @@ impl<'framework, 'stamp> StrokingEngine<'framework> {
             .device
             .create_shader_module(wgpu::include_wgsl!("./stamp_brush.wgsl"));
 
+        let eraser_blend_state = wgpu::BlendState {
+            color: BlendComponent {
+                src_factor: wgpu::BlendFactor::Zero,
+                dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
+                operation: wgpu::BlendOperation::Add,
+            },
+            alpha: BlendComponent {
+                src_factor: wgpu::BlendFactor::Zero,
+                dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
+                operation: wgpu::BlendOperation::Add,
+            },
+        };
+
         let simple_colored_pipeline =
             framework
                 .device
@@ -257,7 +295,11 @@ impl<'framework, 'stamp> StrokingEngine<'framework> {
                         entry_point: "fs",
                         targets: &[Some(ColorTargetState {
                             format: wgpu::TextureFormat::Rgba8UnormSrgb,
-                            blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                            blend: Some(if is_eraser {
+                                eraser_blend_state
+                            } else {
+                                wgpu::BlendState::ALPHA_BLENDING
+                            }),
                             write_mask: wgpu::ColorWrites::ALL,
                         })],
                     }),
@@ -289,13 +331,14 @@ impl<'framework, 'stamp> StrokingEngine<'framework> {
         Stamp::new(brush_texture, framework, info)
     }
 
-    pub fn settings(&self) -> StampUniformData {
-        self.current_uniform_data.clone()
+    pub fn settings(&self) -> StampConfiguration {
+        self.configuration.clone()
     }
 
-    pub fn set_new_settings(&mut self, settings: StampUniformData) {
-        self.stamp_data_buffer.write_sync(&[settings]);
-        self.current_uniform_data = settings;
+    pub fn set_new_settings(&mut self, settings: StampConfiguration) {
+        let unif_data: StampUniformData = settings.into();
+        self.stamp_data_buffer.write_sync(&[unif_data]);
+        self.configuration = settings;
     }
 
     fn current_stamp(&self) -> &Stamp {
@@ -364,7 +407,12 @@ impl<'framework> BrushEngine for StrokingEngine<'framework> {
                 let mut render_pass = context
                     .command_encoder
                     .begin_render_pass(&stroking_engine_render_pass);
-                render_pass.set_pipeline(&self.stamp_pipeline);
+
+                if self.configuration.is_eraser {
+                    render_pass.set_pipeline(&self.eraser_pipeline);
+                } else {
+                    render_pass.set_pipeline(&self.stamp_pipeline);
+                }
                 render_pass.set_bind_group(0, &self.current_stamp().bind_group, &[]);
                 render_pass.set_bind_group(1, &self.brush_bind_group, &[]);
                 self.instance_buffer.bind(1, &mut render_pass);

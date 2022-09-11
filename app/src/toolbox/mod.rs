@@ -8,7 +8,9 @@ use cgmath::point2;
 use framework::{Debug, Framework, TypedBuffer};
 use image_editor::{
     layers::{BitmapLayer, BitmapLayerConfiguration},
-    stamping_engine::{Stamp, StampCreationInfo, StampUniformData, StrokingEngine},
+    stamping_engine::{
+        Stamp, StampConfiguration, StampCreationInfo, StampUniformData, StrokingEngine,
+    },
     BrushTool, EditorContext, HandTool, ImageEditor, PointerClick, PointerMove, PointerRelease,
 };
 use image_editor::{BrushEngine, Tool};
@@ -44,7 +46,7 @@ impl<'framework> Toolbox<'framework> {
         self.stamping_engine.borrow()
     }
 
-    pub fn update_stamping_engine_data(&mut self, new_data: StampUniformData) {
+    pub fn update_stamping_engine_data(&mut self, new_data: StampConfiguration) {
         self.stamping_engine.borrow_mut().set_new_settings(new_data);
     }
 
