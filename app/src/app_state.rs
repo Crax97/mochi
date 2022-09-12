@@ -169,6 +169,9 @@ impl<'framework> ImageApplication<'framework> {
     }
 
     pub(crate) fn on_resized(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
+        if new_size.width == 0 || new_size.height == 0 {
+            return;
+        }
         let half_size = PhysicalSize {
             width: new_size.width as f32 * 0.5,
             height: new_size.height as f32 * 0.5,

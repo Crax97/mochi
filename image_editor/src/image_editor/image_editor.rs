@@ -210,10 +210,8 @@ impl<'framework> ImageEditor<'framework> {
     }
 
     pub(crate) fn pan_camera(&mut self, delta: cgmath::Vector2<f32>) {
-        const MULT: f32 = 0.05; // TODO Understand why this is necessary
-
-        let delta = self.pan_camera.current_scale() * delta * MULT;
-        let half_outer_size = self.document.outer_size() * 0.25;
+        let delta = self.pan_camera.current_scale() * delta;
+        let half_outer_size = self.document.outer_size();
 
         let mut new_position = self.pan_camera.position() + delta;
         new_position.x = new_position.x.clamp(-half_outer_size.x, half_outer_size.x);
@@ -222,7 +220,7 @@ impl<'framework> ImageEditor<'framework> {
     }
 
     pub fn scale_view(&mut self, delta: f32) {
-        const SCALE_SPEED: f32 = 10.0; // TODO: Make this customizable
+        const SCALE_SPEED: f32 = 20.0; // TODO: Make this customizable
         self.pan_camera.scale(delta * SCALE_SPEED);
     }
 
