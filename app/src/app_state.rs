@@ -221,11 +221,6 @@ impl<'framework> ImageApplication<'framework> {
                     _ => {}
                 }
             }
-            winit::event::Event::DeviceEvent { event, .. } => match event {
-                _ => {
-                    self.window.request_redraw();
-                }
-            },
             winit::event::Event::UserEvent(_) => {}
             winit::event::Event::RedrawRequested(_) => {
                 self.ui.begin();
@@ -285,12 +280,11 @@ impl<'framework> ImageApplication<'framework> {
 
                 self.framework.queue.submit(commands);
                 current_texture.present();
-
-                self.window.request_redraw();
             }
             _ => {}
         }
 
+        self.window.request_redraw();
         ControlFlow::Wait
     }
 
