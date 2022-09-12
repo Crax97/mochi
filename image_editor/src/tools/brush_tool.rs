@@ -14,6 +14,7 @@ pub struct BrushTool<'framework> {
     engine: Rc<RefCell<dyn BrushEngine + 'framework>>,
     is_active: bool,
     last_mouse_position: Point2<f32>,
+    last_pressure: f32,
     pub min_size: f32,
     pub max_size: f32,
     pub step: f32,
@@ -26,6 +27,7 @@ impl<'framework> BrushTool<'framework> {
             step,
             is_active: false,
             last_mouse_position: point2(0.0, 0.0),
+            last_pressure: 0.0,
             min_size: 5.0,
             max_size: 6.0,
         }
@@ -43,6 +45,7 @@ impl<'framework> Tool for BrushTool<'framework> {
             &context.image_editor,
             pointer_click.pointer_location,
         );
+        self.last_pressure = pointer_click.pressure;
     }
 
     fn on_pointer_move(&mut self, pointer_motion: PointerMove, context: EditorContext) {
@@ -60,13 +63,17 @@ impl<'framework> Tool for BrushTool<'framework> {
             return;
         }
 
+        let size_delta = self.max_size - self.min_size;
+        let start_size = self.min_size + size_delta * self.last_pressure;
+        let end_size = self.min_size + size_delta * pointer_motion.pressure;
+
         let start = StrokePoint {
             position: self.last_mouse_position,
-            size: self.min_size,
+            size: start_size,
         };
         let end = StrokePoint {
             position: new_pointer_position,
-            size: self.min_size,
+            size: end_size,
         };
 
         let path = StrokePath::linear_start_to_end(start, end, self.step);
@@ -88,6 +95,7 @@ impl<'framework> Tool for BrushTool<'framework> {
         self.engine.borrow_mut().stroke(path, context);
         framework.queue.submit(std::iter::once(encoder.finish()));
         self.last_mouse_position = new_pointer_position;
+        self.last_pressure = pointer_motion.pressure;
     }
 
     fn on_pointer_release(

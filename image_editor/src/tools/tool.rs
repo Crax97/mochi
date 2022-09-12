@@ -13,11 +13,13 @@ pub struct EditorContext<'editor, 'framework> {
 #[derive(Debug, Clone, Copy)]
 pub struct PointerClick {
     pub pointer_location: Point2<f32>,
+    pub pressure: f32,
 }
 #[derive(Debug, Clone, Copy)]
 pub struct PointerMove {
     pub new_pointer_location: Point2<f32>,
     pub delta_normalized: Vector2<f32>,
+    pub pressure: f32,
 }
 #[derive(Debug, Clone, Copy)]
 pub struct PointerRelease {}

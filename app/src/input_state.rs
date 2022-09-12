@@ -188,4 +188,8 @@ impl InputState {
     pub(crate) fn mouse_wheel_delta(&self) -> f32 {
         self.current_wheel_delta
     }
+
+    pub(crate) fn current_pointer_pressure(&self) -> f32 {
+        self.current_pointer_pressure
+    }
 }

@@ -82,6 +82,7 @@ impl<'framework> Toolbox<'framework> {
             self.brush_tool.on_pointer_click(
                 PointerClick {
                     pointer_location: input_state.normalized_mouse_position(),
+                    pressure: input_state.current_pointer_pressure(),
                 },
                 EditorContext {
                     image_editor: &mut image_editor,
@@ -101,6 +102,7 @@ impl<'framework> Toolbox<'framework> {
                 PointerMove {
                     new_pointer_location: input_state.normalized_mouse_position(),
                     delta_normalized: input_state.normalized_mouse_delta(),
+                    pressure: input_state.current_pointer_pressure(),
                 },
                 EditorContext {
                     image_editor: &mut image_editor,
@@ -112,6 +114,7 @@ impl<'framework> Toolbox<'framework> {
             self.hand_tool.on_pointer_click(
                 PointerClick {
                     pointer_location: input_state.normalized_mouse_position(),
+                    pressure: input_state.current_pointer_pressure(),
                 },
                 EditorContext {
                     image_editor: &mut image_editor,
@@ -131,6 +134,7 @@ impl<'framework> Toolbox<'framework> {
                 PointerMove {
                     new_pointer_location: input_state.normalized_mouse_position(),
                     delta_normalized: input_state.normalized_mouse_delta(),
+                    pressure: input_state.current_pointer_pressure(),
                 },
                 EditorContext {
                     image_editor: &mut image_editor,
