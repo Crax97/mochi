@@ -17,6 +17,13 @@ use super::{
     },
 };
 
+pub struct ImageBytes {
+    pub width: u32,
+    pub height: u32,
+    pub channels: u8,
+    pub bytes: Vec<u8>,
+}
+
 pub struct ImageEditor<'framework> {
     framework: &'framework Framework,
     assets: Rc<AssetsLibrary>,

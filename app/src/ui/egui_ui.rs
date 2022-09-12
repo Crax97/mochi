@@ -2,6 +2,7 @@ use egui::{Color32, FontDefinitions, InnerResponse, Label, Pos2, RichText, Sense
 use egui_wgpu_backend::{RenderPass, ScreenDescriptor};
 use egui_winit_platform::PlatformDescriptor;
 use framework::Framework;
+use image::{ImageBuffer, Rgb, Rgba};
 use image_editor::layers::LayerIndex;
 use log::warn;
 use wgpu::{CommandBuffer, SurfaceConfiguration, TextureView};
@@ -91,6 +92,17 @@ impl EguiUI {
                         .clamp_range(1.0..=1000.0),
                 );
             });
+
+            if ui.button("save test").clicked() {
+                let bytes = app_ctx.image_editor.get_full_image_bytes();
+                if let Some(buffer) =
+                    ImageBuffer::<Rgba<u8>, _>::from_raw(bytes.width, bytes.height, bytes.bytes)
+                {
+                    buffer
+                        .save("image.png")
+                        .unwrap_or_else(|_| println!("Failed to write img"));
+                }
+            }
         });
         if let Some(InnerResponse { response, .. }) = window_handled {
             let mouse_pos = app_ctx.input_state.mouse_position();

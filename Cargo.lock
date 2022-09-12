@@ -560,7 +560,7 @@ dependencies = [
  "bytemuck",
  "emath",
  "nohash-hasher",
- "parking_lot",
+ "parking_lot 0.12.1",
 ]
 
 [[package]]
@@ -640,7 +640,9 @@ dependencies = [
  "bytemuck",
  "cgmath",
  "env_logger",
+ "futures-intrusive",
  "log",
+ "pollster",
  "wgpu",
  "winit",
 ]
@@ -665,6 +667,23 @@ dependencies = [
  "cmake",
  "libc",
  "pkg-config",
+]
+
+[[package]]
+name = "futures-core"
+version = "0.3.24"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4e5aa3de05362c3fb88de6531e6296e85cde7739cccad4b9dfeeb7f6ebce56bf"
+
+[[package]]
+name = "futures-intrusive"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "62007592ac46aa7c2b6416f7deb9a8a8f63a01e0f1d6e1787d5630170db2b63e"
+dependencies = [
+ "futures-core",
+ "lock_api",
+ "parking_lot 0.11.2",
 ]
 
 [[package]]
@@ -1031,7 +1050,7 @@ dependencies = [
  "ndk-macro",
  "ndk-sys",
  "once_cell",
- "parking_lot",
+ "parking_lot 0.12.1",
 ]
 
 [[package]]
@@ -1171,12 +1190,37 @@ dependencies = [
 
 [[package]]
 name = "parking_lot"
+version = "0.11.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7d17b78036a60663b797adeaee46f5c9dfebb86948d1255007a1d6be0271ff99"
+dependencies = [
+ "instant",
+ "lock_api",
+ "parking_lot_core 0.8.5",
+]
+
+[[package]]
+name = "parking_lot"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3742b2c103b9f06bc9fff0a37ff4912935851bee6d36f3c02bcc755bcfec228f"
 dependencies = [
  "lock_api",
- "parking_lot_core",
+ "parking_lot_core 0.9.3",
+]
+
+[[package]]
+name = "parking_lot_core"
+version = "0.8.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d76e8e1493bcac0d2766c42737f34458f1c8c50c0d23bcb24ea953affb273216"
+dependencies = [
+ "cfg-if",
+ "instant",
+ "libc",
+ "redox_syscall",
+ "smallvec",
+ "winapi",
 ]
 
 [[package]]
@@ -1766,7 +1810,7 @@ dependencies = [
  "js-sys",
  "log",
  "naga",
- "parking_lot",
+ "parking_lot 0.12.1",
  "raw-window-handle 0.4.3",
  "smallvec",
  "wasm-bindgen",
@@ -1792,7 +1836,7 @@ dependencies = [
  "fxhash",
  "log",
  "naga",
- "parking_lot",
+ "parking_lot 0.12.1",
  "profiling",
  "raw-window-handle 0.4.3",
  "smallvec",
@@ -1829,7 +1873,7 @@ dependencies = [
  "metal",
  "naga",
  "objc",
- "parking_lot",
+ "parking_lot 0.12.1",
  "profiling",
  "range-alloc",
  "raw-window-handle 0.4.3",
@@ -1943,7 +1987,7 @@ dependencies = [
  "ndk-glue",
  "objc",
  "once_cell",
- "parking_lot",
+ "parking_lot 0.12.1",
  "percent-encoding",
  "raw-window-handle 0.4.3",
  "raw-window-handle 0.5.0",
