@@ -277,6 +277,14 @@ impl<'framework, 'stamp> StrokingEngine<'framework> {
                 operation: wgpu::BlendOperation::Add,
             },
         };
+        let brush_blend_state = wgpu::BlendState {
+            color: BlendComponent::OVER,
+            alpha: BlendComponent {
+                src_factor: wgpu::BlendFactor::One,
+                dst_factor: wgpu::BlendFactor::One,
+                operation: wgpu::BlendOperation::Max,
+            },
+        };
 
         let simple_colored_pipeline =
             framework
@@ -298,7 +306,7 @@ impl<'framework, 'stamp> StrokingEngine<'framework> {
                             blend: Some(if is_eraser {
                                 eraser_blend_state
                             } else {
-                                wgpu::BlendState::ALPHA_BLENDING
+                                brush_blend_state
                             }),
                             write_mask: wgpu::ColorWrites::ALL,
                         })],
