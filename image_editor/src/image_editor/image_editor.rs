@@ -1,7 +1,7 @@
-use std::{collections::HashMap, rc::Rc};
+use std::{collections::HashMap, num::NonZeroU32, rc::Rc};
 
 use cgmath::{point2, vec2};
-use framework::Framework;
+use framework::{Framework, TypedBuffer, TypedBufferConfiguration};
 use scene::Camera2d;
 use wgpu::{
     CommandBuffer, CommandEncoderDescriptor, RenderPassColorAttachment, RenderPassDescriptor,
@@ -207,6 +207,65 @@ impl<'framework> ImageEditor<'framework> {
 
     pub fn get_full_image_texture(&self) -> &BitmapLayer {
         &self.document.final_layer
+    }
+
+    pub fn get_full_image_bytes(&self) -> ImageBytes {
+        let final_image_size = self.document.final_layer.size();
+        let bytes_per_row = final_image_size.x as u32 * 4;
+        let bytes_per_row = bytes_per_row
+            + (wgpu::COPY_BYTES_PER_ROW_ALIGNMENT
+                - bytes_per_row % wgpu::COPY_BYTES_PER_ROW_ALIGNMENT);
+        let final_image_bytes = bytes_per_row * final_image_size.y as u32;
+        let mut encoder = self
+            .framework
+            .device
+            .create_command_encoder(&CommandEncoderDescriptor {
+                label: Some("Fetch final texture"),
+            });
+        let final_buffer = TypedBuffer::new(
+            &self.framework,
+            TypedBufferConfiguration {
+                initial_setup: framework::typed_buffer::BufferInitialSetup::<u8>::Size(
+                    final_image_bytes as u64,
+                ),
+                buffer_type: framework::BufferType::Oneshot,
+                allow_write: true,
+                allow_read: true,
+            },
+        );
+        encoder.copy_texture_to_buffer(
+            wgpu::ImageCopyTexture {
+                texture: self.document.final_layer.texture(),
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
+            },
+            wgpu::ImageCopyBuffer {
+                buffer: final_buffer.inner_buffer(),
+                layout: wgpu::ImageDataLayout {
+                    offset: 0,
+                    bytes_per_row: NonZeroU32::new(bytes_per_row),
+                    rows_per_image: NonZeroU32::new(final_image_size.y as u32),
+                },
+            },
+            wgpu::Extent3d {
+                width: final_image_size.x as u32,
+                height: final_image_size.y as u32,
+                depth_or_array_layers: 1,
+            },
+        );
+        self.framework
+            .queue
+            .submit(std::iter::once(encoder.finish()));
+        self.framework.device.poll(wgpu::Maintain::Wait);
+
+        let bytes = final_buffer.read_all_sync();
+        ImageBytes {
+            width: final_image_size.x as u32,
+            height: final_image_size.y as u32,
+            channels: 4,
+            bytes,
+        }
     }
 
     pub(crate) fn pan_camera(&mut self, delta: cgmath::Vector2<f32>) {

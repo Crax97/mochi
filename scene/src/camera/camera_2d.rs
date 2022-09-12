@@ -28,9 +28,11 @@ impl<'framework> Camera2d<'framework> {
 
         let camera_buffer =
             framework.allocate_typed_buffer::<Camera2dUniformBlock>(TypedBufferConfiguration {
-                initial_data: vec![Camera2dUniformBlock {
-                    ortho_matrix: Matrix4::identity(),
-                }],
+                initial_setup: framework::typed_buffer::BufferInitialSetup::Data(&vec![
+                    Camera2dUniformBlock {
+                        ortho_matrix: Matrix4::identity(),
+                    },
+                ]),
                 buffer_type: BufferType::Uniform,
                 allow_write: true,
                 allow_read: false,
@@ -54,7 +56,7 @@ impl<'framework> Camera2d<'framework> {
 
     fn update_camera_buffer(&mut self) {
         self.camera_buffer
-            .write_sync(&[Camera2dUniformBlock::from(self as &Camera2d)]);
+            .write_sync(&vec![Camera2dUniformBlock::from(self as &Camera2d)]);
     }
 
     pub fn buffer(&self) -> &TypedBuffer {

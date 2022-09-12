@@ -15,6 +15,7 @@ wgpu = "0.13"
 bytemuck = {version = "1.12.1", features = [ "derive" ] }
 cgmath="0.18.0"
 
+
 framework={path="../framework"}
 scene={path="../scene"}
 

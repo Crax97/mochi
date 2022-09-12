@@ -137,7 +137,7 @@ impl<'framework, 'stamp> StrokingEngine<'framework> {
         let instance_buffer = TypedBuffer::new(
             framework,
             TypedBufferConfiguration::<MeshInstance2D> {
-                initial_data: vec![],
+                initial_setup: framework::typed_buffer::BufferInitialSetup::Data(&vec![]),
                 buffer_type: framework::BufferType::Vertex,
                 allow_write: true,
                 allow_read: false,
@@ -155,7 +155,9 @@ impl<'framework, 'stamp> StrokingEngine<'framework> {
         let stamp_uniform_buffer = TypedBuffer::new(
             framework,
             TypedBufferConfiguration::<StampUniformData> {
-                initial_data: vec![initial_setup.into()],
+                initial_setup: framework::typed_buffer::BufferInitialSetup::Data(&vec![
+                    initial_setup.into(),
+                ]),
                 buffer_type: framework::BufferType::Uniform,
                 allow_write: true,
                 allow_read: false,
@@ -345,7 +347,7 @@ impl<'framework, 'stamp> StrokingEngine<'framework> {
 
     pub fn set_new_settings(&mut self, settings: StampConfiguration) {
         let unif_data: StampUniformData = settings.into();
-        self.stamp_data_buffer.write_sync(&[unif_data]);
+        self.stamp_data_buffer.write_sync(&vec![unif_data]);
         self.configuration = settings;
     }
 
@@ -398,7 +400,7 @@ impl<'framework> BrushEngine for StrokingEngine<'framework> {
                     })
                     .collect();
 
-                self.instance_buffer.write_sync(&instances.as_slice());
+                self.instance_buffer.write_sync(&instances);
                 // 2. Do draw
                 let stroking_engine_render_pass = RenderPassDescriptor {
                     label: Some("Stamping Engine render pass"),

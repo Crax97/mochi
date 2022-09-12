@@ -1,4 +1,5 @@
 use as_slice::AsSlice;
+use bytemuck::NoUninit;
 use wgpu::{util::DeviceExt, BufferUsages, RenderPass};
 
 use super::framework::Framework;
@@ -11,6 +12,8 @@ pub enum BufferType {
     Uniform,
     // A buffer whose contents can be dynamic
     Storage,
+    // A buffer whose purpose is to be used and then deleted shortly afterwards
+    Oneshot,
 }
 
 struct BufferInfo {
@@ -25,7 +28,7 @@ pub struct InnerBufferConfiguration {
 }
 pub struct TypedBuffer<'framework> {
     buffer: BufferInfo,
-    configuration: InnerBufferConfiguration,
+    config: InnerBufferConfiguration,
     owner_framework: &'framework Framework,
 }
 
@@ -35,26 +38,37 @@ impl From<BufferType> for BufferUsages {
             BufferType::Vertex => wgpu::BufferUsages::VERTEX,
             BufferType::Uniform => wgpu::BufferUsages::UNIFORM,
             BufferType::Storage => wgpu::BufferUsages::STORAGE,
+            BufferType::Oneshot => wgpu::BufferUsages::empty(),
         }
     }
 }
 
-pub struct TypedBufferConfiguration<T> {
-    pub initial_data: Vec<T>,
+pub enum BufferInitialSetup<'create, T>
+where
+    T: bytemuck::Pod + bytemuck::Zeroable,
+{
+    Data(&'create Vec<T>),
+    Size(u64),
+}
+
+pub struct TypedBufferConfiguration<'create, T>
+where
+    T: bytemuck::Pod + bytemuck::Zeroable,
+{
+    pub initial_setup: BufferInitialSetup<'create, T>,
     pub buffer_type: BufferType,
     pub allow_write: bool,
     pub allow_read: bool,
 }
 
-fn recreate_buffer<T: AsSlice>(
-    data: &T,
+fn recreate_buffer<T>(
+    data: &BufferInitialSetup<T>,
     config: &InnerBufferConfiguration,
     framework: &'_ Framework,
 ) -> BufferInfo
 where
-    T::Element: bytemuck::Pod + bytemuck::Zeroable,
+    T: bytemuck::Pod + bytemuck::Zeroable,
 {
-    use std::mem;
     let buffer_usage: BufferUsages = config.buffer_type.into();
     let usage: BufferUsages = buffer_usage
         | if config.allow_write {
@@ -67,66 +81,91 @@ where
         } else {
             wgpu::BufferUsages::empty()
         };
-    let buffer = if data.as_slice().len() > 0 {
-        framework
-            .device
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+    let (buffer, num_items) = match data {
+        BufferInitialSetup::Data(data) => (
+            framework
+                .device
+                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: None,
+                    contents: &bytemuck::cast_slice(data.as_slice()),
+                    usage,
+                }),
+            data.as_slice().len(),
+        ),
+        BufferInitialSetup::Size(initial_size) => (
+            framework.device.create_buffer(&wgpu::BufferDescriptor {
                 label: None,
-                contents: &bytemuck::cast_slice(data.as_slice()),
+                size: *initial_size,
                 usage,
-            })
-    } else {
-        framework.device.create_buffer(&wgpu::BufferDescriptor {
-            label: None,
-            size: mem::size_of::<T>() as u64,
-            usage,
-            mapped_at_creation: false,
-        })
+                mapped_at_creation: false,
+            }),
+            1,
+        ),
     };
-    BufferInfo {
-        buffer,
-        num_items: data.as_slice().len(),
-    }
+    BufferInfo { buffer, num_items }
 }
 
 impl<'framework> TypedBuffer<'framework> {
-    pub fn new<T: bytemuck::Pod + bytemuck::Zeroable>(
+    pub fn new<T>(
         framework: &'framework Framework,
         initial_configuration: TypedBufferConfiguration<T>,
-    ) -> Self {
+    ) -> Self
+    where
+        T: bytemuck::Pod + bytemuck::Zeroable,
+    {
         let configuration = InnerBufferConfiguration {
             allow_read: initial_configuration.allow_read,
             allow_write: initial_configuration.allow_write,
             buffer_type: initial_configuration.buffer_type,
         };
         let buffer = recreate_buffer(
-            &initial_configuration.initial_data.as_slice(),
+            &initial_configuration.initial_setup,
             &configuration,
             framework,
         );
         TypedBuffer {
             buffer: buffer,
-            configuration,
             owner_framework: framework,
+            config: configuration,
         }
     }
 
-    pub fn write_sync<T: AsSlice>(&mut self, data: &T)
-    where
-        T::Element: bytemuck::Pod + bytemuck::Zeroable,
-    {
+    pub fn inner_buffer(&self) -> &wgpu::Buffer {
+        &self.buffer.buffer
+    }
+
+    pub fn read_all_sync(&self) -> Vec<u8> {
+        let device = &self.owner_framework.device;
+        let out_slice = self.buffer.buffer.slice(..);
+        let (tx, rx) = futures_intrusive::channel::shared::oneshot_channel();
+        out_slice.map_async(wgpu::MapMode::Read, move |result| {
+            tx.send(result).unwrap();
+        });
+        device.poll(wgpu::Maintain::Wait);
+        pollster::block_on(rx.receive()).unwrap().unwrap();
+
+        let data = out_slice.get_mapped_range();
+        data.iter().map(|b| *b).collect()
+    }
+
+    pub fn write_sync<T: bytemuck::Pod + bytemuck::Zeroable>(&mut self, data: &Vec<T>) {
         let queue = &self.owner_framework.queue;
         let length = data.as_slice().len();
         let current_items = self.buffer.num_items;
+
         if length > current_items {
-            self.buffer = recreate_buffer(data, &self.configuration, self.owner_framework);
+            self.buffer = recreate_buffer(
+                &BufferInitialSetup::Data(data),
+                &self.config,
+                self.owner_framework,
+            );
         }
         let buffer = &self.buffer.buffer;
         queue.write_buffer(&buffer, 0, &bytemuck::cast_slice(&data.as_slice()));
     }
 
     pub fn bind<'a>(&'a self, index: u32, render_pass: &mut RenderPass<'a>) {
-        match self.configuration.buffer_type {
+        match self.config.buffer_type {
             BufferType::Vertex => {
                 let buffer = &self.buffer.buffer;
 
@@ -136,6 +175,9 @@ impl<'framework> TypedBuffer<'framework> {
                 panic!("Uniform buffers should be set by using the associated bind group!")
             }
             BufferType::Storage => todo!(),
+            BufferType::Oneshot => {
+                panic!("Oneshot buffers aren't supposed to be bound!")
+            }
         };
     }
 

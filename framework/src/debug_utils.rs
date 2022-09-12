@@ -5,7 +5,8 @@ use wgpu::{
 };
 
 use crate::{
-    mesh_names, pipeline_names, AssetsLibrary, Framework, TypedBuffer, TypedBufferConfiguration,
+    mesh_names, pipeline_names, typed_buffer::BufferInitialSetup, AssetsLibrary, Framework,
+    TypedBuffer, TypedBufferConfiguration,
 };
 
 #[repr(C)]
@@ -115,13 +116,13 @@ impl Debug {
         let mut debug_points_buffer = TypedBuffer::new(
             framework,
             TypedBufferConfiguration::<DebugInstance2D> {
-                initial_data: vec![],
+                initial_setup: BufferInitialSetup::Size(0),
                 buffer_type: crate::BufferType::Vertex,
                 allow_write: true,
                 allow_read: false,
             },
         );
-        debug_points_buffer.write_sync(&self.debug_items.as_slice());
+        debug_points_buffer.write_sync(&self.debug_items);
         let mut command_encoder = framework
             .device
             .create_command_encoder(&command_encoder_description);

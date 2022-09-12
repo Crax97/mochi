@@ -98,7 +98,9 @@ impl<'framework> Layer<'framework> {
             });
 
         let instance_buffer = framework.allocate_typed_buffer(TypedBufferConfiguration {
-            initial_data: Vec::<MeshInstance2D>::new(),
+            initial_setup: framework::typed_buffer::BufferInitialSetup::Data(
+                &Vec::<MeshInstance2D>::new(),
+            ),
             buffer_type: framework::BufferType::Vertex,
             allow_write: true,
             allow_read: false,
@@ -120,7 +122,7 @@ impl<'framework> Layer<'framework> {
                     x: self.scale.x * bitmap_layer.size().x * 0.5,
                     y: self.scale.y * bitmap_layer.size().y * 0.5,
                 };
-                self.instance_buffer.write_sync(&[MeshInstance2D::new(
+                self.instance_buffer.write_sync(&vec![MeshInstance2D::new(
                     self.position.clone(),
                     real_scale,
                     self.rotation_radians,
