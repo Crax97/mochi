@@ -67,20 +67,59 @@ impl InputState {
                         * 0.5;
                 }
                 winit::event::WindowEvent::MouseInput { state, button, .. } => {
-                    self.pointer_button_state
-                        .entry(*button)
-                        .and_modify(|s| *s = *state)
-                        .or_insert(*state);
+                    self.set_cursor_button_state(*button, *state);
                 }
                 winit::event::WindowEvent::TouchpadPressure { pressure, .. } => {
                     self.current_pointer_pressure = *pressure
                 }
-                winit::event::WindowEvent::Touch(_) => {}
+                winit::event::WindowEvent::Touch(touch) => {
+                    let winit::event::Touch {
+                        phase,
+                        location,
+                        force,
+                        ..
+                    } = touch;
+
+                    if let Some(force) = force {
+                        self.current_pointer_pressure = match force {
+                            winit::event::Force::Calibrated {
+                                force,
+                                max_possible_force,
+                                ..
+                            } => force / max_possible_force,
+                            winit::event::Force::Normalized(force) => *force,
+                        } as f32;
+                    }
+                    match phase {
+                        winit::event::TouchPhase::Started => {
+                            self.set_cursor_button_state(
+                                winit::event::MouseButton::Left,
+                                ElementState::Pressed,
+                            );
+                        }
+                        winit::event::TouchPhase::Moved => {
+                            self.current_cursor_position = location.cast::<f32>();
+                        }
+                        winit::event::TouchPhase::Ended | winit::event::TouchPhase::Cancelled => {
+                            self.set_cursor_button_state(
+                                winit::event::MouseButton::Left,
+                                ElementState::Released,
+                            );
+                        }
+                    }
+                }
                 _ => {}
             },
             winit::event::Event::DeviceEvent { device_id, event } => {}
             _ => {}
         }
+    }
+
+    fn set_cursor_button_state(&mut self, button: MouseButton, state: ElementState) {
+        self.pointer_button_state
+            .entry(button)
+            .and_modify(|s| *s = state)
+            .or_insert(state);
     }
 
     pub(crate) fn mouse_position(&self) -> PhysicalPosition<f32> {
