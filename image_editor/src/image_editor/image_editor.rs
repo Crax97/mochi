@@ -220,7 +220,7 @@ impl<'framework> ImageEditor<'framework> {
     }
 
     pub fn scale_view(&mut self, delta: f32) {
-        const SCALE_SPEED: f32 = 20.0; // TODO: Make this customizable
+        const SCALE_SPEED: f32 = 100.0; // TODO: Make this customizable
         self.pan_camera.scale(delta * SCALE_SPEED);
     }
 
