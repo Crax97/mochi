@@ -2,8 +2,11 @@ use egui::{Color32, FontDefinitions, InnerResponse, Label, Pos2, RichText, Sense
 use egui_wgpu_backend::{RenderPass, ScreenDescriptor};
 use egui_winit_platform::PlatformDescriptor;
 use framework::Framework;
-use image::{ImageBuffer, Rgb, Rgba};
-use image_editor::layers::LayerIndex;
+use image::{ImageBuffer, Rgba};
+use image_editor::{
+    layers::{LayerCreationInfo, LayerIndex},
+    LayerConstructionInfo,
+};
 use log::warn;
 use wgpu::{CommandBuffer, SurfaceConfiguration, TextureView};
 use winit::window::Window;
@@ -11,7 +14,9 @@ use winit::window::Window;
 use super::{Ui, UiContext};
 
 enum LayerAction {
-    NewLayer,
+    NewLayerRequest,
+    CancelNewLayerRequest,
+    CreateNewLayer,
     DeleteLayer(LayerIndex),
     SelectLayer(LayerIndex),
     None,
@@ -20,6 +25,8 @@ enum LayerAction {
 pub struct EguiUI {
     platform: egui_winit_platform::Platform,
     backend_pass: RenderPass,
+
+    new_layer_in_creation: Option<LayerConstructionInfo>,
 }
 
 impl EguiUI {
@@ -37,6 +44,7 @@ impl EguiUI {
                 style: Default::default(),
             }),
             backend_pass: RenderPass::new(&framework.device, surface_configuration.format, 1),
+            new_layer_in_creation: None,
         }
     }
 }
@@ -112,15 +120,29 @@ impl EguiUI {
     }
 
     fn layer_settings(&mut self, app_ctx: &mut UiContext) -> (bool, LayerAction) {
+        let mut hover = false;
         let ctx = self.platform.context();
         let document = app_ctx.image_editor.document();
         use image_editor::layers::LayerTree::*;
 
         let mut action = LayerAction::None;
 
+        let sense = if self.new_layer_in_creation.is_none() {
+            Sense::click()
+        } else {
+            Sense {
+                click: false,
+                drag: false,
+                focusable: false,
+            }
+        };
+
         let window_handled = egui::Window::new("Layers").show(&ctx, |ui| {
-            if ui.button("New layer").clicked() {
-                action = LayerAction::NewLayer;
+            if ui
+                .add(egui::Button::new("New layer").sense(sense))
+                .clicked()
+            {
+                action = LayerAction::NewLayerRequest;
             }
 
             let mut lay_layer_ui = |idx: &LayerIndex| {
@@ -132,16 +154,16 @@ impl EguiUI {
                         Color32::WHITE
                     };
                     if ui
-                        .add(
-                            Label::new(RichText::from(&layer.name).color(color))
-                                .sense(Sense::click()),
-                        )
+                        .add(Label::new(RichText::from(&layer.name).color(color)).sense(sense))
                         .clicked()
                     {
                         action = LayerAction::SelectLayer(idx.clone());
                     }
 
-                    if ui.button("Delete layer").clicked() {
+                    if ui
+                        .add(egui::Button::new("Delete layer").sense(sense))
+                        .clicked()
+                    {
                         action = LayerAction::DeleteLayer(idx.clone());
                     }
                 });
@@ -159,7 +181,35 @@ impl EguiUI {
                 }
             }
         });
-        let hover = if let Some(InnerResponse { response, .. }) = window_handled {
+
+        if self.new_layer_in_creation.is_some() {
+            let create_win = egui::Window::new("Create new layer")
+                .collapsible(false)
+                .show(&ctx, |ui| {
+                    let layer_settings = self.new_layer_in_creation.as_mut().unwrap();
+
+                    ui.label("Layer color?");
+                    ui.color_edit_button_rgba_unmultiplied(&mut layer_settings.initial_color);
+                    ui.label("Layer name?");
+                    ui.text_edit_singleline(&mut layer_settings.name);
+
+                    if ui.button("Create").clicked() {
+                        action = LayerAction::CreateNewLayer;
+                    }
+                    if ui.button("Cancel").clicked() {
+                        action = LayerAction::CancelNewLayerRequest;
+                    }
+                });
+
+            hover |= if let Some(InnerResponse { response, .. }) = create_win {
+                let mouse_pos = app_ctx.input_state.mouse_position();
+                response.rect.contains(Pos2::new(mouse_pos.x, mouse_pos.y))
+            } else {
+                false
+            };
+        }
+
+        hover |= if let Some(InnerResponse { response, .. }) = window_handled {
             let mouse_pos = app_ctx.input_state.mouse_position();
             response.rect.contains(Pos2::new(mouse_pos.x, mouse_pos.y))
         } else {
@@ -181,12 +231,17 @@ impl Ui for EguiUI {
         let (hover_layer, layer_action) = self.layer_settings(&mut app_ctx);
 
         match layer_action {
-            LayerAction::NewLayer => app_ctx.image_editor.add_layer_to_document(),
+            LayerAction::NewLayerRequest => {
+                self.new_layer_in_creation = Some(LayerConstructionInfo::default())
+            }
+            LayerAction::CancelNewLayerRequest => self.new_layer_in_creation = None,
+            LayerAction::CreateNewLayer => app_ctx
+                .image_editor
+                .add_layer_to_document(self.new_layer_in_creation.take().unwrap()),
             LayerAction::DeleteLayer(idx) => app_ctx.image_editor.delete_layer(idx),
             LayerAction::SelectLayer(idx) => app_ctx.image_editor.select_new_layer(idx),
             LayerAction::None => {}
         }
-
         brush || hover_layer
     }
     fn present(

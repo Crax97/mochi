@@ -1,6 +1,6 @@
 use std::{collections::HashMap, num::NonZeroU32, rc::Rc};
 
-use cgmath::{point2, vec2};
+use cgmath::{point2, vec2, Point2, Vector2};
 use framework::{Framework, TypedBuffer, TypedBufferConfiguration};
 use scene::Camera2d;
 use wgpu::{
@@ -16,6 +16,12 @@ use super::{
         LayerIndex, LayerTree, RootLayer,
     },
 };
+
+#[derive(Default)]
+pub struct LayerConstructionInfo {
+    pub initial_color: [f32; 4],
+    pub name: String,
+}
 
 pub struct ImageBytes {
     pub width: u32,
@@ -110,7 +116,7 @@ impl<'framework> ImageEditor<'framework> {
         &self.document
     }
 
-    pub fn add_layer_to_document(&mut self) {
+    pub fn add_layer_to_document(&mut self, config: LayerConstructionInfo) {
         let layer_name = format!("Layer {}", self.layers_created);
         self.layers_created += 1;
         let layer_index = LayerIndex(self.layers_created);
@@ -120,13 +126,13 @@ impl<'framework> ImageEditor<'framework> {
                 label: layer_name.clone(),
                 width: 800,
                 height: 600,
-                initial_background_color: [0.0, 0.0, 0.0, 0.0],
+                initial_background_color: config.initial_color,
             },
         );
         let new_layer = Layer::new_bitmap(
             new_layer,
             LayerCreationInfo {
-                name: layer_name,
+                name: config.name,
                 position: point2(0.0, 0.0),
                 scale: vec2(1.0, 1.0),
                 rotation_radians: 0.0,
