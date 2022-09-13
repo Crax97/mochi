@@ -1,4 +1,5 @@
 use cgmath::{Point2, Vector2};
+use framework::render_pass::PassBindble;
 use framework::{Framework, MeshInstance2D, TypedBuffer, TypedBufferConfiguration};
 use wgpu::{BindGroup, RenderPass};
 

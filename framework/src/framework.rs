@@ -47,7 +47,7 @@ impl<'a> Framework {
     pub fn allocate_typed_buffer<BufferType: bytemuck::Pod + bytemuck::Zeroable>(
         &'a self,
         configuration: TypedBufferConfiguration<BufferType>,
-    ) -> TypedBuffer<'a> {
+    ) -> TypedBuffer {
         TypedBuffer::new(self, configuration)
     }
 

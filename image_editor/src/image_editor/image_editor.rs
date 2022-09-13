@@ -1,6 +1,11 @@
-use std::{collections::HashMap, num::NonZeroU32, rc::Rc};
+use std::{
+    cell::{Ref, RefCell, RefMut},
+    collections::HashMap,
+    num::NonZeroU32,
+    rc::Rc,
+};
 
-use cgmath::{point2, vec2, Point2, Vector2};
+use cgmath::{num_traits::Num, point2, vec2, Point2, Vector2};
 use framework::{Framework, TypedBuffer, TypedBufferConfiguration};
 use scene::Camera2d;
 use wgpu::{
@@ -32,24 +37,28 @@ pub struct ImageBytes {
 
 pub struct ImageEditor<'framework> {
     framework: &'framework Framework,
-    assets: Rc<AssetsLibrary>,
+    assets: Rc<RefCell<AssetsLibrary>>,
     pan_camera: Camera2d<'framework>,
 
     document: Document<'framework>,
     layers_created: u16,
 }
 
+pub fn ceil_to<N: Num + Copy>(n: N, align_to: N) -> N {
+    n + (align_to - n % align_to)
+}
+
 impl<'framework> ImageEditor<'framework> {
     pub fn new(
         framework: &'framework Framework,
-        assets: Rc<AssetsLibrary>,
+        assets: Rc<RefCell<AssetsLibrary>>,
         initial_window_bounds: &[f32; 2],
     ) -> Self {
         let final_layer = BitmapLayer::new(
             &framework,
             BitmapLayerConfiguration {
                 label: "Final Rendering Layer".to_owned(),
-                width: 800,
+                width: ceil_to(800, wgpu::COPY_BYTES_PER_ROW_ALIGNMENT),
                 height: 600,
                 initial_background_color: [0.5, 0.5, 0.5, 1.0],
             },
@@ -193,7 +202,8 @@ impl<'framework> ImageEditor<'framework> {
 
         {
             let mut render_pass = command_encoder.begin_render_pass(&render_pass_description);
-            render_pass.set_pipeline(&self.assets.pipeline(pipeline_names::SIMPLE_TEXTURED));
+            /*
+            let pipeline = &self.assets.pipeline(pipeline_names::SIMPLE_TEXTURED);
 
             let mut draw_context = LayerDrawContext {
                 render_pass: &mut render_pass,
@@ -214,6 +224,7 @@ impl<'framework> ImageEditor<'framework> {
                     }
                 };
             }
+             */
         }
         command_encoder.finish()
     }
@@ -225,9 +236,6 @@ impl<'framework> ImageEditor<'framework> {
     pub fn get_full_image_bytes(&self) -> ImageBytes {
         let final_image_size = self.document.final_layer.size();
         let bytes_per_row = final_image_size.x as u32 * 4;
-        let bytes_per_row = bytes_per_row
-            + (wgpu::COPY_BYTES_PER_ROW_ALIGNMENT
-                - bytes_per_row % wgpu::COPY_BYTES_PER_ROW_ALIGNMENT);
         let final_image_bytes = bytes_per_row * final_image_size.y as u32;
         let mut encoder = self
             .framework
@@ -300,8 +308,8 @@ impl<'framework> ImageEditor<'framework> {
         self.document.current_layer()
     }
 
-    pub(crate) fn assets(&self) -> &AssetsLibrary {
-        &self.assets
+    pub(crate) fn assets(&self) -> Ref<AssetsLibrary> {
+        self.assets.borrow()
     }
 
     pub fn camera(&self) -> &Camera2d {

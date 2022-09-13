@@ -1,4 +1,5 @@
 use cgmath::{point2, vec2, ElementWise, Point2};
+use framework::render_pass::PassBindble;
 use framework::{
     asset_library::mesh_names, Framework, Mesh, MeshInstance2D, TypedBuffer,
     TypedBufferConfiguration,
@@ -132,7 +133,7 @@ pub struct StrokingEngine<'framework> {
     pub brush_bind_group: BindGroup,
 }
 
-impl<'framework, 'stamp> StrokingEngine<'framework> {
+impl<'framework> StrokingEngine<'framework> {
     pub fn new(initial_stamp: Stamp, framework: &'framework Framework) -> Self {
         let instance_buffer = TypedBuffer::new(
             framework,

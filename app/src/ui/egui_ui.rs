@@ -184,21 +184,26 @@ impl EguiUI {
 
         if self.new_layer_in_creation.is_some() {
             let create_win = egui::Window::new("Create new layer")
+                .fixed_pos(ctx.available_rect().center() - ctx.available_rect().size() * 0.5)
+                .fixed_size(ctx.available_rect().size() * 0.5)
                 .collapsible(false)
                 .show(&ctx, |ui| {
-                    let layer_settings = self.new_layer_in_creation.as_mut().unwrap();
+                    ui.centered_and_justified(|ui| {
+                        let layer_settings = self.new_layer_in_creation.as_mut().unwrap();
 
-                    ui.label("Layer color?");
-                    ui.color_edit_button_rgba_unmultiplied(&mut layer_settings.initial_color);
-                    ui.label("Layer name?");
-                    ui.text_edit_singleline(&mut layer_settings.name);
+                        ui.label("Layer color?");
+                        ui.color_edit_button_rgba_unmultiplied(&mut layer_settings.initial_color);
+                        ui.label("Layer name?");
+                        ui.text_edit_singleline(&mut layer_settings.name);
 
-                    if ui.button("Create").clicked() {
-                        action = LayerAction::CreateNewLayer;
-                    }
-                    if ui.button("Cancel").clicked() {
-                        action = LayerAction::CancelNewLayerRequest;
-                    }
+                        if ui.button("Create").clicked() {
+                            action = LayerAction::CreateNewLayer;
+                        }
+                        if ui.button("Cancel").clicked() {
+                            action = LayerAction::CancelNewLayerRequest;
+                        }
+                        return (true, LayerAction::None);
+                    })
                 });
 
             hover |= if let Some(InnerResponse { response, .. }) = create_win {
@@ -232,12 +237,19 @@ impl Ui for EguiUI {
 
         match layer_action {
             LayerAction::NewLayerRequest => {
-                self.new_layer_in_creation = Some(LayerConstructionInfo::default())
+                self.new_layer_in_creation = Some(LayerConstructionInfo::default());
+                return true;
             }
-            LayerAction::CancelNewLayerRequest => self.new_layer_in_creation = None,
-            LayerAction::CreateNewLayer => app_ctx
-                .image_editor
-                .add_layer_to_document(self.new_layer_in_creation.take().unwrap()),
+            LayerAction::CancelNewLayerRequest => {
+                self.new_layer_in_creation = None;
+                return false;
+            }
+            LayerAction::CreateNewLayer => {
+                app_ctx
+                    .image_editor
+                    .add_layer_to_document(self.new_layer_in_creation.take().unwrap());
+                return true;
+            }
             LayerAction::DeleteLayer(idx) => app_ctx.image_editor.delete_layer(idx),
             LayerAction::SelectLayer(idx) => app_ctx.image_editor.select_new_layer(idx),
             LayerAction::None => {}

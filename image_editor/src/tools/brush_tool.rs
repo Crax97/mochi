@@ -88,7 +88,7 @@ impl<'framework> Tool for BrushTool<'framework> {
             layer: context.image_editor.selected_layer(),
             editor: &context.image_editor,
             command_encoder: &mut encoder,
-            assets: context.image_editor.assets(),
+            assets: &context.image_editor.assets(),
             debug: context.debug.clone(),
         };
 

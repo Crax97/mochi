@@ -1,13 +1,16 @@
 use std::{collections::HashMap, iter::FromIterator};
 
-use crate::{DebugInstance2D, Framework, Mesh, MeshConstructionDetails, MeshInstance2D, Vertex};
+use crate::{
+    render_pass::{self, RenderPass, SimpleColoredPass, SimpleTexturedPass},
+    DebugInstance2D, Framework, Mesh, MeshConstructionDetails, MeshInstance2D, Vertex,
+};
 use cgmath::{point2, point3};
 use wgpu::{
     BlendComponent, BlendFactor, ColorTargetState, FragmentState, RenderPipeline, VertexState,
 };
 
 pub struct AssetsLibrary {
-    pipelines: HashMap<String, RenderPipeline>,
+    pipelines: HashMap<String, Box<dyn render_pass::RenderPass>>,
     meshes: HashMap<String, Mesh>,
 }
 
@@ -42,167 +45,20 @@ impl AssetsLibrary {
                 allow_editing: false,
             },
         );
-        let module = framework
-            .device
-            .create_shader_module(wgpu::include_wgsl!("../shaders/simple_shader.wgsl"));
 
-        let bind_group_layout =
-            framework
-                .device
-                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    label: Some("Simple shader layout"),
-                    entries: &[
-                        wgpu::BindGroupLayoutEntry {
-                            binding: 0,
-                            visibility: wgpu::ShaderStages::FRAGMENT,
-                            ty: wgpu::BindingType::Texture {
-                                sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                                view_dimension: wgpu::TextureViewDimension::D2,
-                                multisampled: false,
-                            },
-                            count: None,
-                        },
-                        wgpu::BindGroupLayoutEntry {
-                            binding: 1,
-                            visibility: wgpu::ShaderStages::FRAGMENT,
-                            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                            count: None,
-                        },
-                        wgpu::BindGroupLayoutEntry {
-                            binding: 2,
-                            visibility: wgpu::ShaderStages::VERTEX,
-                            ty: wgpu::BindingType::Buffer {
-                                ty: wgpu::BufferBindingType::Uniform,
-                                has_dynamic_offset: false,
-                                min_binding_size: None,
-                            },
-                            count: None,
-                        },
-                    ],
-                });
-        let render_pipeline_layout =
-            framework
-                .device
-                .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label: Some("Simple Render Pipeline Layout"),
-                    bind_group_layouts: &[&bind_group_layout],
-                    push_constant_ranges: &[],
-                });
+        let simple_diffuse_pipeline = SimpleTexturedPass::new(framework);
+        let simple_colored_pipeline = SimpleColoredPass::new(framework);
 
-        let simple_diffuse_pipeline =
-            framework
-                .device
-                .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                    label: Some("Simple render pipeline"),
-                    layout: Some(&render_pipeline_layout),
-                    depth_stencil: None,
-                    vertex: VertexState {
-                        module: &module,
-                        entry_point: "vs",
-                        buffers: &[Mesh::layout(), MeshInstance2D::layout()],
-                    },
-                    fragment: Some(FragmentState {
-                        module: &module,
-                        entry_point: "fs",
-                        targets: &[Some(ColorTargetState {
-                            format: wgpu::TextureFormat::Rgba8UnormSrgb,
-                            blend: Some(wgpu::BlendState::ALPHA_BLENDING),
-                            write_mask: wgpu::ColorWrites::ALL,
-                        })],
-                    }),
-                    multisample: wgpu::MultisampleState {
-                        count: 1,
-                        mask: !0,
-                        alpha_to_coverage_enabled: false,
-                    },
-                    multiview: None,
-                    primitive: wgpu::PrimitiveState {
-                        topology: wgpu::PrimitiveTopology::TriangleList,
-                        strip_index_format: None,
-                        front_face: wgpu::FrontFace::Cw,
-                        conservative: false,
-                        cull_mode: Some(wgpu::Face::Back),
-                        polygon_mode: wgpu::PolygonMode::Fill,
-                        unclipped_depth: false,
-                    },
-                });
-        let bind_group_layout =
-            framework
-                .device
-                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    label: Some("Debug bind group layout"),
-                    entries: &[wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::VERTEX,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Uniform,
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
-                    }],
-                });
-
-        let render_pipeline_layout =
-            framework
-                .device
-                .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label: Some("Simple Render Pipeline Layout"),
-                    bind_group_layouts: &[&bind_group_layout],
-                    push_constant_ranges: &[],
-                });
-
-        let module = framework
-            .device
-            .create_shader_module(wgpu::include_wgsl!("../shaders/simple_colored.wgsl"));
-
-        let simple_colored_pipeline =
-            framework
-                .device
-                .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                    label: Some("Simple render pipeline"),
-                    layout: Some(&render_pipeline_layout),
-                    depth_stencil: None,
-                    vertex: VertexState {
-                        module: &module,
-                        entry_point: "vs",
-                        buffers: &[Mesh::layout(), DebugInstance2D::layout()],
-                    },
-                    fragment: Some(FragmentState {
-                        module: &module,
-                        entry_point: "fs",
-                        targets: &[Some(ColorTargetState {
-                            format: wgpu::TextureFormat::Rgba8UnormSrgb,
-                            blend: Some(wgpu::BlendState::REPLACE),
-                            write_mask: wgpu::ColorWrites::ALL,
-                        })],
-                    }),
-                    multisample: wgpu::MultisampleState {
-                        count: 1,
-                        mask: !0,
-                        alpha_to_coverage_enabled: false,
-                    },
-                    multiview: None,
-                    primitive: wgpu::PrimitiveState {
-                        topology: wgpu::PrimitiveTopology::TriangleList,
-                        strip_index_format: None,
-                        front_face: wgpu::FrontFace::Cw,
-                        conservative: false,
-                        cull_mode: Some(wgpu::Face::Back),
-                        polygon_mode: wgpu::PolygonMode::Fill,
-                        unclipped_depth: false,
-                    },
-                });
         Self {
             pipelines: HashMap::from_iter(
                 [
                     (
                         pipeline_names::SIMPLE_TEXTURED.to_owned(),
-                        simple_diffuse_pipeline,
+                        Box::new(simple_diffuse_pipeline) as Box<dyn RenderPass>,
                     ),
                     (
                         pipeline_names::SIMPLE_COLORED.to_owned(),
-                        simple_colored_pipeline,
+                        Box::new(simple_colored_pipeline),
                     ),
                 ]
                 .into_iter(),
@@ -210,7 +66,7 @@ impl AssetsLibrary {
             meshes: HashMap::from_iter(std::iter::once((mesh_names::QUAD.to_owned(), quad_mesh))),
         }
     }
-    pub fn add_pipeline(&mut self, name: &str, pipeline: RenderPipeline) {
+    pub fn add_pipeline(&mut self, name: &str, pipeline: Box<dyn RenderPass>) {
         self.pipelines.insert(name.to_owned(), pipeline);
     }
     pub fn add_mesh(&mut self, name: &str, mesh: Mesh) {
@@ -219,7 +75,7 @@ impl AssetsLibrary {
 }
 
 impl<'assetlib> AssetsLibrary {
-    pub fn pipeline(&'assetlib self, name: &str) -> &'assetlib RenderPipeline {
+    pub fn pipeline(&'assetlib self, name: &str) -> &'assetlib Box<dyn RenderPass> {
         self.pipelines
             .get(name)
             .expect("This pipeline doesn't exist")

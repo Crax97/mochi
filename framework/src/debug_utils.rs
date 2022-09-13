@@ -129,10 +129,12 @@ impl Debug {
 
         {
             let mut render_pass = command_encoder.begin_render_pass(&render_pass_description);
-            render_pass.set_pipeline(&asset_library.pipeline(pipeline_names::SIMPLE_COLORED));
-            render_pass.set_bind_group(0, &bind_group, &[]);
-            debug_points_buffer.bind(1, &mut render_pass);
 
+            let pipeline = asset_library.pipeline(pipeline_names::SIMPLE_COLORED);
+            pipeline.execute_with_renderpass(
+                &mut render_pass,
+                &[(0, &bind_group), (1, &debug_points_buffer)],
+            );
             asset_library
                 .mesh(mesh_names::QUAD)
                 .draw(&mut render_pass, self.debug_items.len() as u32);

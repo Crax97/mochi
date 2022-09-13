@@ -1,9 +1,11 @@
 mod app_state;
+mod final_present_pass;
 mod input_state;
 mod toolbox;
 mod ui;
 
 use app_state::ImageApplication;
+use final_present_pass::*;
 use framework::Framework;
 use lazy_static::lazy_static;
 

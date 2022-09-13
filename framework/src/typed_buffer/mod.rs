@@ -1,6 +1,6 @@
-use as_slice::AsSlice;
-use bytemuck::NoUninit;
-use wgpu::{util::DeviceExt, BufferUsages, RenderPass};
+use wgpu::{util::DeviceExt, BufferUsages};
+
+use crate::render_pass::PassBindble;
 
 use super::framework::Framework;
 
@@ -125,8 +125,8 @@ impl<'framework> TypedBuffer<'framework> {
         );
         TypedBuffer {
             buffer: buffer,
-            owner_framework: framework,
             config: configuration,
+            owner_framework: framework,
         }
     }
 
@@ -164,12 +164,27 @@ impl<'framework> TypedBuffer<'framework> {
         queue.write_buffer(&buffer, 0, &bytemuck::cast_slice(&data.as_slice()));
     }
 
-    pub fn bind<'a>(&'a self, index: u32, render_pass: &mut RenderPass<'a>) {
+    pub fn binding_resource(&self) -> wgpu::BufferBinding {
+        let buffer = &self.buffer.buffer;
+        buffer.as_entire_buffer_binding()
+    }
+
+    pub fn elem_count(&self) -> usize {
+        self.buffer.num_items
+    }
+}
+
+impl<'framework> PassBindble for TypedBuffer<'framework> {
+    fn bind<'s, 'call, 'pass>(&'s self, index: u32, pass: &'call mut wgpu::RenderPass<'pass>)
+    where
+        'pass: 'call,
+        's: 'pass,
+    {
         match self.config.buffer_type {
             BufferType::Vertex => {
                 let buffer = &self.buffer.buffer;
 
-                render_pass.set_vertex_buffer(index, buffer.slice(..));
+                pass.set_vertex_buffer(index, buffer.slice(..));
             }
             BufferType::Uniform => {
                 panic!("Uniform buffers should be set by using the associated bind group!")
@@ -179,14 +194,5 @@ impl<'framework> TypedBuffer<'framework> {
                 panic!("Oneshot buffers aren't supposed to be bound!")
             }
         };
-    }
-
-    pub fn binding_resource(&self) -> wgpu::BufferBinding {
-        let buffer = &self.buffer.buffer;
-        buffer.as_entire_buffer_binding()
-    }
-
-    pub fn elem_count(&self) -> usize {
-        self.buffer.num_items
     }
 }
