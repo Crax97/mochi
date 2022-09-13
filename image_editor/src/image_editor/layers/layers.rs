@@ -1,10 +1,13 @@
+use std::borrow::Borrow;
+
 use cgmath::{Point2, Vector2};
-use framework::render_pass::PassBindble;
+use framework::render_pass::{PassBindble, RenderPass};
 use framework::{Framework, MeshInstance2D, TypedBuffer, TypedBufferConfiguration};
-use wgpu::{BindGroup, RenderPass};
+use wgpu::BindGroup;
 
 use framework::{asset_library::AssetsLibrary, mesh_names};
 
+use super::layer_draw_pass::LayerDrawPass;
 use super::{bitmap_layer, BitmapLayer};
 
 pub struct Layer<'framework> {
@@ -30,9 +33,10 @@ pub enum LayerType {
     Bitmap(bitmap_layer::BitmapLayer),
 }
 
-pub(crate) struct LayerDrawContext<'a, 'b> {
-    pub render_pass: &'b mut RenderPass<'a>,
-    pub assets: &'a AssetsLibrary,
+pub(crate) struct LayerDrawContext<'context, 'a> {
+    pub render_pass: wgpu::RenderPass<'a>,
+    pub draw_pass: &'context LayerDrawPass,
+    pub assets: &'context AssetsLibrary,
 }
 
 impl<'framework> Layer<'framework> {
@@ -131,20 +135,27 @@ impl<'framework> Layer<'framework> {
             }
         }
     }
-    pub(crate) fn draw<'draw_call, 'b>(
-        &'draw_call self,
-        draw_context: &mut LayerDrawContext<'draw_call, 'b>,
-    ) {
+    pub(crate) fn draw<'context, 'a, 'call>(
+        &'call self,
+        draw_context: &mut LayerDrawContext<'context, 'a>,
+    ) where
+        'framework: 'context,
+        'framework: 'a,
+        'context: 'a,
+        'call: 'a,
+    {
         match &self.layer_type {
             LayerType::Bitmap(_) => {
-                self.instance_buffer.bind(1, draw_context.render_pass);
-                draw_context
-                    .render_pass
-                    .set_bind_group(0, &self.bind_group, &[]);
+                draw_context.draw_pass.execute_with_renderpass(
+                    &mut draw_context.render_pass,
+                    &[(1, &self.instance_buffer), (0, &self.bind_group)],
+                );
+
                 draw_context
                     .assets
+                    .borrow()
                     .mesh(mesh_names::QUAD)
-                    .draw(draw_context.render_pass, 1);
+                    .draw(&mut draw_context.render_pass, 1);
             }
         }
     }

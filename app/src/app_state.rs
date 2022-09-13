@@ -168,10 +168,9 @@ impl<'framework> ImageApplication<'framework> {
 
                 let mut commands: Vec<CommandBuffer> = vec![];
 
-                /*
-                    let draw_image_in_editor = { self.image_editor.redraw_full_image() };
-                    commands.push(draw_image_in_editor);
-                */
+                let draw_image_in_editor = { self.image_editor.redraw_full_image() };
+                commands.push(draw_image_in_editor);
+
                 let app_surface_view = current_texture
                     .texture
                     .create_view(&wgpu::TextureViewDescriptor::default());
