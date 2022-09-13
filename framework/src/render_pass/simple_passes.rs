@@ -1,15 +1,18 @@
+use std::{cell::RefCell, rc::Rc};
+
 use wgpu::{ColorTargetState, CommandBuffer, FragmentState, RenderPipeline, VertexState};
 
-use crate::{DebugInstance2D, Mesh, MeshInstance2D};
+use crate::{asset_library, mesh_names, AssetsLibrary, DebugInstance2D, Mesh, MeshInstance2D};
 
 use super::{render_pass, PassBindble, RenderPass};
 
 pub struct SimpleTexturedPass {
     pipeline: RenderPipeline,
+    asset_library: Rc<RefCell<AssetsLibrary>>,
 }
 
 impl SimpleTexturedPass {
-    pub fn new(framework: &crate::Framework) -> Self {
+    pub fn new(framework: &crate::Framework, asset_library: Rc<RefCell<AssetsLibrary>>) -> Self {
         let module = framework
             .device
             .create_shader_module(wgpu::include_wgsl!("../shaders/simple_shader.wgsl"));
@@ -97,6 +100,7 @@ impl SimpleTexturedPass {
                 });
         Self {
             pipeline: simple_diffuse_pipeline,
+            asset_library,
         }
     }
 }
@@ -104,23 +108,28 @@ impl SimpleTexturedPass {
 impl RenderPass for SimpleTexturedPass {
     fn execute_with_renderpass<'s, 'call, 'pass>(
         &'s self,
-        pass: &'call mut wgpu::RenderPass<'pass>,
+        mut pass: wgpu::RenderPass<'pass>,
         items: &'call [(u32, &'pass dyn PassBindble)],
     ) where
         'pass: 'call,
         's: 'pass,
     {
         pass.set_pipeline(&self.pipeline);
-        self.bind_all(pass, items);
+        self.bind_all(&mut pass, items);
+        self.asset_library
+            .borrow()
+            .mesh(mesh_names::QUAD)
+            .draw(pass, 1);
     }
 }
 
 pub struct SimpleColoredPass {
     pipeline: RenderPipeline,
+    asset_library: Rc<RefCell<AssetsLibrary>>,
 }
 
 impl SimpleColoredPass {
-    pub fn new(framework: &crate::Framework) -> Self {
+    pub fn new(framework: &crate::Framework, asset_library: Rc<RefCell<AssetsLibrary>>) -> Self {
         let module = framework
             .device
             .create_shader_module(wgpu::include_wgsl!("../shaders/simple_colored.wgsl"));
@@ -190,6 +199,7 @@ impl SimpleColoredPass {
                 });
         Self {
             pipeline: simple_diffuse_pipeline,
+            asset_library,
         }
     }
 }
@@ -197,13 +207,13 @@ impl SimpleColoredPass {
 impl RenderPass for SimpleColoredPass {
     fn execute_with_renderpass<'s, 'call, 'pass>(
         &'s self,
-        pass: &'call mut wgpu::RenderPass<'pass>,
+        mut pass: wgpu::RenderPass<'pass>,
         items: &'call [(u32, &'pass dyn PassBindble)],
     ) where
         'pass: 'call,
         's: 'pass,
     {
         pass.set_pipeline(&self.pipeline);
-        self.bind_all(pass, items);
+        self.bind_all(&mut pass, items);
     }
 }

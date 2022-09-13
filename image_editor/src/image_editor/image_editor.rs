@@ -111,7 +111,7 @@ impl<'framework> ImageEditor<'framework> {
             final_layer,
             current_layer_index: test_layer_index,
         };
-        let layer_draw_pass = LayerDrawPass::new(framework);
+        let layer_draw_pass = LayerDrawPass::new(framework, assets.clone());
         ImageEditor {
             framework,
             assets,
@@ -206,24 +206,29 @@ impl<'framework> ImageEditor<'framework> {
             .create_command_encoder(&command_encoder_description);
 
         {
-            let mut render_pass = command_encoder.begin_render_pass(&render_pass_description);
-            self.layer_draw_pass.prepare(&mut render_pass);
-            let assets = self.assets.borrow();
-            let mut context = LayerDrawContext {
-                render_pass,
-                assets: &assets,
-                draw_pass: &self.layer_draw_pass,
-            };
             for layer_node in self.document.tree_root.0.iter() {
                 match layer_node {
                     LayerTree::SingleLayer(index) => {
                         let layer = self.document.layers.get(index).expect("Nonexistent layer");
-                        layer.draw(&mut context);
+                        let mut render_pass =
+                            command_encoder.begin_render_pass(&render_pass_description);
+                        self.layer_draw_pass.prepare(&mut render_pass);
+                        layer.draw(LayerDrawContext {
+                            render_pass,
+                            assets: self.assets.borrow(),
+                            draw_pass: &self.layer_draw_pass,
+                        });
                     }
                     LayerTree::Group(indices) => {
                         for index in indices {
                             let layer = self.document.layers.get(index).expect("Nonexistent layer");
-                            layer.draw(&mut context);
+                            let mut render_pass =
+                                command_encoder.begin_render_pass(&render_pass_description);
+                            layer.draw(LayerDrawContext {
+                                render_pass,
+                                assets: self.assets.borrow(),
+                                draw_pass: &self.layer_draw_pass,
+                            });
                         }
                     }
                 };

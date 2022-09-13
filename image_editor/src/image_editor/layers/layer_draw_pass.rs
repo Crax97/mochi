@@ -3,28 +3,32 @@ use std::{cell::RefCell, rc::Rc};
 use wgpu::{ColorTargetState, FragmentState, RenderPipeline, VertexState};
 
 use framework::{
-    mesh_names, render_pass::RenderPass, AssetsLibrary, Framework, Mesh, MeshInstance2D,
+    mesh_names,
+    render_pass::{PassBindble, RenderPass},
+    AssetsLibrary, Framework, Mesh, MeshInstance2D,
 };
 
 pub struct LayerDrawPass {
     pipeline: RenderPipeline,
+    assets: Rc<RefCell<AssetsLibrary>>,
 }
 
 impl RenderPass for LayerDrawPass {
     fn execute_with_renderpass<'s, 'call, 'pass>(
         &'s self,
-        pass: &'call mut wgpu::RenderPass<'pass>,
-        items: &'call [(u32, &'pass dyn framework::render_pass::PassBindble)],
+        mut pass: wgpu::RenderPass<'pass>,
+        items: &'call [(u32, &'pass dyn PassBindble)],
     ) where
         'pass: 'call,
         's: 'pass,
     {
-        self.bind_all(pass, items);
+        self.bind_all(&mut pass, items);
+        self.assets.borrow().mesh(mesh_names::QUAD).draw(pass, 1);
     }
 }
 
 impl LayerDrawPass {
-    pub fn new(framework: &Framework) -> Self {
+    pub fn new(framework: &Framework, assets: Rc<RefCell<AssetsLibrary>>) -> Self {
         let module = framework
             .device
             .create_shader_module(wgpu::include_wgsl!("../../shaders/draw_layer.wgsl"));
@@ -112,6 +116,7 @@ impl LayerDrawPass {
                 });
         Self {
             pipeline: simple_diffuse_pipeline,
+            assets,
         }
     }
     pub fn prepare<'s, 'pass_life, 'pass>(

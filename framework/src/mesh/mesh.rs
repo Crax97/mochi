@@ -68,7 +68,10 @@ impl Mesh {
         }
     }
 
-    pub fn draw<'a>(&'a self, render_pass: &mut RenderPass<'a>, instance_count: u32) {
+    pub fn draw<'a, 'pass>(&'a self, mut render_pass: RenderPass<'pass>, instance_count: u32)
+    where
+        'a: 'pass,
+    {
         render_pass.set_index_buffer(self.index_buffer.slice(..), INDEX_FORMAT);
         render_pass.set_vertex_buffer(
             VERTEX_BUFFER_POSITION,

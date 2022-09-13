@@ -9,7 +9,6 @@ pub trait RenderPass {
         items: &'call [(u32, &'pass dyn PassBindble)],
     ) where
         'pass: 'call,
-        's: 'pass,
     {
         for (i, element) in items.into_iter() {
             element.bind(*i, pass);
@@ -18,7 +17,7 @@ pub trait RenderPass {
 
     fn execute_with_renderpass<'s, 'call, 'pass>(
         &'s self,
-        pass: &'call mut wgpu::RenderPass<'pass>,
+        pass: wgpu::RenderPass<'pass>,
         items: &'call [(u32, &'pass dyn PassBindble)],
     ) where
         'pass: 'call,

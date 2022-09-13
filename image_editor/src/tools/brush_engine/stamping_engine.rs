@@ -1,5 +1,9 @@
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use cgmath::{point2, vec2, ElementWise, Point2};
 use framework::render_pass::{PassBindble, RenderPass};
+use framework::AssetsLibrary;
 use framework::{
     asset_library::mesh_names, Framework, Mesh, MeshInstance2D, TypedBuffer,
     TypedBufferConfiguration,
@@ -130,8 +134,12 @@ pub struct StrokingEngine<'framework> {
 }
 
 impl<'framework> StrokingEngine<'framework> {
-    pub fn new(initial_stamp: Stamp, framework: &'framework Framework) -> Self {
-        let stamp_pass = StampingEngineRenderPass::new(framework);
+    pub fn new(
+        initial_stamp: Stamp,
+        framework: &'framework Framework,
+        assets: Rc<RefCell<AssetsLibrary>>,
+    ) -> Self {
+        let stamp_pass = StampingEngineRenderPass::new(framework, assets);
         Self {
             stamps: vec![initial_stamp],
             current_stamp: 0,
@@ -219,19 +227,12 @@ impl<'framework> BrushEngine for StrokingEngine<'framework> {
                     })],
                     depth_stencil_attachment: None,
                 };
-                let mut render_pass = context
+                let render_pass = context
                     .command_encoder
                     .begin_render_pass(&stroking_engine_render_pass);
 
-                self.stamp_pass.execute_with_renderpass(
-                    &mut render_pass,
-                    &[(0, &self.current_stamp().bind_group)],
-                );
-
-                context
-                    .assets
-                    .mesh(mesh_names::QUAD)
-                    .draw(&mut render_pass, instance_len as u32);
+                self.stamp_pass
+                    .execute_with_renderpass(render_pass, &[(0, &self.current_stamp().bind_group)]);
             }
         }
     }

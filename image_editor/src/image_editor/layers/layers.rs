@@ -1,4 +1,5 @@
 use std::borrow::Borrow;
+use std::cell::Ref;
 
 use cgmath::{Point2, Vector2};
 use framework::render_pass::{PassBindble, RenderPass};
@@ -33,10 +34,10 @@ pub enum LayerType {
     Bitmap(bitmap_layer::BitmapLayer),
 }
 
-pub(crate) struct LayerDrawContext<'context, 'a> {
-    pub render_pass: wgpu::RenderPass<'a>,
+pub(crate) struct LayerDrawContext<'context, 'library, 'pass> {
+    pub render_pass: wgpu::RenderPass<'pass>,
     pub draw_pass: &'context LayerDrawPass,
-    pub assets: &'context AssetsLibrary,
+    pub assets: Ref<'library, AssetsLibrary>,
 }
 
 impl<'framework> Layer<'framework> {
@@ -135,27 +136,20 @@ impl<'framework> Layer<'framework> {
             }
         }
     }
-    pub(crate) fn draw<'context, 'a, 'call>(
-        &'call self,
-        draw_context: &mut LayerDrawContext<'context, 'a>,
+    pub(crate) fn draw<'context, 'library, 'pass, 'l>(
+        &'l self,
+        draw_context: LayerDrawContext<'context, 'library, 'pass>,
     ) where
-        'framework: 'context,
-        'framework: 'a,
-        'context: 'a,
-        'call: 'a,
+        'framework: 'pass,
+        'l: 'pass,
+        'context: 'pass,
     {
         match &self.layer_type {
             LayerType::Bitmap(_) => {
                 draw_context.draw_pass.execute_with_renderpass(
-                    &mut draw_context.render_pass,
+                    draw_context.render_pass,
                     &[(1, &self.instance_buffer), (0, &self.bind_group)],
                 );
-
-                draw_context
-                    .assets
-                    .borrow()
-                    .mesh(mesh_names::QUAD)
-                    .draw(&mut draw_context.render_pass, 1);
             }
         }
     }

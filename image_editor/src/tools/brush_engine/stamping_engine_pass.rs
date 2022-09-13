@@ -1,6 +1,9 @@
+use std::{cell::RefCell, rc::Rc};
+
 use framework::{
+    mesh_names,
     render_pass::{PassBindble, RenderPass},
-    Framework, Mesh, MeshInstance2D, TypedBuffer, TypedBufferConfiguration,
+    AssetsLibrary, Framework, Mesh, MeshInstance2D, TypedBuffer, TypedBufferConfiguration,
 };
 use wgpu::{
     BindGroup, BlendComponent, ColorTargetState, FragmentState, RenderPipeline, VertexState,
@@ -16,9 +19,10 @@ pub struct StampingEngineRenderPass<'framework> {
     brush_bind_group: BindGroup,
     stamp_settings: StampConfiguration,
     is_eraser_mode: bool,
+    asset_library: Rc<RefCell<AssetsLibrary>>,
 }
 impl<'framework> StampingEngineRenderPass<'framework> {
-    pub fn new(framework: &'framework Framework) -> Self {
+    pub fn new(framework: &'framework Framework, assets: Rc<RefCell<AssetsLibrary>>) -> Self {
         let instance_buffer = TypedBuffer::new(
             framework,
             TypedBufferConfiguration::<MeshInstance2D> {
@@ -211,6 +215,7 @@ impl<'framework> StampingEngineRenderPass<'framework> {
             eraser_pipeline,
             is_eraser_mode: false,
             stamp_settings: initial_setup,
+            asset_library: assets,
         }
     }
 
@@ -232,8 +237,8 @@ impl<'framework> StampingEngineRenderPass<'framework> {
 impl<'framework> RenderPass for StampingEngineRenderPass<'framework> {
     fn execute_with_renderpass<'s, 'call, 'pass>(
         &'s self,
-        pass: &'call mut wgpu::RenderPass<'pass>,
-        items: &'call [(u32, &'pass dyn framework::render_pass::PassBindble)],
+        mut pass: wgpu::RenderPass<'pass>,
+        items: &'call [(u32, &'pass dyn PassBindble)],
     ) where
         'pass: 'call,
         's: 'pass,
@@ -243,8 +248,12 @@ impl<'framework> RenderPass for StampingEngineRenderPass<'framework> {
         } else {
             pass.set_pipeline(&self.stamp_pipeline);
         }
-        self.bind_all(pass, items);
+        self.bind_all(&mut pass, items);
         pass.set_bind_group(1, &self.brush_bind_group, &[]);
-        self.instance_buffer.bind(1, pass);
+        self.instance_buffer.bind(1, &mut pass);
+        self.asset_library
+            .borrow()
+            .mesh(mesh_names::QUAD)
+            .draw(pass, self.instance_buffer.elem_count() as u32)
     }
 }

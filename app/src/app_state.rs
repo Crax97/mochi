@@ -40,8 +40,7 @@ impl<'framework> ImageApplication<'framework> {
             height: window.inner_size().height,
             present_mode: wgpu::PresentMode::Fifo,
         };
-        let library = AssetsLibrary::new(framework);
-        let assets = Rc::new(RefCell::new(library));
+        let assets = AssetsLibrary::new(framework);
 
         let image_editor = ImageEditor::new(
             &framework,
@@ -56,6 +55,7 @@ impl<'framework> ImageApplication<'framework> {
             framework,
             final_surface_configuration.clone(),
             &image_editor.get_full_image_texture(),
+            assets.clone(),
         );
         assets.borrow_mut().add_pipeline(
             app_pipeline_names::FINAL_RENDER,
@@ -65,9 +65,8 @@ impl<'framework> ImageApplication<'framework> {
         let debug = Rc::new(RefCell::new(Debug::new()));
 
         let test_stamp = Toolbox::create_test_stamp(image_editor.camera().buffer(), framework);
-        let stamping_engine = StrokingEngine::new(test_stamp, framework);
+        let stamping_engine = StrokingEngine::new(test_stamp, framework, assets.clone());
         let stamping_engine = Rc::new(RefCell::new(stamping_engine));
-        let final_render = image_editor.get_full_image_texture();
 
         let toolbox = Toolbox::new(framework, stamping_engine.clone());
         let ui = ui::create_ui(&framework, &final_surface_configuration, &window);
@@ -241,8 +240,7 @@ impl<'framework> ImageApplication<'framework> {
         {
             let mut render_pass = command_encoder.begin_render_pass(&render_pass_description);
             let final_pipeline = assets.pipeline(app_pipeline_names::FINAL_RENDER);
-            final_pipeline.execute_with_renderpass(&mut render_pass, &[]);
-            assets.mesh(mesh_names::QUAD).draw(&mut render_pass, 1);
+            final_pipeline.execute_with_renderpass(render_pass, &[]);
         }
         command_encoder.finish()
     }

@@ -1,6 +1,10 @@
-use std::rc::Rc;
+use std::{cell::RefCell, rc::Rc};
 
-use framework::{mesh_names, render_pass, AssetsLibrary, Framework, Mesh};
+use framework::{
+    mesh_names,
+    render_pass::{self, PassBindble},
+    AssetsLibrary, Framework, Mesh,
+};
 use image_editor::{layers::BitmapLayer, ImageEditor};
 use wgpu::{
     BindGroup, ColorTargetState, FragmentState, RenderPipeline, SurfaceConfiguration, VertexState,
@@ -9,6 +13,7 @@ use wgpu::{
 pub struct FinalRenderPass {
     pipeline: RenderPipeline,
     bind_group: BindGroup,
+    assets: Rc<RefCell<AssetsLibrary>>,
 }
 
 impl FinalRenderPass {
@@ -16,6 +21,7 @@ impl FinalRenderPass {
         framework: &Framework,
         final_surface_configuration: SurfaceConfiguration,
         final_render: &BitmapLayer,
+        assets: Rc<RefCell<AssetsLibrary>>,
     ) -> Self {
         let module = framework
             .device
@@ -111,6 +117,7 @@ impl FinalRenderPass {
         Self {
             pipeline: final_present_pipeline,
             bind_group,
+            assets,
         }
     }
 }
@@ -118,13 +125,14 @@ impl FinalRenderPass {
 impl render_pass::RenderPass for FinalRenderPass {
     fn execute_with_renderpass<'s, 'call, 'pass>(
         &'s self,
-        pass: &'call mut wgpu::RenderPass<'pass>,
-        _items: &'call [(u32, &'pass dyn render_pass::PassBindble)],
+        mut pass: wgpu::RenderPass<'pass>,
+        items: &'call [(u32, &'pass dyn PassBindble)],
     ) where
         'pass: 'call,
         's: 'pass,
     {
         pass.set_pipeline(&self.pipeline);
         pass.set_bind_group(0, &self.bind_group, &[]);
+        self.assets.borrow().mesh(mesh_names::QUAD).draw(pass, 1);
     }
 }
