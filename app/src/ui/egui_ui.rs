@@ -193,38 +193,6 @@ impl EguiUI {
             }
         });
 
-        if self.new_layer_in_creation.is_some() {
-            let create_win = egui::Window::new("Create new layer")
-                .fixed_pos(ctx.available_rect().center() - ctx.available_rect().size() * 0.5)
-                .fixed_size(ctx.available_rect().size() * 0.5)
-                .collapsible(false)
-                .show(&ctx, |ui| {
-                    ui.centered_and_justified(|ui| {
-                        let layer_settings = self.new_layer_in_creation.as_mut().unwrap();
-
-                        ui.label("Layer color?");
-                        ui.color_edit_button_rgba_unmultiplied(&mut layer_settings.initial_color);
-                        ui.label("Layer name?");
-                        ui.text_edit_singleline(&mut layer_settings.name);
-
-                        if ui.button("Create").clicked() {
-                            action = LayerAction::CreateNewLayer;
-                        }
-                        if ui.button("Cancel").clicked() {
-                            action = LayerAction::CancelNewLayerRequest;
-                        }
-                        return (true, LayerAction::None);
-                    })
-                });
-
-            hover |= if let Some(InnerResponse { response, .. }) = create_win {
-                let mouse_pos = app_ctx.input_state.mouse_position();
-                response.rect.contains(Pos2::new(mouse_pos.x, mouse_pos.y))
-            } else {
-                false
-            };
-        }
-
         hover |= if let Some(InnerResponse { response, .. }) = window_handled {
             let mouse_pos = app_ctx.input_state.mouse_position();
             response.rect.contains(Pos2::new(mouse_pos.x, mouse_pos.y))
@@ -232,6 +200,32 @@ impl EguiUI {
             false
         };
         (hover, action)
+    }
+
+    fn new_layer_dialog(&mut self, app_ctx: &mut UiContext) -> LayerAction {
+        let ctx = self.platform.context();
+        let mut action = LayerAction::None;
+        egui::Window::new("Create new layer")
+            .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
+            .resizable(false)
+            .collapsible(false)
+            .show(&ctx, |ui| {
+                let layer_settings = self.new_layer_in_creation.as_mut().unwrap();
+
+                ui.label("Layer color?");
+                ui.color_edit_button_rgba_unmultiplied(&mut layer_settings.initial_color);
+                ui.label("Layer name?");
+                ui.text_edit_singleline(&mut layer_settings.name);
+
+                if ui.button("Create").clicked() && !layer_settings.name.is_empty() {
+                    action = LayerAction::CreateNewLayer;
+                } else if ui.button("Cancel").clicked() {
+                    action = LayerAction::CancelNewLayerRequest
+                } else {
+                    action = LayerAction::None
+                }
+            });
+        return action;
     }
 }
 
@@ -243,33 +237,46 @@ impl Ui for EguiUI {
         self.platform.handle_event(&event);
     }
     fn do_ui(&mut self, mut app_ctx: UiContext) -> bool {
-        let brush = self.brush_settings(&mut app_ctx);
-        let (hover_layer, layer_action) = self.layer_settings(&mut app_ctx);
+        if self.new_layer_in_creation.is_some() {
+            let action = self.new_layer_dialog(&mut app_ctx);
+            match action {
+                LayerAction::NewLayerRequest => {
+                    self.new_layer_in_creation = Some(LayerConstructionInfo::default());
+                    return true;
+                }
+                LayerAction::CancelNewLayerRequest => {
+                    self.new_layer_in_creation = None;
+                    return false;
+                }
+                LayerAction::CreateNewLayer => {
+                    app_ctx
+                        .image_editor
+                        .add_layer_to_document(self.new_layer_in_creation.take().unwrap());
+                    return true;
+                }
+                _ => {
+                    return false;
+                }
+            }
+        } else {
+            let brush = self.brush_settings(&mut app_ctx);
+            let (hover_layer, layer_action) = self.layer_settings(&mut app_ctx);
 
-        match layer_action {
-            LayerAction::NewLayerRequest => {
-                self.new_layer_in_creation = Some(LayerConstructionInfo::default());
-                return true;
+            match layer_action {
+                LayerAction::NewLayerRequest => {
+                    self.new_layer_in_creation = Some(LayerConstructionInfo::default());
+                    return true;
+                }
+                LayerAction::DeleteLayer(idx) => app_ctx.image_editor.delete_layer(idx),
+                LayerAction::SelectLayer(idx) => app_ctx.image_editor.select_new_layer(idx),
+                _ => {}
+                LayerAction::SetLayerSettings(idx, settings) => {
+                    let document = app_ctx.image_editor.mutate_document();
+                    document.get_layer_mut(&idx).set_settings(settings);
+                }
             }
-            LayerAction::CancelNewLayerRequest => {
-                self.new_layer_in_creation = None;
-                return false;
-            }
-            LayerAction::CreateNewLayer => {
-                app_ctx
-                    .image_editor
-                    .add_layer_to_document(self.new_layer_in_creation.take().unwrap());
-                return true;
-            }
-            LayerAction::DeleteLayer(idx) => app_ctx.image_editor.delete_layer(idx),
-            LayerAction::SelectLayer(idx) => app_ctx.image_editor.select_new_layer(idx),
-            LayerAction::None => {}
-            LayerAction::SetLayerSettings(idx, settings) => {
-                let document = app_ctx.image_editor.mutate_document();
-                document.get_layer_mut(&idx).set_settings(settings);
-            }
+            brush || hover_layer
         }
-        brush || hover_layer
     }
     fn present(
         &mut self,
