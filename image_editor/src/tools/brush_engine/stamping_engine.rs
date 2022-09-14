@@ -192,11 +192,6 @@ impl<'framework> BrushEngine for StrokingEngine<'framework> {
                     let point = point.div_element_wise(lrp);
                     let camera_displace = context.editor.camera().position().mul_element_wise(-1.0);
                     let pt = point.add_element_wise(camera_displace);
-                    context.debug.borrow_mut().draw_debug_point(
-                        pt,
-                        vec2(3.0, 3.0),
-                        [0.0, 1.0, 0.0, 1.0],
-                    );
                     pt
                 };
 
@@ -212,7 +207,6 @@ impl<'framework> BrushEngine for StrokingEngine<'framework> {
                         )
                     })
                     .collect();
-                let instance_len = instances.len();
                 self.stamp_pass.update(instances);
                 // 2. Do draw
                 let stroking_engine_render_pass = RenderPassDescriptor {

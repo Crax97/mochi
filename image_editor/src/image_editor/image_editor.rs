@@ -47,8 +47,17 @@ pub struct ImageEditor<'framework> {
     layer_draw_pass: LayerDrawPass,
 }
 
-pub fn ceil_to<N: Num + Copy>(n: N, align_to: N) -> N {
-    n + (align_to - n % align_to)
+pub fn ceil_to<N: Num + Copy + PartialOrd + From<u32>>(n: N, align_to: N) -> N {
+    let d = {
+        let m = n % align_to;
+        if m > N::from(0) {
+            align_to - m
+        } else {
+            return n;
+        }
+    };
+
+    align_to * d
 }
 
 impl<'framework> ImageEditor<'framework> {
@@ -61,8 +70,8 @@ impl<'framework> ImageEditor<'framework> {
             &framework,
             BitmapLayerConfiguration {
                 label: "Final Rendering Layer".to_owned(),
-                width: ceil_to(800, wgpu::COPY_BYTES_PER_ROW_ALIGNMENT),
-                height: 600,
+                width: ceil_to(1024, wgpu::COPY_BYTES_PER_ROW_ALIGNMENT),
+                height: 1024,
                 initial_background_color: [0.5, 0.5, 0.5, 1.0],
             },
         );
@@ -70,8 +79,8 @@ impl<'framework> ImageEditor<'framework> {
             &framework,
             BitmapLayerConfiguration {
                 label: "Layer 0".to_owned(),
-                width: 800,
-                height: 600,
+                width: ceil_to(1024, wgpu::COPY_BYTES_PER_ROW_ALIGNMENT),
+                height: 1024,
                 initial_background_color: [1.0, 1.0, 1.0, 1.0],
             },
         );
@@ -222,7 +231,7 @@ impl<'framework> ImageEditor<'framework> {
                     LayerTree::Group(indices) => {
                         for index in indices {
                             let layer = self.document.layers.get(index).expect("Nonexistent layer");
-                            let mut render_pass =
+                            let render_pass =
                                 command_encoder.begin_render_pass(&render_pass_description);
                             layer.draw(LayerDrawContext {
                                 render_pass,
