@@ -160,6 +160,7 @@ impl<'framework> TypedBuffer<'framework> {
                 self.owner_framework,
             );
         }
+        self.buffer.num_items = data.len();
         let buffer = &self.buffer.buffer;
         queue.write_buffer(&buffer, 0, &bytemuck::cast_slice(&data.as_slice()));
     }
