@@ -149,13 +149,15 @@ impl EguiUI {
 
             let mut lay_layer_ui = |idx: &LayerIndex| {
                 let original_settings = document.get_layer(idx).settings();
+                let color = if *idx == document.current_layer_index {
+                    Color32::LIGHT_BLUE
+                } else {
+                    Color32::WHITE
+                };
                 let mut settings = original_settings.clone();
+
                 ui.horizontal(|ui| {
-                    let color = if *idx == document.current_layer_index {
-                        Color32::LIGHT_BLUE
-                    } else {
-                        Color32::WHITE
-                    };
+                    ui.visuals_mut().extreme_bg_color = color;
                     if ui
                         .add(Label::new(RichText::from(&settings.name).color(color)).sense(sense))
                         .clicked()
@@ -269,11 +271,11 @@ impl Ui for EguiUI {
                 }
                 LayerAction::DeleteLayer(idx) => app_ctx.image_editor.delete_layer(idx),
                 LayerAction::SelectLayer(idx) => app_ctx.image_editor.select_new_layer(idx),
-                _ => {}
                 LayerAction::SetLayerSettings(idx, settings) => {
                     let document = app_ctx.image_editor.mutate_document();
                     document.get_layer_mut(&idx).set_settings(settings);
                 }
+                _ => {}
             }
             brush || hover_layer
         }
