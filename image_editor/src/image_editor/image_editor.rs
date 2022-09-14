@@ -50,17 +50,20 @@ pub struct ImageEditor<'framework> {
     camaera_bind_group: BindGroup,
 }
 
-pub fn ceil_to<N: Num + Copy + PartialOrd + From<u32>>(n: N, align_to: N) -> N {
+pub fn ceil_to<N: Num + Copy + PartialOrd + From<u32>>(n: N, align_to: N) -> N
+where
+    u32: From<N>,
+{
     let d = {
         let m = n % align_to;
         if m > N::from(0) {
-            align_to - m
+            (u32::from(n) / u32::from(align_to)) + 1
         } else {
             return n;
         }
     };
 
-    align_to * d
+    align_to * N::from(d)
 }
 
 impl<'framework> ImageEditor<'framework> {
@@ -69,13 +72,15 @@ impl<'framework> ImageEditor<'framework> {
         assets: Rc<RefCell<AssetsLibrary>>,
         initial_window_bounds: &[f32; 2],
     ) -> Self {
-        let ceiled_width = ceil_to(1024, wgpu::COPY_BYTES_PER_ROW_ALIGNMENT);
+        let test_width = 1800;
+        let test_height = 1024;
+        let ceiled_width = ceil_to(test_width, wgpu::COPY_BYTES_PER_ROW_ALIGNMENT);
         let final_layer = BitmapLayer::new(
             &framework,
             BitmapLayerConfiguration {
                 label: "Final Rendering Layer".to_owned(),
-                width: ceiled_width,
-                height: 1024,
+                width: test_width,
+                height: test_height,
                 initial_background_color: [0.5, 0.5, 0.5, 1.0],
             },
         );
@@ -84,7 +89,7 @@ impl<'framework> ImageEditor<'framework> {
             BitmapLayerConfiguration {
                 label: "ImageEditor Canvas".to_owned(),
                 width: ceiled_width,
-                height: 1024,
+                height: test_height,
                 initial_background_color: [0.5, 0.5, 0.5, 1.0],
             },
         );
@@ -92,8 +97,8 @@ impl<'framework> ImageEditor<'framework> {
             &framework,
             BitmapLayerConfiguration {
                 label: "Layer 0".to_owned(),
-                width: ceiled_width,
-                height: 1024,
+                width: test_width,
+                height: test_height,
                 initial_background_color: [1.0, 1.0, 1.0, 1.0],
             },
         );
@@ -126,6 +131,8 @@ impl<'framework> ImageEditor<'framework> {
         );
         final_layer.update();
         let test_document = Document {
+            width: test_width,
+            height: test_height,
             layers: HashMap::from_iter(std::iter::once((
                 test_layer_index,
                 Layer::new_bitmap(
@@ -196,6 +203,10 @@ impl<'framework> ImageEditor<'framework> {
         &self.document
     }
 
+    pub fn mutate_document(&mut self) -> &mut Document<'framework> {
+        &mut self.document
+    }
+
     pub fn add_layer_to_document(&mut self, config: LayerConstructionInfo) {
         let layer_name = format!("Layer {}", self.layers_created);
         self.layers_created += 1;
@@ -204,8 +215,8 @@ impl<'framework> ImageEditor<'framework> {
             &self.framework,
             BitmapLayerConfiguration {
                 label: layer_name.clone(),
-                width: 800,
-                height: 600,
+                width: self.document.width,
+                height: self.document.height,
                 initial_background_color: config.initial_color,
             },
         );

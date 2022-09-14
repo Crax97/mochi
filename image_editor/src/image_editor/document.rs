@@ -9,6 +9,8 @@ use crate::layers::{BitmapLayerConfiguration, LayerCreationInfo, LayerTree};
 use super::layers::{BitmapLayer, Layer, LayerIndex, RootLayer};
 
 pub struct Document<'framework> {
+    pub width: u32,
+    pub height: u32,
     pub layers: HashMap<LayerIndex, Layer<'framework>>,
     pub tree_root: RootLayer,
     pub final_layer: Layer<'framework>,
@@ -16,7 +18,7 @@ pub struct Document<'framework> {
     pub current_layer_index: LayerIndex,
 }
 
-impl Document<'_> {
+impl<'l> Document<'l> {
     pub fn outer_size(&self) -> Vector2<f32> {
         match self.final_layer.layer_type {
             crate::layers::LayerType::Bitmap(ref bm) => bm.size().clone(),
@@ -35,6 +37,12 @@ impl Document<'_> {
     pub fn get_layer(&self, layer_index: &LayerIndex) -> &Layer {
         self.layers
             .get(&layer_index)
+            .expect("Invalid layer index passed to document!")
+    }
+
+    pub fn get_layer_mut(&mut self, layer_index: &LayerIndex) -> &mut Layer<'l> {
+        self.layers
+            .get_mut(&layer_index)
             .expect("Invalid layer index passed to document!")
     }
     pub(crate) fn delete_layer(&mut self, layer_idx: LayerIndex) {

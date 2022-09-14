@@ -12,8 +12,15 @@ use framework::{asset_library::AssetsLibrary, mesh_names};
 use super::layer_draw_pass::LayerDrawPass;
 use super::{bitmap_layer, BitmapLayer};
 
-pub struct Layer<'framework> {
+#[derive(Clone, PartialEq)]
+pub struct LayerSettings {
     pub name: String,
+    pub is_enabled: bool,
+    pub opacity: f32,
+}
+
+pub struct Layer<'framework> {
+    pub settings: LayerSettings,
     pub layer_type: LayerType<'framework>,
     pub position: Point2<f32>,
     pub scale: Vector2<f32>,
@@ -53,7 +60,11 @@ impl<'framework> Layer<'framework> {
             allow_read: false,
         });
         Self {
-            name: creation_info.name,
+            settings: LayerSettings {
+                name: creation_info.name,
+                is_enabled: true,
+                opacity: 1.0,
+            },
             layer_type: LayerType::Bitmap(bitmap_layer),
             position: creation_info.position,
             scale: creation_info.scale,
@@ -78,14 +89,17 @@ impl<'framework> Layer<'framework> {
     }
     pub(crate) fn draw<'context, 'library, 'pass, 'l>(
         &'l self,
-        mut draw_context: LayerDrawContext<'context, 'library, 'pass>,
+        draw_context: LayerDrawContext<'context, 'library, 'pass>,
     ) where
         'framework: 'pass,
         'l: 'pass,
         'context: 'pass,
     {
+        if !self.settings.is_enabled {
+            return;
+        }
         match &self.layer_type {
-            LayerType::Bitmap(bm) => {
+            LayerType::Bitmap(_) => {
                 draw_context.draw_pass.execute_with_renderpass(
                     draw_context.render_pass,
                     &[
@@ -97,6 +111,15 @@ impl<'framework> Layer<'framework> {
             }
         }
     }
+
+    pub fn settings(&self) -> LayerSettings {
+        self.settings.clone()
+    }
+
+    pub fn set_settings(&mut self, new_settings: LayerSettings) {
+        self.settings = new_settings
+    }
+
     pub(crate) fn size(&self) -> Vector2<f32> {
         match self.layer_type {
             LayerType::Bitmap(ref bm) => bm.size(),

@@ -4,7 +4,7 @@ use egui_winit_platform::PlatformDescriptor;
 use framework::Framework;
 use image::{ImageBuffer, Rgba};
 use image_editor::{
-    layers::{LayerCreationInfo, LayerIndex},
+    layers::{Layer, LayerCreationInfo, LayerIndex, LayerSettings},
     LayerConstructionInfo,
 };
 use log::warn;
@@ -19,6 +19,7 @@ enum LayerAction {
     CreateNewLayer,
     DeleteLayer(LayerIndex),
     SelectLayer(LayerIndex),
+    SetLayerSettings(LayerIndex, LayerSettings),
     None,
 }
 
@@ -122,6 +123,7 @@ impl EguiUI {
     fn layer_settings(&mut self, app_ctx: &mut UiContext) -> (bool, LayerAction) {
         let mut hover = false;
         let ctx = self.platform.context();
+
         let document = app_ctx.image_editor.document();
         use image_editor::layers::LayerTree::*;
 
@@ -146,19 +148,22 @@ impl EguiUI {
             }
 
             let mut lay_layer_ui = |idx: &LayerIndex| {
+                let original_settings = document.get_layer(idx).settings();
+                let mut settings = original_settings.clone();
                 ui.horizontal(|ui| {
-                    let layer = document.get_layer(idx);
                     let color = if *idx == document.current_layer_index {
                         Color32::LIGHT_BLUE
                     } else {
                         Color32::WHITE
                     };
                     if ui
-                        .add(Label::new(RichText::from(&layer.name).color(color)).sense(sense))
+                        .add(Label::new(RichText::from(&settings.name).color(color)).sense(sense))
                         .clicked()
                     {
                         action = LayerAction::SelectLayer(idx.clone());
                     }
+
+                    ui.add(egui::Checkbox::new(&mut settings.is_enabled, ""));
 
                     if ui
                         .add(egui::Button::new("Delete layer").sense(sense))
@@ -167,6 +172,12 @@ impl EguiUI {
                         action = LayerAction::DeleteLayer(idx.clone());
                     }
                 });
+
+                ui.add(egui::Slider::new(&mut settings.opacity, 0.0..=1.0).text("Opacity"));
+
+                if settings != original_settings {
+                    action = LayerAction::SetLayerSettings(idx.clone(), settings);
+                }
             };
             for layer in document.tree_root.0.iter() {
                 match layer {
@@ -253,6 +264,10 @@ impl Ui for EguiUI {
             LayerAction::DeleteLayer(idx) => app_ctx.image_editor.delete_layer(idx),
             LayerAction::SelectLayer(idx) => app_ctx.image_editor.select_new_layer(idx),
             LayerAction::None => {}
+            LayerAction::SetLayerSettings(idx, settings) => {
+                let document = app_ctx.image_editor.mutate_document();
+                document.get_layer_mut(&idx).set_settings(settings);
+            }
         }
         brush || hover_layer
     }

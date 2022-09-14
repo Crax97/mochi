@@ -5,9 +5,9 @@ mod toolbox;
 mod ui;
 
 use app_state::ImageApplication;
-use final_present_pass::*;
 use framework::Framework;
 use lazy_static::lazy_static;
+use ui::*;
 
 use winit::dpi::PhysicalSize;
 
