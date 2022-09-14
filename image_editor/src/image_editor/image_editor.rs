@@ -268,18 +268,33 @@ impl<'framework> ImageEditor<'framework> {
     }
 
     fn render_document(&mut self, encoder: &mut CommandEncoder) {
+        {
+            let render_pass_description = RenderPassDescriptor {
+                label: Some("ImageEditor Clear Final Image"),
+                color_attachments: &[Some(RenderPassColorAttachment {
+                    view: self.document.final_layer_texture_view(),
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: 0.0,
+                            g: 0.0,
+                            b: 0.0,
+                            a: 1.0,
+                        }),
+                        store: true,
+                    },
+                })],
+                depth_stencil_attachment: None,
+            };
+            let _ = encoder.begin_render_pass(&render_pass_description);
+        }
         let render_pass_description = RenderPassDescriptor {
             label: Some("ImageEditor Redraw Image Pass"),
             color_attachments: &[Some(RenderPassColorAttachment {
                 view: self.document.final_layer_texture_view(),
                 resolve_target: None,
                 ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(wgpu::Color {
-                        r: 0.0,
-                        g: 0.0,
-                        b: 0.0,
-                        a: 1.0,
-                    }),
+                    load: wgpu::LoadOp::Load,
                     store: true,
                 },
             })],

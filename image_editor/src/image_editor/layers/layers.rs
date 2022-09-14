@@ -4,6 +4,7 @@ use std::cell::Ref;
 use cgmath::{Point2, Vector2};
 use framework::render_pass::{PassBindble, RenderPass};
 use framework::{Framework, MeshInstance2D, TypedBuffer, TypedBufferConfiguration};
+use scene::Camera2d;
 use wgpu::BindGroup;
 
 use framework::{asset_library::AssetsLibrary, mesh_names};
