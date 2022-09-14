@@ -7,7 +7,6 @@ mod ui;
 use app_state::ImageApplication;
 use framework::Framework;
 use lazy_static::lazy_static;
-use ui::*;
 
 use winit::dpi::PhysicalSize;
 

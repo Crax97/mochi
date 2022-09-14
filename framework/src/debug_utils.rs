@@ -5,8 +5,8 @@ use wgpu::{
 };
 
 use crate::{
-    mesh_names, pipeline_names, typed_buffer::BufferInitialSetup, AssetsLibrary, Framework,
-    TypedBuffer, TypedBufferConfiguration,
+    pipeline_names, typed_buffer::BufferInitialSetup, AssetsLibrary, Framework, TypedBuffer,
+    TypedBufferConfiguration,
 };
 
 #[repr(C)]

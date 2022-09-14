@@ -1,5 +1,5 @@
 use std::{
-    cell::{Ref, RefCell, RefMut},
+    cell::{Ref, RefCell},
     rc::Rc,
 };
 
@@ -8,9 +8,7 @@ use cgmath::point2;
 use framework::{Debug, Framework, TypedBuffer};
 use image_editor::{
     layers::{BitmapLayer, BitmapLayerConfiguration},
-    stamping_engine::{
-        Stamp, StampConfiguration, StampCreationInfo, StampUniformData, StrokingEngine,
-    },
+    stamping_engine::{Stamp, StampConfiguration, StampCreationInfo, StrokingEngine},
     BrushTool, EditorContext, HandTool, ImageEditor, PointerClick, PointerMove, PointerRelease,
 };
 use image_editor::{BrushEngine, Tool};

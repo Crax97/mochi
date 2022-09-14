@@ -1,7 +1,7 @@
 use std::{cell::RefCell, rc::Rc};
 
 use framework::render_pass::RenderPass;
-use framework::{mesh_names, AssetsLibrary};
+use framework::AssetsLibrary;
 use framework::{Debug, Framework};
 use image_editor::stamping_engine::StrokingEngine;
 use image_editor::ImageEditor;
@@ -13,7 +13,7 @@ use wgpu::{
 use winit::dpi::LogicalSize;
 use winit::event::WindowEvent;
 use winit::event_loop::ControlFlow;
-use winit::{dpi::PhysicalSize, window::Window};
+use winit::window::Window;
 
 use crate::final_present_pass::FinalRenderPass;
 use crate::input_state::InputState;
@@ -22,7 +22,6 @@ use crate::ui::{self, Ui, UiContext};
 
 pub struct ImageApplication<'framework> {
     pub(crate) framework: &'framework Framework,
-    pub(crate) assets: Rc<RefCell<AssetsLibrary>>,
     pub(crate) window: Window,
     pub(crate) final_surface: Surface,
     pub(crate) final_surface_configuration: SurfaceConfiguration,
@@ -64,7 +63,6 @@ impl<'framework> ImageApplication<'framework> {
         let ui = ui::create_ui(&framework, &final_surface_configuration, &window);
         Self {
             window,
-            assets: assets.clone(),
             framework,
             final_surface,
             final_surface_configuration,
@@ -135,7 +133,6 @@ impl<'framework> ImageApplication<'framework> {
             winit::event::Event::UserEvent(_) => {}
             winit::event::Event::RedrawRequested(_) => {
                 self.ui.begin();
-                let assets = self.assets.borrow();
 
                 let ui_ctx = UiContext {
                     image_editor: &mut self.image_editor,
@@ -180,7 +177,7 @@ impl<'framework> ImageApplication<'framework> {
                 */
                 let surface_configuration = self.final_surface_configuration.clone();
 
-                let final_present_command = self.render_into_texture(&app_surface_view, &assets);
+                let final_present_command = self.render_into_texture(&app_surface_view);
                 commands.push(final_present_command);
 
                 let ui_command = self.ui.present(
@@ -201,11 +198,7 @@ impl<'framework> ImageApplication<'framework> {
         ControlFlow::Wait
     }
 
-    fn render_into_texture(
-        &self,
-        current_texture: &TextureView,
-        assets: &AssetsLibrary,
-    ) -> CommandBuffer {
+    fn render_into_texture(&self, current_texture: &TextureView) -> CommandBuffer {
         let command_encoder_description = CommandEncoderDescriptor {
             label: Some("Final image presentation"),
         };
@@ -238,8 +231,4 @@ impl<'framework> ImageApplication<'framework> {
         }
         command_encoder.finish()
     }
-}
-
-pub mod app_pipeline_names {
-    pub const FINAL_RENDER: &'static str = "FINAL_RENDER";
 }

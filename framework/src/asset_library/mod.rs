@@ -2,13 +2,9 @@ use std::{cell::RefCell, collections::HashMap, iter::FromIterator, rc::Rc};
 
 use crate::{
     render_pass::{self, RenderPass, SimpleColoredPass, SimpleTexturedPass},
-    DebugInstance2D, Framework, Mesh, MeshConstructionDetails, MeshInstance2D, Vertex,
+    Framework, Mesh, MeshConstructionDetails, Vertex,
 };
 use cgmath::{point2, point3};
-use wgpu::{
-    BlendComponent, BlendFactor, ColorTargetState, FragmentState, RenderPipeline, VertexState,
-};
-
 pub struct AssetsLibrary {
     pipelines: HashMap<String, Box<dyn render_pass::RenderPass>>,
     meshes: HashMap<String, Mesh>,
@@ -46,7 +42,7 @@ impl AssetsLibrary {
             },
         );
 
-        let mut library = Rc::new(RefCell::new(Self {
+        let library = Rc::new(RefCell::new(Self {
             pipelines: HashMap::from_iter([].into_iter()),
             meshes: HashMap::from_iter(std::iter::once((mesh_names::QUAD.to_owned(), quad_mesh))),
         }));

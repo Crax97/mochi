@@ -1,5 +1,4 @@
 use anyhow::Result;
-use as_slice::AsSlice;
 use log::*;
 use wgpu::*;
 

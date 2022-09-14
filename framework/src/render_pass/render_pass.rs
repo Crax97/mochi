@@ -1,5 +1,3 @@
-use wgpu::CommandBuffer;
-
 use super::PassBindble;
 
 pub trait RenderPass {

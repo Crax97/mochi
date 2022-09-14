@@ -5,7 +5,7 @@ use framework::{
     render_pass::{self, PassBindble},
     AssetsLibrary, Framework, Mesh, TypedBuffer, TypedBufferConfiguration,
 };
-use image_editor::{layers::BitmapLayer, ImageEditor};
+use image_editor::layers::BitmapLayer;
 use wgpu::{
     BindGroup, ColorTargetState, FragmentState, RenderPipeline, SurfaceConfiguration, VertexState,
 };

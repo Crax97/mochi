@@ -1,10 +1,7 @@
+use super::{PassBindble, RenderPass};
+use crate::{mesh_names, AssetsLibrary, DebugInstance2D, Mesh, MeshInstance2D};
 use std::{cell::RefCell, rc::Rc};
-
-use wgpu::{ColorTargetState, CommandBuffer, FragmentState, RenderPipeline, VertexState};
-
-use crate::{asset_library, mesh_names, AssetsLibrary, DebugInstance2D, Mesh, MeshInstance2D};
-
-use super::{render_pass, PassBindble, RenderPass};
+use wgpu::{ColorTargetState, FragmentState, RenderPipeline, VertexState};
 
 pub struct SimpleTexturedPass {
     pipeline: RenderPipeline,

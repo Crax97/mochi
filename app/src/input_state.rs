@@ -110,7 +110,7 @@ impl InputState {
                 }
                 _ => {}
             },
-            winit::event::Event::DeviceEvent { device_id, event } => {}
+            winit::event::Event::DeviceEvent { .. } => {}
             _ => {}
         }
     }

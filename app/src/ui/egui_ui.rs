@@ -4,7 +4,7 @@ use egui_winit_platform::PlatformDescriptor;
 use framework::Framework;
 use image::{ImageBuffer, Rgba};
 use image_editor::{
-    layers::{Layer, LayerCreationInfo, LayerIndex, LayerSettings},
+    layers::{LayerIndex, LayerSettings},
     LayerConstructionInfo,
 };
 use log::warn;
