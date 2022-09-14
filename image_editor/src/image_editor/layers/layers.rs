@@ -19,7 +19,7 @@ pub struct Layer<'framework> {
     pub rotation_radians: f32,
 
     pub instance_buffer: TypedBuffer<'framework>,
-    bind_group: BindGroup,
+    pub(crate) bind_group: BindGroup,
 }
 
 pub struct LayerCreationInfo<'framework> {
@@ -151,6 +151,11 @@ impl<'framework> Layer<'framework> {
                     &[(1, &self.instance_buffer), (0, &self.bind_group)],
                 );
             }
+        }
+    }
+    pub(crate) fn size(&self) -> Vector2<f32> {
+        match self.layer_type {
+            LayerType::Bitmap(ref bm) => bm.size(),
         }
     }
 }

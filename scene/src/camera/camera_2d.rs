@@ -49,8 +49,8 @@ impl<'framework> Camera2d<'framework> {
         new_camera
     }
 
-    pub fn set_new_bounds(&mut self, new_left_right_top_bottom: [f32; 4]) {
-        self.left_right_top_bottom = new_left_right_top_bottom;
+    pub fn set_new_bounds(&mut self, lrtb: [f32; 4]) {
+        self.left_right_top_bottom = lrtb;
         self.update_camera_buffer();
     }
 

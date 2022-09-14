@@ -6,10 +6,11 @@ use std::{
 };
 
 use cgmath::{num_traits::Num, point2, vec2, Point2, Vector2};
-use framework::{Framework, TypedBuffer, TypedBufferConfiguration};
+use framework::{render_pass::RenderPass, Framework, TypedBuffer, TypedBufferConfiguration};
 use scene::Camera2d;
 use wgpu::{
-    CommandBuffer, CommandEncoderDescriptor, RenderPassColorAttachment, RenderPassDescriptor,
+    CommandBuffer, CommandEncoder, CommandEncoderDescriptor, RenderPassColorAttachment,
+    RenderPassDescriptor,
 };
 
 use framework::{asset_library::AssetsLibrary, pipeline_names};
@@ -45,6 +46,7 @@ pub struct ImageEditor<'framework> {
     document: Document<'framework>,
     layers_created: u16,
     layer_draw_pass: LayerDrawPass,
+    canvas: BitmapLayer,
 }
 
 pub fn ceil_to<N: Num + Copy + PartialOrd + From<u32>>(n: N, align_to: N) -> N {
@@ -66,11 +68,21 @@ impl<'framework> ImageEditor<'framework> {
         assets: Rc<RefCell<AssetsLibrary>>,
         initial_window_bounds: &[f32; 2],
     ) -> Self {
+        let ceiled_width = ceil_to(1024, wgpu::COPY_BYTES_PER_ROW_ALIGNMENT);
         let final_layer = BitmapLayer::new(
             &framework,
             BitmapLayerConfiguration {
                 label: "Final Rendering Layer".to_owned(),
-                width: ceil_to(1024, wgpu::COPY_BYTES_PER_ROW_ALIGNMENT),
+                width: ceiled_width,
+                height: 1024,
+                initial_background_color: [0.5, 0.5, 0.5, 1.0],
+            },
+        );
+        let canvas = BitmapLayer::new(
+            &framework,
+            BitmapLayerConfiguration {
+                label: "ImageEditor Canvas".to_owned(),
+                width: ceiled_width,
                 height: 1024,
                 initial_background_color: [0.5, 0.5, 0.5, 1.0],
             },
@@ -79,7 +91,7 @@ impl<'framework> ImageEditor<'framework> {
             &framework,
             BitmapLayerConfiguration {
                 label: "Layer 0".to_owned(),
-                width: ceil_to(1024, wgpu::COPY_BYTES_PER_ROW_ALIGNMENT),
+                width: ceiled_width,
                 height: 1024,
                 initial_background_color: [1.0, 1.0, 1.0, 1.0],
             },
@@ -101,6 +113,18 @@ impl<'framework> ImageEditor<'framework> {
         pan_camera.set_scale(initial_camera_scale);
 
         let test_layer_index = LayerIndex(0);
+        let mut final_layer = Layer::new_bitmap(
+            final_layer,
+            LayerCreationInfo {
+                name: "Test Layer".to_owned(),
+                position: point2(0.0, 0.0),
+                scale: vec2(1.0, 1.0),
+                rotation_radians: 0.0,
+                camera_buffer: pan_camera.buffer(),
+            },
+            &framework,
+        );
+        final_layer.update();
         let test_document = Document {
             layers: HashMap::from_iter(std::iter::once((
                 test_layer_index,
@@ -121,9 +145,11 @@ impl<'framework> ImageEditor<'framework> {
             current_layer_index: test_layer_index,
         };
         let layer_draw_pass = LayerDrawPass::new(framework, assets.clone());
+
         ImageEditor {
             framework,
             assets,
+            canvas,
             pan_camera,
             document: test_document,
             layers_created: 0,
@@ -192,10 +218,30 @@ impl<'framework> ImageEditor<'framework> {
         let command_encoder_description = CommandEncoderDescriptor {
             label: Some("Image render encoder"),
         };
+        let mut command_encoder = self
+            .framework
+            .device
+            .create_command_encoder(&command_encoder_description);
+
+        let old_scale = self.pan_camera.current_scale();
+        let old_pos = self.pan_camera.position();
+
+        self.pan_camera.set_scale(1.0);
+        self.pan_camera.set_position(point2(0.0, 0.0));
+        self.render_document(&mut command_encoder);
+
+        self.pan_camera.set_scale(old_scale);
+        self.pan_camera.set_position(old_pos);
+        self.render_canvas(&mut command_encoder);
+
+        command_encoder.finish()
+    }
+
+    fn render_document(&mut self, encoder: &mut CommandEncoder) {
         let render_pass_description = RenderPassDescriptor {
             label: Some("ImageEditor Redraw Image Pass"),
             color_attachments: &[Some(RenderPassColorAttachment {
-                view: self.document.final_layer.texture_view(),
+                view: self.document.final_layer_texture_view(),
                 resolve_target: None,
                 ops: wgpu::Operations {
                     load: wgpu::LoadOp::Clear(wgpu::Color {
@@ -209,18 +255,12 @@ impl<'framework> ImageEditor<'framework> {
             })],
             depth_stencil_attachment: None,
         };
-        let mut command_encoder = self
-            .framework
-            .device
-            .create_command_encoder(&command_encoder_description);
-
         {
             for layer_node in self.document.tree_root.0.iter() {
                 match layer_node {
                     LayerTree::SingleLayer(index) => {
-                        let layer = self.document.layers.get(index).expect("Nonexistent layer");
-                        let mut render_pass =
-                            command_encoder.begin_render_pass(&render_pass_description);
+                        let layer = self.document.layers.get(&index).expect("Nonexistent layer");
+                        let mut render_pass = encoder.begin_render_pass(&render_pass_description);
                         self.layer_draw_pass.prepare(&mut render_pass);
                         layer.draw(LayerDrawContext {
                             render_pass,
@@ -231,8 +271,7 @@ impl<'framework> ImageEditor<'framework> {
                     LayerTree::Group(indices) => {
                         for index in indices {
                             let layer = self.document.layers.get(index).expect("Nonexistent layer");
-                            let render_pass =
-                                command_encoder.begin_render_pass(&render_pass_description);
+                            let render_pass = encoder.begin_render_pass(&render_pass_description);
                             layer.draw(LayerDrawContext {
                                 render_pass,
                                 assets: self.assets.borrow(),
@@ -243,11 +282,41 @@ impl<'framework> ImageEditor<'framework> {
                 };
             }
         }
-        command_encoder.finish()
+    }
+
+    fn render_canvas(&mut self, command_encoder: &mut CommandEncoder) {
+        let render_pass_description = RenderPassDescriptor {
+            label: Some("ImageEditor Canvas Pass"),
+            color_attachments: &[Some(RenderPassColorAttachment {
+                view: self.get_full_image_texture().texture_view(),
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(wgpu::Color {
+                        r: 0.0,
+                        g: 0.0,
+                        b: 0.0,
+                        a: 1.0,
+                    }),
+                    store: true,
+                },
+            })],
+            depth_stencil_attachment: None,
+        };
+        {
+            let mut render_pass = command_encoder.begin_render_pass(&render_pass_description);
+            self.layer_draw_pass.prepare(&mut render_pass);
+            self.layer_draw_pass.execute_with_renderpass(
+                render_pass,
+                &[
+                    (1, &self.document.final_layer.instance_buffer),
+                    (0, &self.document.final_layer.bind_group),
+                ],
+            );
+        }
     }
 
     pub fn get_full_image_texture(&self) -> &BitmapLayer {
-        &self.document.final_layer
+        &self.canvas
     }
 
     pub fn get_full_image_bytes(&self) -> ImageBytes {
@@ -273,7 +342,7 @@ impl<'framework> ImageEditor<'framework> {
         );
         encoder.copy_texture_to_buffer(
             wgpu::ImageCopyTexture {
-                texture: self.document.final_layer.texture(),
+                texture: self.document.final_texture(),
                 mip_level: 0,
                 origin: wgpu::Origin3d::ZERO,
                 aspect: wgpu::TextureAspect::All,

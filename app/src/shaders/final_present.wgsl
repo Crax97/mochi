@@ -9,10 +9,19 @@ struct VertexOutput {
     @location(1) tex_uv: vec2<f32>,
 }
 
+struct FinalPresentData {
+    canvas_size: vec2<f32>,
+}
+
+@group(1) @binding(0)
+var<uniform> data: FinalPresentData;
+
 @vertex
 fn vs(in: VertexInput) -> VertexOutput {
     var out : VertexOutput;
-    out.coordinates_position = vec4<f32>(in.position, 1.0);
+    let aspect = data.canvas_size.x / data.canvas_size.y;
+    let pos = vec3<f32>(in.position.x * aspect, in.position.y, in.position.z);
+    out.coordinates_position = vec4<f32>(pos, 1.0);
     out.position = in.position;
     out.tex_uv = in.tex_uv;
     return out;

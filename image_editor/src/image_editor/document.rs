@@ -10,14 +10,16 @@ use super::layers::{BitmapLayer, Layer, LayerIndex, RootLayer};
 pub struct Document<'framework> {
     pub layers: HashMap<LayerIndex, Layer<'framework>>,
     pub tree_root: RootLayer,
-    pub final_layer: BitmapLayer,
+    pub final_layer: Layer<'framework>,
 
     pub current_layer_index: LayerIndex,
 }
 
 impl Document<'_> {
     pub fn outer_size(&self) -> Vector2<f32> {
-        self.final_layer.size()
+        match self.final_layer.layer_type {
+            crate::layers::LayerType::Bitmap(ref bm) => bm.size().clone(),
+        }
     }
 
     pub fn current_layer(&self) -> &Layer {
@@ -58,5 +60,17 @@ impl Document<'_> {
             }
         }
         self.tree_root.0.remove(erase_which);
+    }
+
+    pub(crate) fn final_layer_texture_view(&self) -> &wgpu::TextureView {
+        match self.final_layer.layer_type {
+            crate::layers::LayerType::Bitmap(ref bm) => bm.texture_view(),
+        }
+    }
+
+    pub(crate) fn final_texture(&self) -> &wgpu::Texture {
+        match self.final_layer.layer_type {
+            crate::layers::LayerType::Bitmap(ref bm) => bm.texture(),
+        }
     }
 }

@@ -1,5 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
+use framework::render_pass::RenderPass;
 use framework::{mesh_names, AssetsLibrary};
 use framework::{Debug, Framework};
 use image_editor::stamping_engine::StrokingEngine;
@@ -9,6 +10,7 @@ use wgpu::{
     CommandBuffer, CommandEncoderDescriptor, RenderPassColorAttachment, RenderPassDescriptor,
     Surface, SurfaceConfiguration, TextureView,
 };
+use winit::dpi::LogicalSize;
 use winit::event::WindowEvent;
 use winit::event_loop::ControlFlow;
 use winit::{dpi::PhysicalSize, window::Window};
@@ -29,6 +31,7 @@ pub struct ImageApplication<'framework> {
     input_state: InputState,
     toolbox: Toolbox<'framework>,
     ui: Box<dyn Ui>,
+    final_pass: FinalRenderPass<'framework>,
 }
 impl<'framework> ImageApplication<'framework> {
     pub(crate) fn new(window: Window, framework: &'framework Framework) -> Self {
@@ -42,24 +45,13 @@ impl<'framework> ImageApplication<'framework> {
         };
         let assets = AssetsLibrary::new(framework);
 
-        let image_editor = ImageEditor::new(
-            &framework,
-            assets.clone(),
-            &[
-                final_surface_configuration.width as f32,
-                final_surface_configuration.height as f32,
-            ],
-        );
+        let image_editor = ImageEditor::new(&framework, assets.clone(), &[1024.0, 1024.0]);
         final_surface.configure(&framework.device, &final_surface_configuration);
         let final_present_pass = FinalRenderPass::new(
             framework,
             final_surface_configuration.clone(),
             &image_editor.get_full_image_texture(),
             assets.clone(),
-        );
-        assets.borrow_mut().add_pipeline(
-            app_pipeline_names::FINAL_RENDER,
-            Box::new(final_present_pass),
         );
 
         let debug = Rc::new(RefCell::new(Debug::new()));
@@ -81,6 +73,7 @@ impl<'framework> ImageApplication<'framework> {
             input_state: InputState::default(),
             toolbox,
             ui: Box::new(ui),
+            final_pass: final_present_pass,
         }
     }
 
@@ -88,7 +81,9 @@ impl<'framework> ImageApplication<'framework> {
         if new_size.width == 0 || new_size.height == 0 {
             return;
         }
-        let half_size = PhysicalSize {
+        self.final_pass
+            .update_size([new_size.width as f32, new_size.height as f32]);
+        let half_size = LogicalSize {
             width: new_size.width as f32 * 0.5,
             height: new_size.height as f32 * 0.5,
         };
@@ -103,8 +98,8 @@ impl<'framework> ImageApplication<'framework> {
             format: self
                 .final_surface
                 .get_supported_formats(&self.framework.adapter)[0],
-            width: new_size.width,
-            height: new_size.height,
+            width: new_size.width as u32,
+            height: new_size.height as u32,
             present_mode: wgpu::PresentMode::Fifo,
         };
         self.final_surface
@@ -238,14 +233,11 @@ impl<'framework> ImageApplication<'framework> {
         };
 
         {
-            let mut render_pass = command_encoder.begin_render_pass(&render_pass_description);
-            let final_pipeline = assets.pipeline(app_pipeline_names::FINAL_RENDER);
-            final_pipeline.execute_with_renderpass(render_pass, &[]);
+            let render_pass = command_encoder.begin_render_pass(&render_pass_description);
+            self.final_pass.execute_with_renderpass(render_pass, &[]);
         }
         command_encoder.finish()
     }
-
-    fn ui(&mut self) {}
 }
 
 pub mod app_pipeline_names {
