@@ -174,7 +174,7 @@ impl<'framework> ImageEditor<'framework> {
                 Layer::new_bitmap(
                     test_layer,
                     LayerCreationInfo {
-                        name: "Test Layer".to_owned(),
+                        name: "Background Layer".to_owned(),
                         position: point2(0.0, 0.0),
                         scale: vec2(1.0, 1.0),
                         rotation_radians: 0.0,
