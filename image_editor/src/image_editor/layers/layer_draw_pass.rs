@@ -73,13 +73,33 @@ impl LayerDrawPass {
                         count: None,
                     }],
                 });
+        let settings_group_layout =
+            framework
+                .device
+                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                    label: Some("Layer Draw Camera bind layout"),
+                    entries: &[wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    }],
+                });
 
         let render_pipeline_layout =
             framework
                 .device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("Layer Pipeline Layout"),
-                    bind_group_layouts: &[&bind_group_layout, &camera_group_layout],
+                    bind_group_layouts: &[
+                        &bind_group_layout,
+                        &camera_group_layout,
+                        &settings_group_layout,
+                    ],
                     push_constant_ranges: &[],
                 });
 

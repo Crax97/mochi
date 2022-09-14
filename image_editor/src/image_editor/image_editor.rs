@@ -9,13 +9,13 @@ use cgmath::{num_traits::Num, point2, vec2, Point2, Vector2};
 use framework::{render_pass::RenderPass, Framework, TypedBuffer, TypedBufferConfiguration};
 use scene::Camera2d;
 use wgpu::{
-    BindGroup, CommandBuffer, CommandEncoder, CommandEncoderDescriptor, RenderPassColorAttachment,
-    RenderPassDescriptor,
+    BindGroup, BindGroupDescriptor, BindGroupEntry, CommandBuffer, CommandEncoder,
+    CommandEncoderDescriptor, RenderPassColorAttachment, RenderPassDescriptor,
 };
 
 use framework::{asset_library::AssetsLibrary, pipeline_names};
 
-use crate::layers::LayerDrawPass;
+use crate::layers::{LayerDrawPass, ShaderLayerSettings};
 
 use super::{
     document::Document,
@@ -47,6 +47,7 @@ pub struct ImageEditor<'framework> {
     layers_created: u16,
     layer_draw_pass: LayerDrawPass,
     canvas: BitmapLayer<'framework>,
+    settings_bind_group: BindGroup,
     camaera_bind_group: BindGroup,
 }
 
@@ -129,6 +130,41 @@ impl<'framework> ImageEditor<'framework> {
             },
             &framework,
         );
+
+        let settings_buffer = framework.allocate_typed_buffer(TypedBufferConfiguration {
+            initial_setup: framework::typed_buffer::BufferInitialSetup::Data(&vec![
+                ShaderLayerSettings { opacity: 1.0 },
+            ]),
+            buffer_type: framework::BufferType::Uniform,
+            allow_write: true,
+            allow_read: false,
+        });
+
+        let settings_group_layout =
+            framework
+                .device
+                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                    label: Some("Layer Draw Settings bind layout"),
+                    entries: &[wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    }],
+                });
+        let settings_bind_group = framework.device.create_bind_group(&BindGroupDescriptor {
+            label: Some("Layer Settings Bind Group"),
+            layout: &settings_group_layout,
+            entries: &[BindGroupEntry {
+                binding: 0,
+                resource: wgpu::BindingResource::Buffer(settings_buffer.binding_resource()),
+            }],
+        });
+
         final_layer.update();
         let test_document = Document {
             width: test_width,
@@ -192,6 +228,7 @@ impl<'framework> ImageEditor<'framework> {
             layers_created: 0,
             layer_draw_pass,
             camaera_bind_group,
+            settings_bind_group,
         }
     }
 
@@ -367,6 +404,7 @@ impl<'framework> ImageEditor<'framework> {
                     (1, &self.document.final_layer.instance_buffer),
                     (0, self.document.final_layer.bind_group()),
                     (1, &self.camaera_bind_group),
+                    (2, &self.settings_bind_group),
                 ],
             );
         }
