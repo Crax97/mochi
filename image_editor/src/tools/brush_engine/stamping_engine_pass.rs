@@ -18,7 +18,6 @@ pub struct StampingEngineRenderPass<'framework> {
     stamp_data_buffer: TypedBuffer<'framework>,
     brush_bind_group: BindGroup,
     stamp_settings: StampConfiguration,
-    is_eraser_mode: bool,
     asset_library: Rc<RefCell<AssetsLibrary>>,
 }
 impl<'framework> StampingEngineRenderPass<'framework> {
@@ -223,7 +222,6 @@ impl<'framework> StampingEngineRenderPass<'framework> {
             instance_buffer,
             stamp_pipeline,
             eraser_pipeline,
-            is_eraser_mode: false,
             stamp_settings: initial_setup,
             asset_library: assets,
         }
@@ -253,7 +251,7 @@ impl<'framework> RenderPass for StampingEngineRenderPass<'framework> {
         'pass: 'call,
         's: 'pass,
     {
-        if self.is_eraser_mode {
+        if self.stamp_settings.is_eraser {
             pass.set_pipeline(&self.eraser_pipeline);
         } else {
             pass.set_pipeline(&self.stamp_pipeline);
