@@ -12,7 +12,7 @@ struct PerFrameData {
        vp: mat4x4<f32>,
 }
 
-@group(0) @binding(2)
+@group(1) @binding(0)
 var<uniform> uniform_data: PerFrameData;
 
 

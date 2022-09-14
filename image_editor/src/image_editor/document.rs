@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use cgmath::{point2, vec2, Vector2};
 use framework::TypedBuffer;
+use wgpu::BindGroup;
 
 use crate::layers::{BitmapLayerConfiguration, LayerCreationInfo, LayerTree};
 
@@ -71,6 +72,12 @@ impl Document<'_> {
     pub(crate) fn final_texture(&self) -> &wgpu::Texture {
         match self.final_layer.layer_type {
             crate::layers::LayerType::Bitmap(ref bm) => bm.texture(),
+        }
+    }
+
+    pub(crate) fn final_bind_group(&self) -> &BindGroup {
+        match self.final_layer.layer_type {
+            crate::layers::LayerType::Bitmap(ref bm) => bm.bind_group(),
         }
     }
 }

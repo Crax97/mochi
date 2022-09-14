@@ -18,11 +18,12 @@ struct BrushData {
     softness: f32,
 }
 
-@group(0) @binding(2)
-var<uniform> uniform_data: PerFrameData;
-
 @group(1) @binding(0)
 var<uniform> brush_data: BrushData;
+
+@group(2) @binding(0)
+var<uniform> uniform_data: PerFrameData;
+
 
 
 struct VertexOutput {

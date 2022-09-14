@@ -50,7 +50,10 @@ impl<'framework> Toolbox<'framework> {
         self.stamping_engine.borrow_mut().set_new_settings(new_data);
     }
 
-    pub fn create_test_stamp(camera_buffer: &TypedBuffer, framework: &Framework) -> Stamp {
+    pub fn create_test_stamp(
+        camera_buffer: &TypedBuffer,
+        framework: &'framework Framework,
+    ) -> Stamp<'framework> {
         let test_stamp_bytes = include_bytes!("test/test_brush.png");
         let image = image::load_from_memory(test_stamp_bytes).unwrap();
         let brush_bitmap = BitmapLayer::new_from_bytes(

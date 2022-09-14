@@ -18,8 +18,8 @@ use crate::{layers::BitmapLayer, StrokeContext, StrokePath};
 use super::stamping_engine_pass::StampingEngineRenderPass;
 use super::BrushEngine;
 
-pub struct Stamp {
-    brush_texture: BitmapLayer,
+pub struct Stamp<'framework> {
+    brush_texture: BitmapLayer<'framework>,
     bind_group: BindGroup,
     bind_group_layout: BindGroupLayout,
 }
@@ -28,10 +28,10 @@ pub struct StampCreationInfo<'framework> {
     pub camera_buffer: &'framework TypedBuffer<'framework>,
 }
 
-impl<'framework> Stamp {
+impl<'framework> Stamp<'framework> {
     pub fn new(
-        brush_texture: BitmapLayer,
-        framework: &Framework,
+        brush_texture: BitmapLayer<'framework>,
+        framework: &'framework Framework,
         creation_info: StampCreationInfo,
     ) -> Self {
         let bind_group_layout =
@@ -56,16 +56,6 @@ impl<'framework> Stamp {
                             ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                             count: None,
                         },
-                        wgpu::BindGroupLayoutEntry {
-                            binding: 2,
-                            visibility: wgpu::ShaderStages::VERTEX,
-                            ty: wgpu::BindingType::Buffer {
-                                ty: wgpu::BufferBindingType::Uniform,
-                                has_dynamic_offset: false,
-                                min_binding_size: None,
-                            },
-                            count: None,
-                        },
                     ],
                 });
         let bind_group = framework
@@ -81,12 +71,6 @@ impl<'framework> Stamp {
                     wgpu::BindGroupEntry {
                         binding: 1,
                         resource: wgpu::BindingResource::Sampler(brush_texture.sampler()),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 2,
-                        resource: wgpu::BindingResource::Buffer(
-                            creation_info.camera_buffer.binding_resource(),
-                        ),
                     },
                 ],
             });
@@ -129,13 +113,13 @@ impl From<StampConfiguration> for StampUniformData {
 
 pub struct StrokingEngine<'framework> {
     current_stamp: usize,
-    stamps: Vec<Stamp>,
+    stamps: Vec<Stamp<'framework>>,
     stamp_pass: StampingEngineRenderPass<'framework>,
 }
 
 impl<'framework> StrokingEngine<'framework> {
     pub fn new(
-        initial_stamp: Stamp,
+        initial_stamp: Stamp<'framework>,
         framework: &'framework Framework,
         assets: Rc<RefCell<AssetsLibrary>>,
     ) -> Self {
@@ -149,8 +133,8 @@ impl<'framework> StrokingEngine<'framework> {
 
     pub fn create_stamp(
         &self,
-        brush_texture: BitmapLayer,
-        framework: &Framework,
+        brush_texture: BitmapLayer<'framework>,
+        framework: &'framework Framework,
         info: StampCreationInfo,
     ) -> Stamp {
         Stamp::new(brush_texture, framework, info)
@@ -180,17 +164,22 @@ impl<'framework> BrushEngine for StrokingEngine<'framework> {
                 let bottom_right = context.editor.camera().ndc_into_world(point2(1.0, -1.0));
                 let width = (bottom_right.x - top_left.x).abs() * one_over_scale;
                 let height = (top_left.y - bottom_right.y).abs() * one_over_scale;
-                let x_ratio = bitmap_layer.size().x / width;
+                let aspect = width / height;
+
+                let x_ratio = bitmap_layer.size().x * aspect / width;
                 let y_ratio = bitmap_layer.size().y / height;
 
                 let actual_layer_scale =
                     bitmap_layer.size().mul_element_wise(context.layer.scale) * one_over_scale;
                 let layer_ratio = actual_layer_scale.div_element_wise(bitmap_layer.size());
                 let lrp = point2(layer_ratio.x * x_ratio, layer_ratio.y * y_ratio);
+                let camera_displace = context.editor.camera().position();
 
                 let correct_point = |point: Point2<f32>| {
+                    return point
+                        .add_element_wise(camera_displace)
+                        .mul_element_wise(one_over_scale);
                     let point = point.div_element_wise(lrp);
-                    let camera_displace = context.editor.camera().position().mul_element_wise(-1.0);
                     let pt = point.add_element_wise(camera_displace);
                     pt
                 };
@@ -200,11 +189,7 @@ impl<'framework> BrushEngine for StrokingEngine<'framework> {
                     .points
                     .iter()
                     .map(|pt| {
-                        MeshInstance2D::new(
-                            correct_point(pt.position),
-                            vec2(pt.size, pt.size) * context.editor.camera().current_scale(),
-                            0.0,
-                        )
+                        MeshInstance2D::new(correct_point(pt.position), vec2(pt.size, pt.size), 0.0)
                     })
                     .collect();
                 self.stamp_pass.update(instances);
@@ -221,12 +206,25 @@ impl<'framework> BrushEngine for StrokingEngine<'framework> {
                     })],
                     depth_stencil_attachment: None,
                 };
-                let render_pass = context
+                let mut render_pass = context
                     .command_encoder
                     .begin_render_pass(&stroking_engine_render_pass);
 
-                self.stamp_pass
-                    .execute_with_renderpass(render_pass, &[(0, &self.current_stamp().bind_group)]);
+                render_pass.set_viewport(
+                    0.0,
+                    0.0,
+                    bitmap_layer.size().x,
+                    bitmap_layer.size().y,
+                    0.0,
+                    1.0,
+                );
+                self.stamp_pass.execute_with_renderpass(
+                    render_pass,
+                    &[
+                        (0, &self.current_stamp().bind_group),
+                        (2, bitmap_layer.camera_bind_group()),
+                    ],
+                );
             }
         }
     }

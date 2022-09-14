@@ -9,7 +9,7 @@ use cgmath::{num_traits::Num, point2, vec2, Point2, Vector2};
 use framework::{render_pass::RenderPass, Framework, TypedBuffer, TypedBufferConfiguration};
 use scene::Camera2d;
 use wgpu::{
-    CommandBuffer, CommandEncoder, CommandEncoderDescriptor, RenderPassColorAttachment,
+    BindGroup, CommandBuffer, CommandEncoder, CommandEncoderDescriptor, RenderPassColorAttachment,
     RenderPassDescriptor,
 };
 
@@ -46,7 +46,8 @@ pub struct ImageEditor<'framework> {
     document: Document<'framework>,
     layers_created: u16,
     layer_draw_pass: LayerDrawPass,
-    canvas: BitmapLayer,
+    canvas: BitmapLayer<'framework>,
+    camaera_bind_group: BindGroup,
 }
 
 pub fn ceil_to<N: Num + Copy + PartialOrd + From<u32>>(n: N, align_to: N) -> N {
@@ -120,7 +121,6 @@ impl<'framework> ImageEditor<'framework> {
                 position: point2(0.0, 0.0),
                 scale: vec2(1.0, 1.0),
                 rotation_radians: 0.0,
-                camera_buffer: pan_camera.buffer(),
             },
             &framework,
         );
@@ -135,7 +135,6 @@ impl<'framework> ImageEditor<'framework> {
                         position: point2(0.0, 0.0),
                         scale: vec2(1.0, 1.0),
                         rotation_radians: 0.0,
-                        camera_buffer: pan_camera.buffer(),
                     },
                     &framework,
                 ),
@@ -146,6 +145,37 @@ impl<'framework> ImageEditor<'framework> {
         };
         let layer_draw_pass = LayerDrawPass::new(framework, assets.clone());
 
+        let camera_bind_group_layout =
+            framework
+                .device
+                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                    label: Some("Layer render pass bind layout"),
+                    entries: &[wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    }],
+                });
+        let camaera_bind_group = framework
+            .device
+            .create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some("Layer Camera render pass"),
+                layout: &camera_bind_group_layout,
+                entries: &[wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::Buffer(
+                        pan_camera
+                            .buffer()
+                            .inner_buffer()
+                            .as_entire_buffer_binding(),
+                    ),
+                }],
+            });
         ImageEditor {
             framework,
             assets,
@@ -154,6 +184,7 @@ impl<'framework> ImageEditor<'framework> {
             document: test_document,
             layers_created: 0,
             layer_draw_pass,
+            camaera_bind_group,
         }
     }
 
@@ -185,7 +216,6 @@ impl<'framework> ImageEditor<'framework> {
                 position: point2(0.0, 0.0),
                 scale: vec2(1.0, 1.0),
                 rotation_radians: 0.0,
-                camera_buffer: self.camera().buffer(),
             },
             self.framework,
         );
@@ -309,7 +339,8 @@ impl<'framework> ImageEditor<'framework> {
                 render_pass,
                 &[
                     (1, &self.document.final_layer.instance_buffer),
-                    (0, &self.document.final_layer.bind_group),
+                    (0, self.document.final_layer.bind_group()),
+                    (1, &self.camaera_bind_group),
                 ],
             );
         }

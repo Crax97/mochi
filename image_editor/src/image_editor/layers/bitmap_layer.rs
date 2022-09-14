@@ -1,8 +1,9 @@
 use cgmath::{num_traits::ToPrimitive, Vector2};
-use framework::Framework;
+use framework::{Framework, TypedBuffer, TypedBufferConfiguration};
+use scene::{Camera2d, Camera2dUniformBlock};
 use wgpu::{
-    ImageDataLayout, Sampler, SamplerDescriptor, Texture, TextureDescriptor, TextureView,
-    TextureViewDescriptor, TextureViewDimension,
+    BindGroup, ImageDataLayout, Sampler, SamplerDescriptor, Texture, TextureDescriptor,
+    TextureView, TextureViewDescriptor, TextureViewDimension,
 };
 
 pub struct BitmapLayerConfiguration {
@@ -11,15 +12,18 @@ pub struct BitmapLayerConfiguration {
     pub initial_background_color: [f32; 4],
     pub height: u32,
 }
-pub struct BitmapLayer {
+pub struct BitmapLayer<'framework> {
     texture: Texture,
     rgba_texture_view: TextureView,
     sampler: Sampler,
     configuration: BitmapLayerConfiguration,
+    bind_group: BindGroup,
+    camera_buffer: TypedBuffer<'framework>,
+    camaera_bind_group: BindGroup,
 }
 
-impl BitmapLayer {
-    pub fn new(framework: &Framework, configuration: BitmapLayerConfiguration) -> Self {
+impl<'framework> BitmapLayer<'framework> {
+    pub fn new(framework: &'framework Framework, configuration: BitmapLayerConfiguration) -> Self {
         let bytes: Vec<u32> = (1..(configuration.width * configuration.height) + 1)
             .map(|_| {
                 let bg = configuration.initial_background_color;
@@ -35,7 +39,7 @@ impl BitmapLayer {
     }
 
     pub fn new_from_bytes(
-        framework: &Framework,
+        framework: &'framework Framework,
         bytes: &[u8],
         configuration: BitmapLayerConfiguration,
     ) -> Self {
@@ -63,7 +67,7 @@ impl BitmapLayer {
 
         framework.queue.write_texture(
             wgpu::ImageCopyTexture {
-                texture: &&texture,
+                texture: &texture,
                 mip_level: 0,
                 origin: wgpu::Origin3d::ZERO,
                 aspect: wgpu::TextureAspect::All,
@@ -99,11 +103,102 @@ impl BitmapLayer {
             ..Default::default()
         });
 
+        let camera = TypedBuffer::new(
+            framework,
+            TypedBufferConfiguration::<Camera2dUniformBlock> {
+                initial_setup: framework::typed_buffer::BufferInitialSetup::Data(&vec![
+                    Camera2dUniformBlock::from(&Camera2d::new(
+                        -0.1,
+                        1000.0,
+                        [
+                            -(configuration.width as f32) * 0.5,
+                            configuration.width as f32 * 0.5,
+                            configuration.height as f32 * 0.5,
+                            -(configuration.height as f32) * 0.5,
+                        ],
+                        framework,
+                    )),
+                ]),
+                buffer_type: framework::BufferType::Uniform,
+                allow_write: false,
+                allow_read: false,
+            },
+        );
+        let bind_group_layout =
+            framework
+                .device
+                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                    label: Some("BitmapLayer render pass bind layout"),
+                    entries: &[
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 0,
+                            visibility: wgpu::ShaderStages::FRAGMENT,
+                            ty: wgpu::BindingType::Texture {
+                                sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                                view_dimension: wgpu::TextureViewDimension::D2,
+                                multisampled: false,
+                            },
+                            count: None,
+                        },
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 1,
+                            visibility: wgpu::ShaderStages::FRAGMENT,
+                            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                            count: None,
+                        },
+                    ],
+                });
+
+        let bind_group = framework
+            .device
+            .create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some("BitmapLayer render pass"),
+                layout: &bind_group_layout,
+                entries: &[
+                    wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: wgpu::BindingResource::TextureView(&rgba_texture_view),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 1,
+                        resource: wgpu::BindingResource::Sampler(&sampler),
+                    },
+                ],
+            });
+        let camera_bind_group_layout =
+            framework
+                .device
+                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                    label: Some("BitmapLayer camera bind layout"),
+                    entries: &[wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    }],
+                });
+        let camaera_bind_group = framework
+            .device
+            .create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some("BitmapLayer Camera bind group"),
+                layout: &camera_bind_group_layout,
+                entries: &[wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::Buffer(camera.binding_resource()),
+                }],
+            });
         Self {
             texture,
             rgba_texture_view,
             configuration,
             sampler,
+            camera_buffer: camera,
+            bind_group,
+            camaera_bind_group,
         }
     }
 
@@ -119,10 +214,18 @@ impl BitmapLayer {
         &self.sampler
     }
 
+    pub fn bind_group(&self) -> &BindGroup {
+        &self.bind_group
+    }
+
     pub fn size(&self) -> Vector2<f32> {
         Vector2 {
             x: self.configuration.width as f32,
             y: self.configuration.height as f32,
         }
+    }
+
+    pub(crate) fn camera_bind_group(&self) -> &BindGroup {
+        &self.camaera_bind_group
     }
 }

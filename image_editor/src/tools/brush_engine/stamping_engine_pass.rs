@@ -43,7 +43,7 @@ impl<'framework> StampingEngineRenderPass<'framework> {
             framework
                 .device
                 .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    label: Some("PaintBrush BindGroupLayout"),
+                    label: Some("PaintBrush Stamp Bind Layout"),
                     entries: &[
                         wgpu::BindGroupLayoutEntry {
                             binding: 0,
@@ -61,23 +61,29 @@ impl<'framework> StampingEngineRenderPass<'framework> {
                             ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                             count: None,
                         },
-                        wgpu::BindGroupLayoutEntry {
-                            binding: 2,
-                            visibility: wgpu::ShaderStages::VERTEX,
-                            ty: wgpu::BindingType::Buffer {
-                                ty: wgpu::BufferBindingType::Uniform,
-                                has_dynamic_offset: false,
-                                min_binding_size: None,
-                            },
-                            count: None,
-                        },
                     ],
                 });
         let brush_bind_layout =
             framework
                 .device
                 .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    label: Some("Brush bind layout"),
+                    label: Some("PaintBrush Brush Settings Bind layout"),
+                    entries: &[wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    }],
+                });
+        let camera_bind_layout =
+            framework
+                .device
+                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                    label: Some("BitmapLayer camera bind layout"),
                     entries: &[wgpu::BindGroupLayoutEntry {
                         binding: 0,
                         visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
@@ -93,8 +99,12 @@ impl<'framework> StampingEngineRenderPass<'framework> {
             framework
                 .device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label: Some("StampingEngine Layout"),
-                    bind_group_layouts: &[&texture_bind_layout, &brush_bind_layout],
+                    label: Some("PaintBrush StampingEngine Layout"),
+                    bind_group_layouts: &[
+                        &texture_bind_layout,
+                        &brush_bind_layout,
+                        &camera_bind_layout,
+                    ],
                     push_constant_ranges: &[],
                 });
 
