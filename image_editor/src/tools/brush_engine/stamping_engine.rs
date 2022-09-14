@@ -159,38 +159,11 @@ impl<'framework> BrushEngine for StrokingEngine<'framework> {
     fn stroke(&mut self, path: StrokePath, context: StrokeContext) {
         match context.layer.layer_type {
             crate::layers::LayerType::Bitmap(ref bitmap_layer) => {
-                let one_over_scale = 1.0 / context.editor.camera().current_scale();
-                let top_left = context.editor.camera().ndc_into_world(point2(-1.0, 1.0));
-                let bottom_right = context.editor.camera().ndc_into_world(point2(1.0, -1.0));
-                let width = (bottom_right.x - top_left.x).abs() * one_over_scale;
-                let height = (top_left.y - bottom_right.y).abs() * one_over_scale;
-                let aspect = width / height;
-
-                let x_ratio = bitmap_layer.size().x * aspect / width;
-                let y_ratio = bitmap_layer.size().y / height;
-
-                let actual_layer_scale =
-                    bitmap_layer.size().mul_element_wise(context.layer.scale) * one_over_scale;
-                let layer_ratio = actual_layer_scale.div_element_wise(bitmap_layer.size());
-                let lrp = point2(layer_ratio.x * x_ratio, layer_ratio.y * y_ratio);
-                let camera_displace = context.editor.camera().position();
-
-                let correct_point = |point: Point2<f32>| {
-                    return point
-                        .add_element_wise(camera_displace)
-                        .mul_element_wise(one_over_scale);
-                    let point = point.div_element_wise(lrp);
-                    let pt = point.add_element_wise(camera_displace);
-                    pt
-                };
-
                 // 1. Update buffer
                 let instances: Vec<MeshInstance2D> = path
                     .points
                     .iter()
-                    .map(|pt| {
-                        MeshInstance2D::new(correct_point(pt.position), vec2(pt.size, pt.size), 0.0)
-                    })
+                    .map(|pt| MeshInstance2D::new(pt.position, vec2(pt.size, pt.size), 0.0))
                     .collect();
                 self.stamp_pass.update(instances);
                 // 2. Do draw
