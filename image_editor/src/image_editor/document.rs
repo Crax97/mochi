@@ -1,16 +1,12 @@
+use super::layers::{Layer, LayerIndex, RootLayer};
+use crate::layers::LayerTree;
+use cgmath::Vector2;
 use std::collections::HashMap;
-
-use cgmath::{point2, vec2, Vector2};
-use framework::TypedBuffer;
 use wgpu::BindGroup;
 
-use crate::layers::{BitmapLayerConfiguration, LayerCreationInfo, LayerTree};
-
-use super::layers::{BitmapLayer, Layer, LayerIndex, RootLayer};
-
 pub struct Document<'framework> {
-    pub width: u32,
-    pub height: u32,
+    pub document_size: Vector2<u32>,
+    pub canvas_size: Vector2<u32>,
     pub layers: HashMap<LayerIndex, Layer<'framework>>,
     pub tree_root: RootLayer,
     pub final_layer: Layer<'framework>,

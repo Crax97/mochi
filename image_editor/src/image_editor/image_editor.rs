@@ -75,12 +75,12 @@ impl<'framework> ImageEditor<'framework> {
     ) -> Self {
         let test_width = 1800;
         let test_height = 1024;
-        let ceiled_width = ceil_to(test_width, wgpu::COPY_BYTES_PER_ROW_ALIGNMENT);
+        let row_aligned_width = ceil_to(test_width, wgpu::COPY_BYTES_PER_ROW_ALIGNMENT);
         let final_layer = BitmapLayer::new(
             &framework,
             BitmapLayerConfiguration {
                 label: "Final Rendering Layer".to_owned(),
-                width: ceiled_width,
+                width: row_aligned_width,
                 height: test_height,
                 initial_background_color: [0.5, 0.5, 0.5, 1.0],
             },
@@ -89,7 +89,7 @@ impl<'framework> ImageEditor<'framework> {
             &framework,
             BitmapLayerConfiguration {
                 label: "ImageEditor Canvas".to_owned(),
-                width: ceiled_width,
+                width: row_aligned_width,
                 height: test_height,
                 initial_background_color: [0.5, 0.5, 0.5, 1.0],
             },
@@ -98,7 +98,7 @@ impl<'framework> ImageEditor<'framework> {
             &framework,
             BitmapLayerConfiguration {
                 label: "Layer 0".to_owned(),
-                width: ceiled_width,
+                width: row_aligned_width,
                 height: test_height,
                 initial_background_color: [1.0, 1.0, 1.0, 1.0],
             },
@@ -167,8 +167,8 @@ impl<'framework> ImageEditor<'framework> {
 
         final_layer.update();
         let test_document = Document {
-            width: ceiled_width,
-            height: test_height,
+            document_size: vec2(test_width, test_height),
+            canvas_size: vec2(row_aligned_width, test_height),
             layers: HashMap::from_iter(std::iter::once((
                 test_layer_index,
                 Layer::new_bitmap(
@@ -252,8 +252,8 @@ impl<'framework> ImageEditor<'framework> {
             &self.framework,
             BitmapLayerConfiguration {
                 label: layer_name.clone(),
-                width: self.document.width,
-                height: self.document.height,
+                width: self.document.canvas_size.x,
+                height: self.document.canvas_size.y,
                 initial_background_color: config.initial_color,
             },
         );
@@ -467,7 +467,15 @@ impl<'framework> ImageEditor<'framework> {
             bytes,
         )
         .expect("Invalid data from GPU!");
-        let image = image::DynamicImage::ImageRgba8(buffer).flipv();
+        let document_size = self.document().document_size;
+        let offset_x = document_size.x / 4;
+        // TODO: We shouldn't flip the image, but rather the images should be rendered correctly
+        let image = image::DynamicImage::ImageRgba8(buffer).flipv().crop(
+            offset_x,
+            0,
+            document_size.x,
+            document_size.y,
+        );
         image
     }
 
