@@ -4,7 +4,7 @@ use std::{
     rc::Rc,
 };
 
-use cgmath::point2;
+use cgmath::{point2, ElementWise};
 use framework::{render_pass::RenderPass, Framework, TypedBuffer, TypedBufferConfiguration};
 use scene::Camera2d;
 use wgpu::{
@@ -44,7 +44,7 @@ impl<'framework> ImageEditor<'framework> {
         assets: Rc<RefCell<AssetsLibrary>>,
         initial_window_bounds: &[f32; 2],
     ) -> Self {
-        let test_width = 1024;
+        let test_width = 1800;
         let test_height = 1024;
         let test_document = Document::new(
             DocumentCreationInfo {
@@ -106,8 +106,8 @@ impl<'framework> ImageEditor<'framework> {
             &framework,
             BitmapLayerConfiguration {
                 label: "ImageEditor Canvas".to_owned(),
-                width: test_document.canvas_size().x,
-                height: test_height,
+                width: test_document.document_size().x,
+                height: test_document.document_size().y,
                 initial_background_color: [0.5, 0.5, 0.5, 1.0],
             },
         );
@@ -280,7 +280,9 @@ impl<'framework> ImageEditor<'framework> {
         )
         .expect("Invalid data from GPU!");
         let document_size = self.document().document_size();
-        let offset_x = document_size.x / 4;
+        let canvas_size = self.document.canvas_size();
+        let diff_x = canvas_size.x - document_size.x;
+        let offset_x = diff_x / 2;
         // TODO: We shouldn't flip the image, but rather the images should be rendered correctly
         let image = image::DynamicImage::ImageRgba8(buffer).flipv().crop(
             offset_x,
@@ -292,8 +294,12 @@ impl<'framework> ImageEditor<'framework> {
     }
 
     pub fn pan_camera(&mut self, delta: cgmath::Vector2<f32>) {
-        let delta = self.pan_camera.current_scale() * delta;
-        let half_outer_size = self.document.outer_size();
+        let half_outer_size = self
+            .document
+            .document_size()
+            .cast::<f32>()
+            .expect("Somehow this cast failed")
+            .mul_element_wise(1.5);
 
         let mut new_position = self.pan_camera.position() + delta;
         new_position.x = new_position.x.clamp(-half_outer_size.x, half_outer_size.x);

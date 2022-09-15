@@ -87,7 +87,7 @@ impl<'framework> Toolbox<'framework> {
         if input_state.is_mouse_button_just_pressed(MouseButton::Left) {
             self.brush_tool.on_pointer_click(
                 PointerClick {
-                    pointer_location: input_state.normalized_mouse_position(),
+                    pointer_location_normalized: input_state.normalized_mouse_position(),
                     pressure: input_state.current_pointer_pressure(),
                 },
                 EditorContext {
@@ -106,9 +106,11 @@ impl<'framework> Toolbox<'framework> {
         } else {
             self.brush_tool.on_pointer_move(
                 PointerMove {
-                    new_pointer_location: input_state.normalized_mouse_position(),
+                    new_pointer_location_normalized: input_state.normalized_mouse_position(),
                     delta_normalized: input_state.normalized_mouse_delta(),
                     pressure: input_state.current_pointer_pressure(),
+                    new_pointer_location: input_state.mouse_position(),
+                    delta: input_state.mouse_delta(),
                 },
                 EditorContext {
                     image_editor: &mut image_editor,
@@ -119,7 +121,7 @@ impl<'framework> Toolbox<'framework> {
         if input_state.is_mouse_button_just_pressed(MouseButton::Right) {
             self.hand_tool.on_pointer_click(
                 PointerClick {
-                    pointer_location: input_state.normalized_mouse_position(),
+                    pointer_location_normalized: input_state.normalized_mouse_position(),
                     pressure: input_state.current_pointer_pressure(),
                 },
                 EditorContext {
@@ -138,9 +140,11 @@ impl<'framework> Toolbox<'framework> {
         } else {
             self.hand_tool.on_pointer_move(
                 PointerMove {
-                    new_pointer_location: input_state.normalized_mouse_position(),
+                    new_pointer_location_normalized: input_state.normalized_mouse_position(),
                     delta_normalized: input_state.normalized_mouse_delta(),
                     pressure: input_state.current_pointer_pressure(),
+                    new_pointer_location: input_state.mouse_position(),
+                    delta: input_state.mouse_delta(),
                 },
                 EditorContext {
                     image_editor: &mut image_editor,

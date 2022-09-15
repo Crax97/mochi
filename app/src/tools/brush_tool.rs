@@ -44,7 +44,7 @@ impl<'framework> Tool for BrushTool<'framework> {
         self.is_active = true;
         self.last_mouse_position = BrushTool::reposition_point_for_draw(
             &context.image_editor,
-            pointer_click.pointer_location,
+            pointer_click.pointer_location_normalized,
         );
         self.last_pressure = pointer_click.pressure;
     }
@@ -56,7 +56,7 @@ impl<'framework> Tool for BrushTool<'framework> {
 
         let new_pointer_position = BrushTool::reposition_point_for_draw(
             context.image_editor,
-            pointer_motion.new_pointer_location,
+            pointer_motion.new_pointer_location_normalized,
         );
 
         let distance_from_last_point = self.last_mouse_position.distance(new_pointer_position);

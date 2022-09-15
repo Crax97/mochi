@@ -205,10 +205,6 @@ impl<'l> Document<'l> {
         }
     }
 
-    pub(crate) fn canvas_size(&self) -> Vector2<u32> {
-        self.canvas_size
-    }
-
     pub(crate) fn add_layer(
         &mut self,
         framework: &'l Framework,
@@ -323,6 +319,10 @@ impl<'l> Document<'l> {
 
     pub fn current_layer_index(&self) -> LayerIndex {
         self.current_layer_index
+    }
+
+    pub(crate) fn canvas_size(&self) -> Vector2<u32> {
+        self.canvas_size
     }
 
     pub fn for_each_layer<F: FnMut(&Layer, &LayerIndex)>(&self, mut f: F) {

@@ -122,8 +122,11 @@ impl InputState {
             .or_insert(state);
     }
 
-    pub(crate) fn mouse_position(&self) -> PhysicalPosition<f32> {
-        self.current_cursor_position
+    pub(crate) fn mouse_position(&self) -> Point2<f32> {
+        Point2 {
+            x: self.current_cursor_position.x,
+            y: self.current_cursor_position.y,
+        }
     }
     pub(crate) fn last_position(&self) -> PhysicalPosition<f32> {
         self.last_update_cursor_position

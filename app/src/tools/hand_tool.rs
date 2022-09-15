@@ -1,30 +1,21 @@
 use crate::tools::{EditorContext, PointerRelease};
-use cgmath::{point2, Point2};
+use cgmath::{num_traits::clamp, InnerSpace};
 
 use super::tool::Tool;
 
 pub struct HandTool {
-    last_frame_location: Point2<f32>,
     is_active: bool,
 }
 
 impl HandTool {
     pub fn new() -> Self {
-        Self {
-            last_frame_location: point2(0.0, 0.0),
-            is_active: false,
-        }
+        Self { is_active: false }
     }
 }
 
 impl Tool for HandTool {
-    fn on_pointer_click(
-        &mut self,
-        pointer_click: super::tool::PointerClick,
-        _context: EditorContext,
-    ) {
+    fn on_pointer_click(&mut self, _: super::tool::PointerClick, _: EditorContext) {
         self.is_active = true;
-        self.last_frame_location = pointer_click.pointer_location;
     }
 
     fn on_pointer_move(
@@ -35,12 +26,15 @@ impl Tool for HandTool {
         if !self.is_active {
             return;
         }
-        let scaled_movement = context
-            .image_editor
-            .camera()
-            .vec_ndc_into_world(pointer_motion.delta_normalized);
-        context.image_editor.pan_camera(scaled_movement);
-        self.last_frame_location = pointer_motion.new_pointer_location;
+        let mult = clamp(
+            1.0 / context.image_editor.camera().current_scale() * 0.5,
+            0.1,
+            0.2,
+        );
+        let delta = pointer_motion.delta * mult;
+        if delta.magnitude2() > 0.5 {
+            context.image_editor.pan_camera(delta);
+        }
     }
 
     fn on_pointer_release(&mut self, _pointer_release: PointerRelease, _context: EditorContext) {
