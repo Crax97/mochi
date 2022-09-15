@@ -1,13 +1,7 @@
-use std::borrow::Borrow;
-use std::cell::Ref;
-
 use cgmath::{Point2, Vector2};
-use framework::render_pass::{PassBindble, RenderPass};
+use framework::render_pass::RenderPass;
 use framework::{Framework, MeshInstance2D, TypedBuffer, TypedBufferConfiguration};
-use scene::Camera2d;
-use wgpu::{BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout};
-
-use framework::{asset_library::AssetsLibrary, mesh_names};
+use wgpu::{BindGroup, BindGroupDescriptor, BindGroupEntry};
 
 use super::layer_draw_pass::LayerDrawPass;
 use super::{bitmap_layer, BitmapLayer};
@@ -47,10 +41,9 @@ pub enum LayerType<'framework> {
     Bitmap(bitmap_layer::BitmapLayer<'framework>),
 }
 
-pub(crate) struct LayerDrawContext<'context, 'library, 'pass> {
+pub(crate) struct LayerDrawContext<'context, 'pass> {
     pub render_pass: wgpu::RenderPass<'pass>,
     pub draw_pass: &'context LayerDrawPass,
-    pub assets: Ref<'library, AssetsLibrary>,
 }
 
 impl<'framework> Layer<'framework> {
@@ -133,7 +126,7 @@ impl<'framework> Layer<'framework> {
     }
     pub(crate) fn draw<'context, 'library, 'pass, 'l>(
         &'l self,
-        draw_context: LayerDrawContext<'context, 'library, 'pass>,
+        draw_context: LayerDrawContext<'context, 'pass>,
     ) where
         'framework: 'pass,
         'l: 'pass,
@@ -166,12 +159,6 @@ impl<'framework> Layer<'framework> {
         self.settings_buffer.write_sync(&vec![ShaderLayerSettings {
             opacity: self.settings.opacity,
         }])
-    }
-
-    pub(crate) fn size(&self) -> Vector2<f32> {
-        match self.layer_type {
-            LayerType::Bitmap(ref bm) => bm.size(),
-        }
     }
 
     pub(crate) fn bind_group(&self) -> &BindGroup {

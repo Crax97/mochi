@@ -1,9 +1,8 @@
 use bytemuck::Zeroable;
-use egui::{Align2, Color32, FontDefinitions, InnerResponse, Label, Pos2, RichText, Sense, Vec2};
+use egui::{Align2, Color32, FontDefinitions, Label, RichText, Sense, Vec2};
 use egui_wgpu_backend::{RenderPass, ScreenDescriptor};
 use egui_winit_platform::PlatformDescriptor;
 use framework::Framework;
-use image::{ImageBuffer, Rgba};
 use image_editor::{
     layers::{LayerIndex, LayerSettings},
     LayerConstructionInfo,
@@ -54,7 +53,7 @@ impl EguiUI {
 impl EguiUI {
     fn brush_settings(&mut self, app_ctx: &mut UiContext, ui: &mut egui::Ui) -> bool {
         ui.label(egui::RichText::new("Brush").heading());
-        let mut event_handled = false;
+        let event_handled = false;
         let engine_config = app_ctx.toolbox.stamping_engine().settings();
         let mut new_config = engine_config.clone();
 
@@ -120,7 +119,6 @@ impl EguiUI {
         ui.separator();
         ui.label(egui::RichText::new("Layers").heading());
         let document = app_ctx.image_editor.document();
-        use image_editor::layers::LayerTree::*;
 
         let mut action = LayerAction::None;
 
@@ -143,7 +141,7 @@ impl EguiUI {
 
         let mut lay_layer_ui = |idx: &LayerIndex| {
             let original_settings = document.get_layer(idx).settings();
-            let color = if *idx == document.current_layer_index {
+            let color = if *idx == document.current_layer_index() {
                 Color32::LIGHT_BLUE
             } else {
                 Color32::WHITE
@@ -174,23 +172,15 @@ impl EguiUI {
                 action = LayerAction::SetLayerSettings(idx.clone(), settings);
             }
         };
-        for layer in document.tree_root.0.iter() {
-            match layer {
-                SingleLayer(idx) => {
-                    lay_layer_ui(idx);
-                }
-                Group(indices) => {
-                    for idx in indices.iter() {
-                        lay_layer_ui(idx);
-                    }
-                }
-            }
-        }
+
+        document.for_each_layer(|_, idx| {
+            lay_layer_ui(idx);
+        });
 
         (false, action)
     }
 
-    fn new_layer_dialog(&mut self, app_ctx: &mut UiContext) -> LayerAction {
+    fn new_layer_dialog(&mut self, _: &mut UiContext) -> LayerAction {
         let ctx = self.platform.context();
         let mut action = LayerAction::None;
         egui::Window::new("Create new layer")

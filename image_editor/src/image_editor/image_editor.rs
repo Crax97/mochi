@@ -1,41 +1,30 @@
 use std::{
-    cell::{Ref, RefCell, RefMut},
-    collections::HashMap,
+    cell::{Ref, RefCell},
     num::NonZeroU32,
     rc::Rc,
 };
 
-use cgmath::{num_traits::Num, point2, vec2, Point2, Vector2};
+use cgmath::point2;
 use framework::{render_pass::RenderPass, Framework, TypedBuffer, TypedBufferConfiguration};
 use scene::Camera2d;
 use wgpu::{
-    BindGroup, BindGroupDescriptor, BindGroupEntry, CommandBuffer, CommandEncoder,
-    CommandEncoderDescriptor, RenderPassColorAttachment, RenderPassDescriptor,
+    BindGroup, CommandBuffer, CommandEncoder, CommandEncoderDescriptor, RenderPassColorAttachment,
+    RenderPassDescriptor,
 };
 
-use framework::{asset_library::AssetsLibrary, pipeline_names};
+use framework::asset_library::AssetsLibrary;
 
-use crate::layers::{LayerDrawPass, ShaderLayerSettings};
+use crate::{document::DocumentCreationInfo, layers::LayerDrawPass};
 
 use super::{
     document::Document,
-    layers::{
-        BitmapLayer, BitmapLayerConfiguration, Layer, LayerCreationInfo, LayerDrawContext,
-        LayerIndex, LayerTree, RootLayer,
-    },
+    layers::{BitmapLayer, BitmapLayerConfiguration, Layer, LayerIndex},
 };
 
 #[derive(Default)]
 pub struct LayerConstructionInfo {
     pub initial_color: [f32; 4],
     pub name: String,
-}
-
-pub struct ImageBytes {
-    pub width: u32,
-    pub height: u32,
-    pub channels: u8,
-    pub bytes: Vec<u8>,
 }
 
 pub struct ImageEditor<'framework> {
@@ -47,63 +36,24 @@ pub struct ImageEditor<'framework> {
     layers_created: u16,
     layer_draw_pass: LayerDrawPass,
     canvas: BitmapLayer<'framework>,
-    settings_bind_group: BindGroup,
     camaera_bind_group: BindGroup,
 }
-
-pub fn ceil_to<N: Num + Copy + PartialOrd + From<u32>>(n: N, align_to: N) -> N
-where
-    u32: From<N>,
-{
-    let d = {
-        let m = n % align_to;
-        if m > N::from(0) {
-            (u32::from(n) / u32::from(align_to)) + 1
-        } else {
-            return n;
-        }
-    };
-
-    align_to * N::from(d)
-}
-
 impl<'framework> ImageEditor<'framework> {
     pub fn new(
         framework: &'framework Framework,
         assets: Rc<RefCell<AssetsLibrary>>,
         initial_window_bounds: &[f32; 2],
     ) -> Self {
-        let test_width = 1800;
+        let test_width = 1024;
         let test_height = 1024;
-        let row_aligned_width = ceil_to(test_width, wgpu::COPY_BYTES_PER_ROW_ALIGNMENT);
-        let final_layer = BitmapLayer::new(
-            &framework,
-            BitmapLayerConfiguration {
-                label: "Final Rendering Layer".to_owned(),
-                width: row_aligned_width,
+        let test_document = Document::new(
+            DocumentCreationInfo {
+                width: test_width,
                 height: test_height,
-                initial_background_color: [0.5, 0.5, 0.5, 1.0],
+                first_layer_color: [0.0, 0.0, 0.0, 1.0],
             },
+            framework,
         );
-        let canvas = BitmapLayer::new(
-            &framework,
-            BitmapLayerConfiguration {
-                label: "ImageEditor Canvas".to_owned(),
-                width: row_aligned_width,
-                height: test_height,
-                initial_background_color: [0.5, 0.5, 0.5, 1.0],
-            },
-        );
-        let test_layer = BitmapLayer::new(
-            &framework,
-            BitmapLayerConfiguration {
-                label: "Layer 0".to_owned(),
-                width: row_aligned_width,
-                height: test_height,
-                initial_background_color: [1.0, 1.0, 1.0, 1.0],
-            },
-        );
-
         let left_right_top_bottom = [
             -initial_window_bounds[0] * 0.5,
             initial_window_bounds[0] * 0.5,
@@ -112,80 +62,13 @@ impl<'framework> ImageEditor<'framework> {
         ];
         let mut pan_camera = Camera2d::new(-0.1, 1000.0, left_right_top_bottom, &framework);
         let initial_camera_scale = if initial_window_bounds[0] > initial_window_bounds[1] {
-            test_layer.size().x / initial_window_bounds[0]
+            test_document.outer_size().x / initial_window_bounds[0]
         } else {
-            test_layer.size().y / initial_window_bounds[1]
+            test_document.outer_size().y / initial_window_bounds[1]
         } * 1.5;
         println!("Initial scale: {initial_camera_scale}");
         pan_camera.set_scale(initial_camera_scale);
 
-        let test_layer_index = LayerIndex(0);
-        let mut final_layer = Layer::new_bitmap(
-            final_layer,
-            LayerCreationInfo {
-                name: "Test Layer".to_owned(),
-                position: point2(0.0, 0.0),
-                scale: vec2(1.0, 1.0),
-                rotation_radians: 0.0,
-            },
-            &framework,
-        );
-
-        let settings_buffer = framework.allocate_typed_buffer(TypedBufferConfiguration {
-            initial_setup: framework::typed_buffer::BufferInitialSetup::Data(&vec![
-                ShaderLayerSettings { opacity: 1.0 },
-            ]),
-            buffer_type: framework::BufferType::Uniform,
-            allow_write: true,
-            allow_read: false,
-        });
-
-        let settings_group_layout =
-            framework
-                .device
-                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    label: Some("Layer Draw Settings bind layout"),
-                    entries: &[wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Uniform,
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
-                    }],
-                });
-        let settings_bind_group = framework.device.create_bind_group(&BindGroupDescriptor {
-            label: Some("Layer Settings Bind Group"),
-            layout: &settings_group_layout,
-            entries: &[BindGroupEntry {
-                binding: 0,
-                resource: wgpu::BindingResource::Buffer(settings_buffer.binding_resource()),
-            }],
-        });
-
-        final_layer.update();
-        let test_document = Document {
-            document_size: vec2(test_width, test_height),
-            canvas_size: vec2(row_aligned_width, test_height),
-            layers: HashMap::from_iter(std::iter::once((
-                test_layer_index,
-                Layer::new_bitmap(
-                    test_layer,
-                    LayerCreationInfo {
-                        name: "Background Layer".to_owned(),
-                        position: point2(0.0, 0.0),
-                        scale: vec2(1.0, 1.0),
-                        rotation_radians: 0.0,
-                    },
-                    &framework,
-                ),
-            ))),
-            tree_root: RootLayer(vec![LayerTree::SingleLayer(test_layer_index)]),
-            final_layer,
-            current_layer_index: test_layer_index,
-        };
         let layer_draw_pass = LayerDrawPass::new(framework, assets.clone());
 
         let camera_bind_group_layout =
@@ -219,6 +102,15 @@ impl<'framework> ImageEditor<'framework> {
                     ),
                 }],
             });
+        let canvas = BitmapLayer::new(
+            &framework,
+            BitmapLayerConfiguration {
+                label: "ImageEditor Canvas".to_owned(),
+                width: test_document.canvas_size().x,
+                height: test_height,
+                initial_background_color: [0.5, 0.5, 0.5, 1.0],
+            },
+        );
         ImageEditor {
             framework,
             assets,
@@ -228,7 +120,6 @@ impl<'framework> ImageEditor<'framework> {
             layers_created: 0,
             layer_draw_pass,
             camaera_bind_group,
-            settings_bind_group,
         }
     }
 
@@ -247,31 +138,12 @@ impl<'framework> ImageEditor<'framework> {
     pub fn add_layer_to_document(&mut self, config: LayerConstructionInfo) {
         let layer_name = format!("Layer {}", self.layers_created);
         self.layers_created += 1;
-        let layer_index = LayerIndex(self.layers_created);
-        let new_layer = BitmapLayer::new(
-            &self.framework,
-            BitmapLayerConfiguration {
-                label: layer_name.clone(),
-                width: self.document.canvas_size.x,
-                height: self.document.canvas_size.y,
-                initial_background_color: config.initial_color,
-            },
-        );
-        let new_layer = Layer::new_bitmap(
-            new_layer,
-            LayerCreationInfo {
-                name: config.name,
-                position: point2(0.0, 0.0),
-                scale: vec2(1.0, 1.0),
-                rotation_radians: 0.0,
-            },
+        self.document.add_layer(
             self.framework,
+            layer_name,
+            LayerIndex(self.layers_created),
+            config,
         );
-        self.document.layers.insert(layer_index.clone(), new_layer);
-        self.document
-            .tree_root
-            .0
-            .push(LayerTree::SingleLayer(layer_index));
     }
 
     pub fn select_new_layer(&mut self, layer_idx: LayerIndex) {
@@ -287,9 +159,7 @@ impl<'framework> ImageEditor<'framework> {
     }
 
     pub fn update_layers(&mut self) {
-        for (_, layer) in self.document.layers.iter_mut() {
-            layer.update();
-        }
+        self.mutate_document().update_layers();
     }
 
     pub fn redraw_full_image(&mut self) -> CommandBuffer {
@@ -316,65 +186,7 @@ impl<'framework> ImageEditor<'framework> {
     }
 
     fn render_document(&mut self, encoder: &mut CommandEncoder) {
-        {
-            let render_pass_description = RenderPassDescriptor {
-                label: Some("ImageEditor Clear Final Image"),
-                color_attachments: &[Some(RenderPassColorAttachment {
-                    view: self.document.final_layer_texture_view(),
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.0,
-                            g: 0.0,
-                            b: 0.0,
-                            a: 1.0,
-                        }),
-                        store: true,
-                    },
-                })],
-                depth_stencil_attachment: None,
-            };
-            let _ = encoder.begin_render_pass(&render_pass_description);
-        }
-        let render_pass_description = RenderPassDescriptor {
-            label: Some("ImageEditor Redraw Image Pass"),
-            color_attachments: &[Some(RenderPassColorAttachment {
-                view: self.document.final_layer_texture_view(),
-                resolve_target: None,
-                ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Load,
-                    store: true,
-                },
-            })],
-            depth_stencil_attachment: None,
-        };
-        {
-            for layer_node in self.document.tree_root.0.iter() {
-                match layer_node {
-                    LayerTree::SingleLayer(index) => {
-                        let layer = self.document.layers.get(&index).expect("Nonexistent layer");
-                        let mut render_pass = encoder.begin_render_pass(&render_pass_description);
-                        self.layer_draw_pass.prepare(&mut render_pass);
-                        layer.draw(LayerDrawContext {
-                            render_pass,
-                            assets: self.assets.borrow(),
-                            draw_pass: &self.layer_draw_pass,
-                        });
-                    }
-                    LayerTree::Group(indices) => {
-                        for index in indices {
-                            let layer = self.document.layers.get(index).expect("Nonexistent layer");
-                            let render_pass = encoder.begin_render_pass(&render_pass_description);
-                            layer.draw(LayerDrawContext {
-                                render_pass,
-                                assets: self.assets.borrow(),
-                                draw_pass: &self.layer_draw_pass,
-                            });
-                        }
-                    }
-                };
-            }
-        }
+        self.document.render(encoder, &self.layer_draw_pass);
     }
 
     fn render_canvas(&mut self, command_encoder: &mut CommandEncoder) {
@@ -401,10 +213,10 @@ impl<'framework> ImageEditor<'framework> {
             self.layer_draw_pass.execute_with_renderpass(
                 render_pass,
                 &[
-                    (1, &self.document.final_layer.instance_buffer),
-                    (0, self.document.final_layer.bind_group()),
+                    (1, &self.document.final_layer().instance_buffer),
+                    (0, self.document.final_layer().bind_group()),
                     (1, &self.camaera_bind_group),
-                    (2, &self.settings_bind_group),
+                    (2, self.document().settings_bind_group()),
                 ],
             );
         }
@@ -415,7 +227,7 @@ impl<'framework> ImageEditor<'framework> {
     }
 
     pub fn get_full_image_bytes(&self) -> image::DynamicImage {
-        let final_image_size = self.document.final_layer.size();
+        let final_image_size = self.document.canvas_size();
         let bytes_per_row = final_image_size.x as u32 * 4;
         let final_image_bytes = bytes_per_row * final_image_size.y as u32;
         let mut encoder = self
@@ -467,7 +279,7 @@ impl<'framework> ImageEditor<'framework> {
             bytes,
         )
         .expect("Invalid data from GPU!");
-        let document_size = self.document().document_size;
+        let document_size = self.document().document_size();
         let offset_x = document_size.x / 4;
         // TODO: We shouldn't flip the image, but rather the images should be rendered correctly
         let image = image::DynamicImage::ImageRgba8(buffer).flipv().crop(

@@ -6,4 +6,3 @@ pub mod layers;
 pub use image_editor::ImageEditor;
 pub use image_editor::LayerConstructionInfo;
 pub use image_editor_event::ImageEditorEvent;
-use layers::LayerDrawPass;
