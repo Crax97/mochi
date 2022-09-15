@@ -7,14 +7,16 @@ use crate::{
     LayerConstructionInfo,
 };
 use cgmath::{num_traits::Num, point2, vec2, Vector2};
-use framework::{Framework, TypedBufferConfiguration};
-use std::{collections::HashMap, iter::FromIterator};
+use framework::{Framework, TypedBuffer, TypedBufferConfiguration};
+use image::DynamicImage;
+use std::{collections::HashMap, iter::FromIterator, num::NonZeroU32};
 use wgpu::{
-    BindGroup, BindGroupDescriptor, BindGroupEntry, CommandEncoder, RenderPassColorAttachment,
-    RenderPassDescriptor,
+    BindGroup, BindGroupDescriptor, BindGroupEntry, CommandEncoder, CommandEncoderDescriptor,
+    RenderPassColorAttachment, RenderPassDescriptor,
 };
 
 pub struct Document<'framework> {
+    framework: &'framework Framework,
     document_size: Vector2<u32>,
     canvas_size: Vector2<u32>,
     layers: HashMap<LayerIndex, Layer<'framework>>,
@@ -23,6 +25,7 @@ pub struct Document<'framework> {
 
     current_layer_index: LayerIndex,
     settings_bind_group: BindGroup,
+    image_data: DynamicImage,
 }
 
 pub struct DocumentCreationInfo {
@@ -125,6 +128,7 @@ impl<'l> Document<'l> {
             }],
         });
         Self {
+            framework,
             document_size: vec2(config.width, config.height),
             canvas_size: vec2(row_aligned_width, config.height),
             current_layer_index: first_layer_index,
@@ -132,6 +136,7 @@ impl<'l> Document<'l> {
             layers: HashMap::from_iter(std::iter::once((first_layer_index, first_layer))),
             tree_root: RootLayer(vec![LayerTree::SingleLayer(first_layer_index)]),
             settings_bind_group,
+            image_data: DynamicImage::new_rgba32f(config.width, config.height),
         }
     }
 
@@ -305,6 +310,74 @@ impl<'l> Document<'l> {
         }
     }
 
+    pub fn update_cpu_image(&mut self) -> &DynamicImage {
+        let final_image_size = self.canvas_size();
+        let bytes_per_row = final_image_size.x as u32 * 4;
+        let final_image_bytes = bytes_per_row * final_image_size.y as u32;
+        let mut encoder = self
+            .framework
+            .device
+            .create_command_encoder(&CommandEncoderDescriptor {
+                label: Some("Fetch final texture"),
+            });
+        let final_buffer = TypedBuffer::new(
+            &self.framework,
+            TypedBufferConfiguration {
+                initial_setup: framework::typed_buffer::BufferInitialSetup::<u8>::Size(
+                    final_image_bytes as u64,
+                ),
+                buffer_type: framework::BufferType::Oneshot,
+                allow_write: true,
+                allow_read: true,
+            },
+        );
+        encoder.copy_texture_to_buffer(
+            wgpu::ImageCopyTexture {
+                texture: self.final_texture(),
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
+            },
+            wgpu::ImageCopyBuffer {
+                buffer: final_buffer.inner_buffer(),
+                layout: wgpu::ImageDataLayout {
+                    offset: 0,
+                    bytes_per_row: NonZeroU32::new(bytes_per_row),
+                    rows_per_image: NonZeroU32::new(final_image_size.y as u32),
+                },
+            },
+            wgpu::Extent3d {
+                width: final_image_size.x as u32,
+                height: final_image_size.y as u32,
+                depth_or_array_layers: 1,
+            },
+        );
+        self.framework
+            .queue
+            .submit(std::iter::once(encoder.finish()));
+        self.framework.device.poll(wgpu::Maintain::Wait);
+        let bytes = final_buffer.read_all_sync();
+        let buffer = image::ImageBuffer::<image::Rgba<u8>, _>::from_raw(
+            final_image_size.x as u32,
+            final_image_size.y as u32,
+            bytes,
+        )
+        .expect("Invalid data from GPU!");
+        let document_size = self.document_size();
+        let canvas_size = self.canvas_size();
+        let diff_x = canvas_size.x - document_size.x;
+        let offset_x = diff_x / 2;
+        // TODO: We shouldn't flip the image, but rather the images should be rendered correctly
+        let image = image::DynamicImage::ImageRgba8(buffer).flipv().crop(
+            offset_x,
+            0,
+            document_size.x,
+            document_size.y,
+        );
+        self.image_data = image;
+        &self.image_data
+    }
+
     pub fn final_layer(&self) -> &Layer {
         &self.final_layer
     }
@@ -323,6 +396,10 @@ impl<'l> Document<'l> {
 
     pub(crate) fn canvas_size(&self) -> Vector2<u32> {
         self.canvas_size
+    }
+
+    pub fn image_bytes(&self) -> &DynamicImage {
+        &self.image_data
     }
 
     pub fn for_each_layer<F: FnMut(&Layer, &LayerIndex)>(&self, mut f: F) {

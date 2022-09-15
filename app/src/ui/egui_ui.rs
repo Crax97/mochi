@@ -54,7 +54,8 @@ impl EguiUI {
     fn brush_settings(&mut self, app_ctx: &mut UiContext, ui: &mut egui::Ui) -> bool {
         ui.label(egui::RichText::new("Brush").heading());
         let event_handled = false;
-        let engine_config = app_ctx.toolbox.stamping_engine().settings();
+        let mut stamping_engine = app_ctx.stamping_engine.borrow_mut();
+        let engine_config = stamping_engine.settings();
         let mut new_config = engine_config.clone();
 
         ui.horizontal(|ui| {
@@ -72,33 +73,25 @@ impl EguiUI {
         });
 
         if new_config != engine_config {
-            app_ctx.toolbox.update_stamping_engine_data(new_config);
+            stamping_engine.set_new_settings(new_config);
         }
 
+        let mut brush_tool = app_ctx.brush_tool.borrow_mut();
         ui.separator();
         ui.label("Brush tool settings");
         ui.horizontal(|ui| {
-            let max = app_ctx.toolbox.brush_tool.max_size;
+            let max = brush_tool.max_size;
             ui.label("Min brush size");
-            ui.add(
-                egui::DragValue::new(&mut app_ctx.toolbox.brush_tool.min_size)
-                    .clamp_range(1.0..=max),
-            );
+            ui.add(egui::DragValue::new(&mut brush_tool.min_size).clamp_range(1.0..=max));
         });
         ui.horizontal(|ui| {
-            let min = app_ctx.toolbox.brush_tool.min_size;
+            let min = brush_tool.min_size;
             ui.label("Max brush size");
-            ui.add(
-                egui::DragValue::new(&mut app_ctx.toolbox.brush_tool.max_size)
-                    .clamp_range(min..=1000.0),
-            );
+            ui.add(egui::DragValue::new(&mut brush_tool.max_size).clamp_range(min..=1000.0));
         });
         ui.horizontal(|ui| {
             ui.label("Step");
-            ui.add(
-                egui::DragValue::new(&mut app_ctx.toolbox.brush_tool.step)
-                    .clamp_range(1.0..=1000.0),
-            );
+            ui.add(egui::DragValue::new(&mut brush_tool.step).clamp_range(1.0..=1000.0));
         });
 
         if ui.button("save test").clicked() {

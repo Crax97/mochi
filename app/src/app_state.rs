@@ -18,6 +18,7 @@ use crate::final_present_pass::FinalRenderPass;
 use crate::input_state::InputState;
 use crate::toolbox::Toolbox;
 use crate::tools::brush_engine::stamping_engine::StrokingEngine;
+use crate::tools::{BrushTool, HandTool};
 use crate::ui::{self, Ui, UiContext};
 
 pub struct ImageApplication<'framework> {
@@ -31,6 +32,10 @@ pub struct ImageApplication<'framework> {
     toolbox: Toolbox<'framework>,
     ui: Box<dyn Ui>,
     final_pass: FinalRenderPass<'framework>,
+
+    stamping_engine: Rc<RefCell<StrokingEngine<'framework>>>,
+    brush_tool: Rc<RefCell<BrushTool<'framework>>>,
+    hand_tool: Rc<RefCell<HandTool>>,
 }
 impl<'framework> ImageApplication<'framework> {
     pub(crate) fn new(window: Window, framework: &'framework Framework) -> Self {
@@ -58,8 +63,11 @@ impl<'framework> ImageApplication<'framework> {
         let test_stamp = Toolbox::create_test_stamp(image_editor.camera().buffer(), framework);
         let stamping_engine = StrokingEngine::new(test_stamp, framework, assets.clone());
         let stamping_engine = Rc::new(RefCell::new(stamping_engine));
+        let brush_tool = Rc::new(RefCell::new(BrushTool::new(stamping_engine.clone(), 1.0)));
+        let hand_tool = Rc::new(RefCell::new(HandTool::new()));
 
-        let toolbox = Toolbox::new(framework, stamping_engine.clone());
+        let (toolbox, brush_id, hand_id) =
+            Toolbox::new(framework, brush_tool.clone(), hand_tool.clone());
         let ui = ui::create_ui(&framework, &final_surface_configuration, &window);
         Self {
             window,
@@ -72,6 +80,10 @@ impl<'framework> ImageApplication<'framework> {
             toolbox,
             ui: Box::new(ui),
             final_pass: final_present_pass,
+
+            stamping_engine,
+            brush_tool,
+            hand_tool,
         }
     }
 
@@ -138,9 +150,10 @@ impl<'framework> ImageApplication<'framework> {
                     image_editor: &mut self.image_editor,
                     toolbox: &mut self.toolbox,
                     input_state: &self.input_state,
+                    stamping_engine: self.stamping_engine.clone(),
+                    brush_tool: self.brush_tool.clone(),
                 };
                 let ui_handled_event = self.ui.do_ui(ui_ctx);
-                self.toolbox.set_enabled(!ui_handled_event);
 
                 self.image_editor.update_layers();
 

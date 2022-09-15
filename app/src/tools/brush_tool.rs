@@ -104,6 +104,6 @@ impl<'framework> Tool for BrushTool<'framework> {
         _pointer_release: crate::PointerRelease,
         _context: EditorContext,
     ) {
-        self.is_active = false
+        self.is_active = false;
     }
 }

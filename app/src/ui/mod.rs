@@ -1,9 +1,15 @@
+use std::{cell::RefCell, rc::Rc};
+
 use framework::Framework;
 use image_editor::ImageEditor;
 use wgpu::{CommandBuffer, SurfaceConfiguration, TextureView};
 use winit::window::Window;
 
-use crate::{input_state::InputState, toolbox::Toolbox};
+use crate::{
+    input_state::InputState,
+    toolbox::Toolbox,
+    tools::{brush_engine::stamping_engine::StrokingEngine, BrushTool},
+};
 
 mod egui_ui;
 
@@ -11,6 +17,9 @@ pub struct UiContext<'app, 'framework> {
     pub image_editor: &'app mut ImageEditor<'framework>,
     pub toolbox: &'app mut Toolbox<'framework>,
     pub input_state: &'app InputState,
+
+    pub stamping_engine: Rc<RefCell<StrokingEngine<'framework>>>,
+    pub brush_tool: Rc<RefCell<BrushTool<'framework>>>,
 }
 
 pub trait Ui {

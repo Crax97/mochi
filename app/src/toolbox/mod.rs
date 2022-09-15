@@ -1,15 +1,13 @@
 use std::{
-    cell::{Ref, RefCell},
+    cell::{RefCell, RefMut},
+    collections::HashMap,
     rc::Rc,
 };
 
+use crate::stamping_engine::{Stamp, StampCreationInfo};
 use crate::{
     input_state::InputState,
-    tools::{EditorContext, HandTool, PointerClick, PointerMove, PointerRelease, Tool},
-};
-use crate::{
-    stamping_engine::{Stamp, StampConfiguration, StampCreationInfo, StrokingEngine},
-    tools::{brush_engine::BrushEngine, BrushTool},
+    tools::{EditorContext, PointerClick, PointerMove, PointerRelease, Tool},
 };
 use cgmath::point2;
 use framework::{Debug, Framework, TypedBuffer};
@@ -19,38 +17,31 @@ use image_editor::{
 };
 use winit::event::MouseButton;
 
+#[derive(Clone, Copy, Hash, Eq, PartialEq)]
+pub struct ToolId(usize);
+
 pub struct Toolbox<'framework> {
-    tools: Vec<Box<dyn Tool>>,
-    brush_engines: Vec<Rc<RefCell<Box<dyn BrushEngine>>>>,
+    tools: HashMap<ToolId, Rc<RefCell<dyn Tool + 'framework>>>,
     framework: &'framework Framework,
-    pub brush_tool: BrushTool<'framework>,
-    hand_tool: HandTool,
-    stamping_engine: Rc<RefCell<StrokingEngine<'framework>>>,
-    enabled: bool,
+    primary_tool: Rc<RefCell<dyn Tool + 'framework>>,
+    secondary_tool: Rc<RefCell<dyn Tool + 'framework>>,
 }
 
 impl<'framework> Toolbox<'framework> {
     pub fn new(
         framework: &'framework Framework,
-        stamping_engine: Rc<RefCell<StrokingEngine<'framework>>>,
-    ) -> Self {
-        Self {
-            tools: vec![],
-            brush_engines: vec![],
+        primary_tool: Rc<RefCell<dyn Tool + 'framework>>,
+        secondary_tool: Rc<RefCell<dyn Tool + 'framework>>,
+    ) -> (Self, ToolId, ToolId) {
+        let mut new_toolbox = Self {
+            tools: HashMap::new(),
             framework,
-            brush_tool: BrushTool::new(stamping_engine.clone(), 1.0),
-            hand_tool: HandTool::new(),
-            stamping_engine,
-            enabled: true,
-        }
-    }
-
-    pub fn stamping_engine(&self) -> Ref<StrokingEngine> {
-        self.stamping_engine.borrow()
-    }
-
-    pub fn update_stamping_engine_data(&mut self, new_data: StampConfiguration) {
-        self.stamping_engine.borrow_mut().set_new_settings(new_data);
+            primary_tool: primary_tool.clone(),
+            secondary_tool: secondary_tool.clone(),
+        };
+        let primary_id = new_toolbox.add_tool(primary_tool);
+        let secondary_id = new_toolbox.add_tool(secondary_tool);
+        (new_toolbox, primary_id, secondary_id)
     }
 
     pub fn create_test_stamp(
@@ -75,17 +66,35 @@ impl<'framework> Toolbox<'framework> {
             StampCreationInfo { camera_buffer },
         )
     }
+
+    pub fn add_tool(&mut self, new_tool: Rc<RefCell<dyn Tool + 'framework>>) -> ToolId {
+        let id = self.tools.len();
+        let id = ToolId(id);
+        self.tools.insert(id, new_tool);
+        id
+    }
+
+    // Panics if id is not a valid index
+    pub fn get_tool(&self, id: &ToolId) -> RefMut<dyn Tool + 'framework> {
+        self.tools.get(id).expect("Not a valid id!").borrow_mut()
+    }
+
+    pub fn primary_tool(&self) -> RefMut<dyn Tool + 'framework> {
+        self.primary_tool.borrow_mut()
+    }
+
+    pub fn secondary_tool(&self) -> RefMut<dyn Tool + 'framework> {
+        self.secondary_tool.borrow_mut()
+    }
+
     pub fn update(
         &mut self,
         input_state: &InputState,
         mut image_editor: &mut ImageEditor,
         debug: Rc<RefCell<Debug>>,
     ) {
-        if !self.enabled {
-            return;
-        }
         if input_state.is_mouse_button_just_pressed(MouseButton::Left) {
-            self.brush_tool.on_pointer_click(
+            self.primary_tool().on_pointer_click(
                 PointerClick {
                     pointer_location_normalized: input_state.normalized_mouse_position(),
                     pressure: input_state.current_pointer_pressure(),
@@ -96,7 +105,7 @@ impl<'framework> Toolbox<'framework> {
                 },
             );
         } else if input_state.is_mouse_button_just_released(MouseButton::Left) {
-            self.brush_tool.on_pointer_release(
+            self.primary_tool().on_pointer_release(
                 PointerRelease {},
                 EditorContext {
                     image_editor: &mut image_editor,
@@ -104,7 +113,7 @@ impl<'framework> Toolbox<'framework> {
                 },
             );
         } else {
-            self.brush_tool.on_pointer_move(
+            self.primary_tool().on_pointer_move(
                 PointerMove {
                     new_pointer_location_normalized: input_state.normalized_mouse_position(),
                     delta_normalized: input_state.normalized_mouse_delta(),
@@ -119,7 +128,7 @@ impl<'framework> Toolbox<'framework> {
             );
         }
         if input_state.is_mouse_button_just_pressed(MouseButton::Right) {
-            self.hand_tool.on_pointer_click(
+            self.secondary_tool().on_pointer_click(
                 PointerClick {
                     pointer_location_normalized: input_state.normalized_mouse_position(),
                     pressure: input_state.current_pointer_pressure(),
@@ -130,7 +139,7 @@ impl<'framework> Toolbox<'framework> {
                 },
             );
         } else if input_state.is_mouse_button_just_released(MouseButton::Right) {
-            self.hand_tool.on_pointer_release(
+            self.secondary_tool().on_pointer_release(
                 PointerRelease {},
                 EditorContext {
                     image_editor: &mut image_editor,
@@ -138,7 +147,7 @@ impl<'framework> Toolbox<'framework> {
                 },
             );
         } else {
-            self.hand_tool.on_pointer_move(
+            self.secondary_tool().on_pointer_move(
                 PointerMove {
                     new_pointer_location_normalized: input_state.normalized_mouse_position(),
                     delta_normalized: input_state.normalized_mouse_delta(),
@@ -158,9 +167,5 @@ impl<'framework> Toolbox<'framework> {
         if input_state.mouse_wheel_delta().abs() > 0.0 {
             image_editor.scale_view(input_state.mouse_wheel_delta());
         }
-    }
-
-    pub(crate) fn set_enabled(&mut self, toolbox_enabled: bool) {
-        self.enabled = toolbox_enabled;
     }
 }
