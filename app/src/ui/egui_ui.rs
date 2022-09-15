@@ -103,14 +103,10 @@ impl EguiUI {
         });
 
         if ui.button("save test").clicked() {
-            let bytes = app_ctx.image_editor.get_full_image_bytes();
-            if let Some(buffer) =
-                ImageBuffer::<Rgba<u8>, _>::from_raw(bytes.width, bytes.height, bytes.bytes)
-            {
-                buffer
-                    .save("image.png")
-                    .unwrap_or_else(|_| println!("Failed to write img"));
-            }
+            let image = app_ctx.image_editor.get_full_image_bytes();
+            if let Err(e) = image.save("image.png") {
+                log::error!("While saving image: {e}");
+            };
         }
 
         event_handled

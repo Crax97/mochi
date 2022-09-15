@@ -33,7 +33,7 @@ impl<'framework> Toolbox<'framework> {
             tools: vec![],
             brush_engines: vec![],
             framework,
-            brush_tool: BrushTool::new(stamping_engine.clone(), 5.0),
+            brush_tool: BrushTool::new(stamping_engine.clone(), 1.0),
             hand_tool: HandTool::new(),
             stamping_engine,
             enabled: true,

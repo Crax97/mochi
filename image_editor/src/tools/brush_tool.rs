@@ -29,7 +29,7 @@ impl<'framework> BrushTool<'framework> {
             last_mouse_position: point2(0.0, 0.0),
             last_pressure: 0.0,
             min_size: 5.0,
-            max_size: 6.0,
+            max_size: 8.0,
         }
     }
 

@@ -414,7 +414,7 @@ impl<'framework> ImageEditor<'framework> {
         &self.canvas
     }
 
-    pub fn get_full_image_bytes(&self) -> ImageBytes {
+    pub fn get_full_image_bytes(&self) -> image::DynamicImage {
         let final_image_size = self.document.final_layer.size();
         let bytes_per_row = final_image_size.x as u32 * 4;
         let final_image_bytes = bytes_per_row * final_image_size.y as u32;
@@ -460,14 +460,15 @@ impl<'framework> ImageEditor<'framework> {
             .queue
             .submit(std::iter::once(encoder.finish()));
         self.framework.device.poll(wgpu::Maintain::Wait);
-
         let bytes = final_buffer.read_all_sync();
-        ImageBytes {
-            width: final_image_size.x as u32,
-            height: final_image_size.y as u32,
-            channels: 4,
+        let buffer = image::ImageBuffer::<image::Rgba<u8>, _>::from_raw(
+            final_image_size.x as u32,
+            final_image_size.y as u32,
             bytes,
-        }
+        )
+        .expect("Invalid data from GPU!");
+        let image = image::DynamicImage::ImageRgba8(buffer).flipv();
+        image
     }
 
     pub(crate) fn pan_camera(&mut self, delta: cgmath::Vector2<f32>) {
