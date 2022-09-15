@@ -3,15 +3,20 @@ use std::{
     rc::Rc,
 };
 
-use crate::input_state::InputState;
+use crate::{
+    input_state::InputState,
+    tools::{EditorContext, HandTool, PointerClick, PointerMove, PointerRelease, Tool},
+};
+use crate::{
+    stamping_engine::{Stamp, StampConfiguration, StampCreationInfo, StrokingEngine},
+    tools::{brush_engine::BrushEngine, BrushTool},
+};
 use cgmath::point2;
 use framework::{Debug, Framework, TypedBuffer};
 use image_editor::{
     layers::{BitmapLayer, BitmapLayerConfiguration},
-    stamping_engine::{Stamp, StampConfiguration, StampCreationInfo, StrokingEngine},
-    BrushTool, EditorContext, HandTool, ImageEditor, PointerClick, PointerMove, PointerRelease,
+    ImageEditor,
 };
-use image_editor::{BrushEngine, Tool};
 use winit::event::MouseButton;
 
 pub struct Toolbox<'framework> {

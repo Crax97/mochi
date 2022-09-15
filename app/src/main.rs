@@ -2,11 +2,13 @@ mod app_state;
 mod final_present_pass;
 mod input_state;
 mod toolbox;
+pub mod tools;
 mod ui;
 
 use app_state::ImageApplication;
 use framework::Framework;
 use lazy_static::lazy_static;
+use tools::*;
 
 use winit::dpi::PhysicalSize;
 

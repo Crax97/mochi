@@ -479,7 +479,7 @@ impl<'framework> ImageEditor<'framework> {
         image
     }
 
-    pub(crate) fn pan_camera(&mut self, delta: cgmath::Vector2<f32>) {
+    pub fn pan_camera(&mut self, delta: cgmath::Vector2<f32>) {
         let delta = self.pan_camera.current_scale() * delta;
         let half_outer_size = self.document.outer_size();
 
@@ -494,11 +494,11 @@ impl<'framework> ImageEditor<'framework> {
         self.pan_camera.scale(delta * SCALE_SPEED);
     }
 
-    pub(crate) fn selected_layer(&self) -> &Layer {
+    pub fn selected_layer(&self) -> &Layer {
         self.document.current_layer()
     }
 
-    pub(crate) fn assets(&self) -> Ref<AssetsLibrary> {
+    pub fn assets(&self) -> Ref<AssetsLibrary> {
         self.assets.borrow()
     }
 

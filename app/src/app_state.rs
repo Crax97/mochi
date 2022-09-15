@@ -3,7 +3,6 @@ use std::{cell::RefCell, rc::Rc};
 use framework::render_pass::RenderPass;
 use framework::AssetsLibrary;
 use framework::{Debug, Framework};
-use image_editor::stamping_engine::StrokingEngine;
 use image_editor::ImageEditor;
 use log::info;
 use wgpu::{
@@ -18,6 +17,7 @@ use winit::window::Window;
 use crate::final_present_pass::FinalRenderPass;
 use crate::input_state::InputState;
 use crate::toolbox::Toolbox;
+use crate::tools::brush_engine::stamping_engine::StrokingEngine;
 use crate::ui::{self, Ui, UiContext};
 
 pub struct ImageApplication<'framework> {

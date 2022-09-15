@@ -225,7 +225,7 @@ impl<'framework> BitmapLayer<'framework> {
         }
     }
 
-    pub(crate) fn camera_bind_group(&self) -> &BindGroup {
+    pub fn camera_bind_group(&self) -> &BindGroup {
         &self.camaera_bind_group
     }
 }
