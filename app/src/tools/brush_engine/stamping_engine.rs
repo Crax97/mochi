@@ -79,7 +79,8 @@ impl<'framework> Stamp<'framework> {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct StampConfiguration {
-    pub color_srgb: [u8; 4],
+    pub color_srgb: [u8; 3],
+    pub opacity: u8,
     pub flow: f32,
     pub softness: f32,
     pub padding: [f32; 3],
@@ -101,7 +102,7 @@ impl From<StampConfiguration> for StampUniformData {
             cfg.color_srgb[0] as f32 / 255.0,
             cfg.color_srgb[1] as f32 / 255.0,
             cfg.color_srgb[2] as f32 / 255.0,
-            cfg.color_srgb[3] as f32 / 255.0,
+            cfg.opacity as f32 / 255.0,
         ];
         Self {
             color,

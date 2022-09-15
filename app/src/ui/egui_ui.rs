@@ -63,7 +63,14 @@ impl EguiUI {
 
         ui.horizontal(|ui| {
             ui.label("Brush color");
-            ui.color_edit_button_srgba_premultiplied(&mut new_config.color_srgb);
+            ui.color_edit_button_srgb(&mut new_config.color_srgb);
+        });
+        ui.horizontal(|ui| {
+            ui.label("Brush opacity");
+            ui.add(
+                egui::Slider::new(&mut new_config.opacity, 0..=255)
+                    .custom_formatter(|n, _| format!("{:.2}", n / 255.0)),
+            );
         });
 
         ui.horizontal(|ui| {
