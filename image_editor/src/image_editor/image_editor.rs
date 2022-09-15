@@ -227,8 +227,7 @@ impl<'framework> ImageEditor<'framework> {
     }
 
     pub fn get_full_image_bytes(&mut self) -> &image::DynamicImage {
-        self.mutate_document().update_cpu_image();
-        self.document().image_bytes()
+        self.mutate_document().image_bytes()
     }
 
     pub fn pan_camera(&mut self, delta: cgmath::Vector2<f32>) {

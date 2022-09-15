@@ -26,6 +26,8 @@ pub struct Document<'framework> {
     current_layer_index: LayerIndex,
     settings_bind_group: BindGroup,
     image_data: DynamicImage,
+    needs_update: bool,
+    needs_cpu_update: bool,
 }
 
 pub struct DocumentCreationInfo {
@@ -137,6 +139,8 @@ impl<'l> Document<'l> {
             tree_root: RootLayer(vec![LayerTree::SingleLayer(first_layer_index)]),
             settings_bind_group,
             image_data: DynamicImage::new_rgba32f(config.width, config.height),
+            needs_update: true,
+            needs_cpu_update: true,
         }
     }
 
@@ -241,6 +245,9 @@ impl<'l> Document<'l> {
     }
 
     pub(crate) fn update_layers(&mut self) {
+        if !self.needs_update {
+            return;
+        }
         for (_, layer) in self.layers.iter_mut() {
             layer.update();
         }
@@ -251,6 +258,10 @@ impl<'l> Document<'l> {
         encoder: &mut CommandEncoder,
         layer_draw_pass: &crate::layers::LayerDrawPass,
     ) {
+        if !self.needs_update {
+            return;
+        }
+        self.needs_update = false;
         {
             {
                 let render_pass_description = RenderPassDescriptor {
@@ -310,7 +321,8 @@ impl<'l> Document<'l> {
         }
     }
 
-    pub fn update_cpu_image(&mut self) -> &DynamicImage {
+    fn update_cpu_image(&mut self) -> &DynamicImage {
+        self.needs_cpu_update = false;
         let final_image_size = self.canvas_size();
         let bytes_per_row = final_image_size.x as u32 * 4;
         let final_image_bytes = bytes_per_row * final_image_size.y as u32;
@@ -378,6 +390,11 @@ impl<'l> Document<'l> {
         &self.image_data
     }
 
+    pub fn mark_dirty(&mut self) {
+        self.needs_update = true;
+        self.needs_cpu_update = true;
+    }
+
     pub fn final_layer(&self) -> &Layer {
         &self.final_layer
     }
@@ -398,7 +415,10 @@ impl<'l> Document<'l> {
         self.canvas_size
     }
 
-    pub fn image_bytes(&self) -> &DynamicImage {
+    pub fn image_bytes(&mut self) -> &DynamicImage {
+        if self.needs_cpu_update {
+            self.update_cpu_image();
+        }
         &self.image_data
     }
 
