@@ -32,7 +32,7 @@ impl<'framework> StampingEngineRenderPass<'framework> {
             },
         );
         let initial_setup = StampConfiguration {
-            color: [0.0, 0.0, 0.0, 1.0],
+            color_srgb: [0, 0, 0, 255],
             flow: 1.0,
             softness: 0.2,
             padding: [1.0, 1.0, 1.0],

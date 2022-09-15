@@ -110,4 +110,7 @@ impl<'framework> Tool for BrushTool<'framework> {
     ) {
         self.is_active = false;
     }
+    fn name(&self) -> &'static str {
+        "Brush tool"
+    }
 }

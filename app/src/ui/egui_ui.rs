@@ -11,6 +11,8 @@ use log::warn;
 use wgpu::{CommandBuffer, SurfaceConfiguration, TextureView};
 use winit::window::Window;
 
+use crate::toolbox::ToolId;
+
 use super::{Ui, UiContext};
 
 enum LayerAction {
@@ -20,6 +22,7 @@ enum LayerAction {
     DeleteLayer(LayerIndex),
     SelectLayer(LayerIndex),
     SetLayerSettings(LayerIndex, LayerSettings),
+    SelectNewTool(ToolId),
     None,
 }
 
@@ -60,7 +63,7 @@ impl EguiUI {
 
         ui.horizontal(|ui| {
             ui.label("Brush color");
-            ui.color_edit_button_rgba_premultiplied(&mut new_config.color);
+            ui.color_edit_button_srgba_premultiplied(&mut new_config.color_srgb);
         });
 
         ui.horizontal(|ui| {
@@ -210,52 +213,53 @@ impl Ui for EguiUI {
         self.platform.handle_event(&event);
     }
     fn do_ui(&mut self, mut app_ctx: UiContext) -> bool {
+        let mut layer_action = LayerAction::None;
         if self.new_layer_in_creation.is_some() {
-            let action = self.new_layer_dialog(&mut app_ctx);
-            match action {
-                LayerAction::NewLayerRequest => {
-                    self.new_layer_in_creation = Some(LayerConstructionInfo::default());
-                    return true;
-                }
-                LayerAction::CancelNewLayerRequest => {
-                    self.new_layer_in_creation = None;
-                    return false;
-                }
-                LayerAction::CreateNewLayer => {
-                    app_ctx
-                        .image_editor
-                        .add_layer_to_document(self.new_layer_in_creation.take().unwrap());
-                    return true;
-                }
-                _ => {
-                    return false;
-                }
-            }
+            layer_action = self.new_layer_dialog(&mut app_ctx);
         } else {
             let ctx = self.platform.context();
-            let mut res = false;
             egui::Window::new("")
                 .anchor(Align2::LEFT_CENTER, Vec2::zeroed())
                 .show(&ctx, |ui| {
-                    res |= self.brush_settings(&mut app_ctx, ui);
-                    let (hover_layer, layer_action) = self.layer_settings(&mut app_ctx, ui);
-                    res |= hover_layer;
-
-                    match layer_action {
-                        LayerAction::NewLayerRequest => {
-                            self.new_layer_in_creation = Some(LayerConstructionInfo::default());
-                        }
-                        LayerAction::DeleteLayer(idx) => app_ctx.image_editor.delete_layer(idx),
-                        LayerAction::SelectLayer(idx) => app_ctx.image_editor.select_new_layer(idx),
-                        LayerAction::SetLayerSettings(idx, settings) => {
-                            let document = app_ctx.image_editor.mutate_document();
-                            document.get_layer_mut(&idx).set_settings(settings);
-                        }
-                        _ => {}
-                    };
+                    self.brush_settings(&mut app_ctx, ui);
+                    let (_, action) = self.layer_settings(&mut app_ctx, ui);
+                    layer_action = action;
                 });
-            res
-        }
+            egui::Window::new("Tools").show(&ctx, |ui| {
+                ui.horizontal(|ui| {
+                    app_ctx.toolbox.for_each_tool(|id, tool| {
+                        let button = egui::Button::new(tool.name());
+                        if ui.add(button).clicked() {
+                            layer_action = LayerAction::SelectNewTool(id.clone());
+                        }
+                    })
+                });
+            });
+        };
+        match layer_action {
+            LayerAction::NewLayerRequest => {
+                self.new_layer_in_creation = Some(LayerConstructionInfo::default());
+            }
+            LayerAction::CancelNewLayerRequest => {
+                self.new_layer_in_creation = None;
+            }
+            LayerAction::CreateNewLayer => {
+                app_ctx
+                    .image_editor
+                    .add_layer_to_document(self.new_layer_in_creation.take().unwrap());
+            }
+            LayerAction::DeleteLayer(idx) => app_ctx.image_editor.delete_layer(idx),
+            LayerAction::SelectLayer(idx) => app_ctx.image_editor.select_new_layer(idx),
+            LayerAction::SetLayerSettings(idx, settings) => {
+                let document = app_ctx.image_editor.mutate_document();
+                document.get_layer_mut(&idx).set_settings(settings);
+            }
+            LayerAction::SelectNewTool(new_tool_id) => {
+                app_ctx.toolbox.set_primary_tool(&new_tool_id);
+            }
+            LayerAction::None => {}
+        };
+        false
     }
     fn present(
         &mut self,

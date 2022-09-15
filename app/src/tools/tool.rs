@@ -27,6 +27,7 @@ pub struct PointerMove {
 pub struct PointerRelease {}
 
 pub trait Tool {
+    fn name(&self) -> &'static str;
     fn on_selected(&mut self, _context: EditorContext) {}
     fn on_deselected(&mut self, _context: EditorContext) {}
     fn on_pointer_click(&mut self, _pointer_click: PointerClick, _context: EditorContext) {}

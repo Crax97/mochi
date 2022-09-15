@@ -1,5 +1,5 @@
 use std::{
-    cell::{RefCell, RefMut},
+    cell::{Ref, RefCell, RefMut},
     collections::HashMap,
     rc::Rc,
 };
@@ -87,6 +87,12 @@ impl<'framework> Toolbox<'framework> {
         self.secondary_tool.borrow_mut()
     }
 
+    pub fn for_each_tool<F: FnMut(&ToolId, Ref<dyn Tool + 'framework>)>(&self, mut f: F) {
+        for (id, tool) in self.tools.iter() {
+            f(id, tool.borrow());
+        }
+    }
+
     pub fn update(
         &mut self,
         input_state: &InputState,
@@ -167,5 +173,13 @@ impl<'framework> Toolbox<'framework> {
         if input_state.mouse_wheel_delta().abs() > 0.0 {
             image_editor.scale_view(input_state.mouse_wheel_delta());
         }
+    }
+
+    pub(crate) fn set_primary_tool(&mut self, new_tool_id: &ToolId) {
+        self.primary_tool = self
+            .tools
+            .get(new_tool_id)
+            .expect("Non existent tool")
+            .clone();
     }
 }

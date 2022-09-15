@@ -79,7 +79,7 @@ impl<'framework> Stamp<'framework> {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct StampConfiguration {
-    pub color: [f32; 4],
+    pub color_srgb: [u8; 4],
     pub flow: f32,
     pub softness: f32,
     pub padding: [f32; 3],
@@ -97,8 +97,14 @@ pub struct StampUniformData {
 
 impl From<StampConfiguration> for StampUniformData {
     fn from(cfg: StampConfiguration) -> Self {
+        let color = [
+            cfg.color_srgb[0] as f32 / 255.0,
+            cfg.color_srgb[1] as f32 / 255.0,
+            cfg.color_srgb[2] as f32 / 255.0,
+            cfg.color_srgb[3] as f32 / 255.0,
+        ];
         Self {
-            color: cfg.color,
+            color,
             flow: cfg.flow,
             softness: cfg.softness,
             padding: cfg.padding,

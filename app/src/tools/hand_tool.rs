@@ -40,4 +40,7 @@ impl Tool for HandTool {
     fn on_pointer_release(&mut self, _pointer_release: PointerRelease, _context: EditorContext) {
         self.is_active = false;
     }
+    fn name(&self) -> &'static str {
+        "Hand tool"
+    }
 }

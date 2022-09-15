@@ -67,8 +67,9 @@ impl<'framework> ImageApplication<'framework> {
         let hand_tool = Rc::new(RefCell::new(HandTool::new()));
         let color_picker = Rc::new(RefCell::new(ColorPicker::new(stamping_engine.clone())));
 
-        let (toolbox, brush_id, hand_id) =
-            Toolbox::new(framework, brush_tool.clone(), color_picker);
+        let (mut toolbox, brush_id, hand_id) =
+            Toolbox::new(framework, brush_tool.clone(), hand_tool.clone());
+        toolbox.add_tool(color_picker.clone());
         let ui = ui::create_ui(&framework, &final_surface_configuration, &window);
         Self {
             window,
