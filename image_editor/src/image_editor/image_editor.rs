@@ -80,7 +80,7 @@ impl<'framework> ImageEditor<'framework> {
             &framework,
             BitmapLayerConfiguration {
                 label: "Final Rendering Layer".to_owned(),
-                width: test_width,
+                width: ceiled_width,
                 height: test_height,
                 initial_background_color: [0.5, 0.5, 0.5, 1.0],
             },
@@ -98,7 +98,7 @@ impl<'framework> ImageEditor<'framework> {
             &framework,
             BitmapLayerConfiguration {
                 label: "Layer 0".to_owned(),
-                width: test_width,
+                width: ceiled_width,
                 height: test_height,
                 initial_background_color: [1.0, 1.0, 1.0, 1.0],
             },
@@ -167,7 +167,7 @@ impl<'framework> ImageEditor<'framework> {
 
         final_layer.update();
         let test_document = Document {
-            width: test_width,
+            width: ceiled_width,
             height: test_height,
             layers: HashMap::from_iter(std::iter::once((
                 test_layer_index,
