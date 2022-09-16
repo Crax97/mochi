@@ -16,12 +16,13 @@ lazy_static="1.4.0"
 cgmath="0.18.0"
 rand="0.8.5"
 bytemuck="1.12.1"
-
-framework = { path = "../framework" }
-image_editor = { path = "../image_editor" }
 egui = "0.19.0"
 egui_wgpu_backend = "0.19.0"
 egui_winit_platform = "0.16.0"
+pix="0.13.2"
+
+framework = { path = "../framework" }
+image_editor = { path = "../image_editor" }
 
 [dependencies.image]
 version = "0.24"

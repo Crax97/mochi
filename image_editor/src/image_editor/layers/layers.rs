@@ -1,6 +1,7 @@
 use cgmath::{Point2, Vector2};
 use framework::{Framework, MeshInstance2D, TypedBuffer, TypedBufferConfiguration};
-use image::{ImageBuffer, Rgba};
+use image::{math::Rect, EncodableLayout, ImageBuffer, Rgba};
+use pix::{Raster, Region};
 use wgpu::{BindGroup, BindGroupDescriptor, BindGroupEntry};
 
 #[derive(Clone, PartialEq)]
@@ -38,7 +39,9 @@ pub enum LayerType {
     Bitmap(image::ImageBuffer<Rgba<u8>, Vec<u8>>),
 }
 
-pub(crate) struct LayerDrawContext {}
+pub(crate) struct LayerDrawContext<'buf> {
+    pub destination: &'buf mut ImageBuffer<Rgba<u8>, Vec<u8>>,
+}
 
 impl Layer {
     pub fn new_bitmap(creation_info: LayerCreationInfo) -> Self {
@@ -59,12 +62,35 @@ impl Layer {
         }
     }
     pub(crate) fn update(&mut self) {}
-    pub(crate) fn draw(&self, _: &mut LayerDrawContext) {
+    pub(crate) fn draw(&self, context: &mut LayerDrawContext) {
         if !self.settings.is_enabled {
             return;
         }
+
         match &self.layer_type {
-            LayerType::Bitmap(_) => {}
+            LayerType::Bitmap(buffer) => {
+                let raster_src = Raster::<pix::rgb::Rgba8>::with_u8_buffer(
+                    buffer.width(),
+                    buffer.height(),
+                    buffer.as_raw().as_bytes(),
+                );
+                let mut raster_dest = Raster::<pix::rgb::Rgba8>::with_u8_buffer(
+                    context.destination.width(),
+                    context.destination.height(),
+                    context.destination.as_raw().as_bytes(),
+                );
+
+                raster_dest.copy_raster(
+                    Region::new(
+                        0,
+                        0,
+                        context.destination.width(),
+                        context.destination.height(),
+                    ),
+                    &raster_src,
+                    Region::new(0, 0, buffer.width(), buffer.height()),
+                );
+            }
         }
     }
 

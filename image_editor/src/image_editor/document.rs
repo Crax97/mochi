@@ -160,16 +160,19 @@ impl Document {
     }
 
     pub(crate) fn render(&mut self) {
+        let mut context = LayerDrawContext {
+            destination: &mut self.final_render_result,
+        };
         for layer_node in self.tree_root.0.iter() {
             match layer_node {
                 LayerTree::SingleLayer(index) => {
                     let layer = self.layers.get(&index).expect("Nonexistent layer");
-                    layer.draw(&mut LayerDrawContext {});
+                    layer.draw(&mut context);
                 }
                 LayerTree::Group(indices) => {
                     for index in indices {
                         let layer = self.layers.get(index).expect("Nonexistent layer");
-                        layer.draw(&mut LayerDrawContext {});
+                        layer.draw(&mut context);
                     }
                 }
             };

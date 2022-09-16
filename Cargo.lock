@@ -87,6 +87,7 @@ dependencies = [
  "image_editor",
  "lazy_static",
  "log",
+ "pix",
  "pollster",
  "rand",
  "wgpu",
@@ -819,6 +820,7 @@ dependencies = [
  "framework",
  "image",
  "log",
+ "pix",
  "scene",
  "wgpu",
 ]
@@ -1242,6 +1244,12 @@ name = "percent-encoding"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d4fd5641d01c8f18a23da7b6fe29298ff4b55afcccdf78973b24cf3175fee32e"
+
+[[package]]
+name = "pix"
+version = "0.13.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0c2b6992b377680150280d4708bda8207ba9e71f70507b5504f2e28d8e8e48c1"
 
 [[package]]
 name = "pkg-config"

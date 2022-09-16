@@ -1,21 +1,21 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use cgmath::vec2;
 use framework::AssetsLibrary;
-use framework::{Framework, MeshInstance2D, TypedBuffer};
-use image::{ImageBuffer, Rgba};
-use wgpu::{RenderPassColorAttachment, RenderPassDescriptor};
+use image::{EncodableLayout, ImageBuffer, Rgba};
+use pix::{Raster, Region};
 
 use crate::{StrokeContext, StrokePath};
 
 use super::BrushEngine;
 
-pub struct Stamp {}
+pub struct Stamp {
+    brush_texture: ImageBuffer<Rgba<u8>, Vec<u8>>,
+}
 
 impl Stamp {
     pub fn new(brush_texture: ImageBuffer<Rgba<u8>, Vec<u8>>) -> Self {
-        Self {}
+        Self { brush_texture }
     }
 }
 
@@ -72,13 +72,33 @@ impl BrushEngine for StrokingEngine {
     fn stroke(&mut self, path: StrokePath, context: StrokeContext) {
         match context.layer.layer_type {
             image_editor::layers::LayerType::Bitmap(ref bitmap_layer) => {
-                // 1. Update buffer
-                let instances: Vec<MeshInstance2D> = path
-                    .points
-                    .iter()
-                    .map(|pt| MeshInstance2D::new(pt.position, vec2(pt.size, pt.size), 0.0))
-                    .collect();
-                // 2. Do draw
+                let raster_src = Raster::<pix::rgb::Rgba8>::with_u8_buffer(
+                    self.current_stamp().brush_texture.width(),
+                    self.current_stamp().brush_texture.height(),
+                    self.current_stamp().brush_texture.as_raw().as_bytes(),
+                );
+                let mut raster_dest = Raster::<pix::rgb::Rgba8>::with_u8_buffer(
+                    bitmap_layer.width(),
+                    bitmap_layer.height(),
+                    bitmap_layer.as_raw().as_bytes(),
+                );
+                for point in path.points {
+                    raster_dest.copy_raster(
+                        Region::new(
+                            point.position.x as i32,
+                            point.position.y as i32,
+                            self.current_stamp().brush_texture.width(),
+                            self.current_stamp().brush_texture.height(),
+                        ),
+                        &raster_src,
+                        Region::new(
+                            0,
+                            0,
+                            self.current_stamp().brush_texture.width(),
+                            self.current_stamp().brush_texture.height(),
+                        ),
+                    );
+                }
             }
         }
     }
