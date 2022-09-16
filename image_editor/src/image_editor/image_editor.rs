@@ -4,18 +4,21 @@ use std::{
     rc::Rc,
 };
 
-use cgmath::{point2, ElementWise};
-use framework::{render_pass::RenderPass, Framework, TypedBuffer, TypedBufferConfiguration};
+use cgmath::{point2, vec2, vec4, ElementWise};
+use framework::{
+    render_pass::RenderPass, texture2d::Texture2dConfiguration, Framework, MeshInstance2D,
+    Texture2d, TypedBuffer, TypedBufferConfiguration,
+};
 use image::Rgba;
 use scene::Camera2d;
 use wgpu::{
     BindGroup, CommandBuffer, CommandEncoder, CommandEncoderDescriptor, RenderPassColorAttachment,
-    RenderPassDescriptor,
+    RenderPassDescriptor, TextureView,
 };
 
 use framework::asset_library::AssetsLibrary;
 
-use crate::{document::DocumentCreationInfo, layers::LayerDrawPass};
+use crate::{document::DocumentCreationInfo, RenderToCanvasPass};
 
 use super::{
     document::Document,
@@ -35,9 +38,10 @@ pub struct ImageEditor<'framework> {
 
     document: Document,
     layers_created: u16,
-    layer_draw_pass: LayerDrawPass,
 
     camaera_bind_group: BindGroup,
+    canvas_instance_buffer: TypedBuffer<'framework>,
+    render_to_canvas_pass: RenderToCanvasPass,
 }
 impl<'framework> ImageEditor<'framework> {
     pub fn new(
@@ -47,11 +51,14 @@ impl<'framework> ImageEditor<'framework> {
     ) -> Self {
         let test_width = 1800;
         let test_height = 1024;
-        let test_document = Document::new(DocumentCreationInfo {
-            width: test_width,
-            height: test_height,
-            first_layer_color: [0.0, 0.0, 0.0, 1.0],
-        });
+        let test_document = Document::new(
+            DocumentCreationInfo {
+                width: test_width,
+                height: test_height,
+                first_layer_color: [0.0, 0.0, 0.0, 1.0],
+            },
+            framework,
+        );
         let left_right_top_bottom = [
             -initial_window_bounds[0] * 0.5,
             initial_window_bounds[0] * 0.5,
@@ -66,8 +73,6 @@ impl<'framework> ImageEditor<'framework> {
         } * 1.5;
         println!("Initial scale: {initial_camera_scale}");
         pan_camera.set_scale(initial_camera_scale);
-
-        let layer_draw_pass = LayerDrawPass::new(framework, assets.clone());
 
         let camera_bind_group_layout =
             framework
@@ -100,14 +105,32 @@ impl<'framework> ImageEditor<'framework> {
                     ),
                 }],
             });
+        let render_to_canvas_pass = RenderToCanvasPass::new(
+            framework,
+            wgpu::TextureFormat::Bgra8UnormSrgb,
+            assets.clone(),
+        );
+        let canvas_instance_buffer = framework.allocate_typed_buffer(TypedBufferConfiguration {
+            initial_setup: framework::typed_buffer::BufferInitialSetup::Data(&vec![
+                MeshInstance2D::new(
+                    point2(0.0, 0.0),
+                    vec2(test_width as f32, test_height as f32),
+                    0.0,
+                ),
+            ]),
+            buffer_type: framework::BufferType::Vertex,
+            allow_write: true,
+            allow_read: false,
+        });
         ImageEditor {
             framework,
             assets,
             pan_camera,
             document: test_document,
             layers_created: 0,
-            layer_draw_pass,
+            canvas_instance_buffer,
             camaera_bind_group,
+            render_to_canvas_pass,
         }
     }
 
@@ -148,14 +171,50 @@ impl<'framework> ImageEditor<'framework> {
 
     pub fn redraw_full_image(&mut self) {
         self.render_document();
-        self.render_canvas();
     }
 
     fn render_document(&mut self) {
         self.document.render();
     }
 
-    fn render_canvas(&mut self) {}
+    pub fn render_canvas(&mut self, target: &TextureView) {
+        let mut encoder =
+            self.framework
+                .device
+                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("Image to canvas render pass"),
+                });
+        let render_pass_description = RenderPassDescriptor {
+            label: Some("ImageEditor Canvas Pass"),
+            color_attachments: &[Some(RenderPassColorAttachment {
+                view: &target,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(wgpu::Color {
+                        r: 0.0,
+                        g: 0.0,
+                        b: 0.0,
+                        a: 1.0,
+                    }),
+                    store: true,
+                },
+            })],
+            depth_stencil_attachment: None,
+        };
+        self.document().update_gpu_data(&self.framework);
+        let render_pass = encoder.begin_render_pass(&render_pass_description);
+        self.render_to_canvas_pass.execute_with_renderpass(
+            render_pass,
+            &[
+                (1, &self.canvas_instance_buffer),
+                (0, self.document.texture_bind_group()),
+                (1, &self.camaera_bind_group),
+            ],
+        );
+        self.framework
+            .queue
+            .submit(std::iter::once(encoder.finish()));
+    }
 
     pub fn get_full_image_bytes(&mut self) -> &image::ImageBuffer<Rgba<u8>, Vec<u8>> {
         self.mutate_document().image_bytes()

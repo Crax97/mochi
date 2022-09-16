@@ -8,7 +8,6 @@ use app_state::ImageApplication;
 use framework::Framework;
 use lazy_static::lazy_static;
 use tools::*;
-
 use winit::dpi::PhysicalSize;
 
 lazy_static! {

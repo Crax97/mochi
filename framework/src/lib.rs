@@ -3,6 +3,7 @@ pub mod debug_utils;
 pub mod framework;
 pub mod mesh;
 pub mod render_pass;
+pub mod texture2d;
 pub mod typed_buffer;
 
 pub use asset_library::*;
@@ -16,4 +17,5 @@ pub use mesh::MeshConstructionDetails;
 pub use mesh::MeshInstance2D;
 pub use mesh::Vertex;
 pub use mesh::Vertices;
+pub use texture2d::Texture2d;
 pub use typed_buffer::{BufferType, TypedBuffer, TypedBufferConfiguration};

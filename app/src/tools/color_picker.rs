@@ -44,10 +44,12 @@ impl Tool for ColorPicker {
             .unwrap();
         let pixel_position = (position_into_canvas + half_document_size).cast::<u32>();
         if let Some(valid_position) = pixel_position {
-            let pixel = context
-                .image_editor
-                .get_full_image_bytes()
-                .get_pixel(valid_position.x, valid_position.y);
+            let image_buffer = context.image_editor.get_full_image_bytes();
+            if valid_position.x >= image_buffer.width() || valid_position.y >= image_buffer.height()
+            {
+                return;
+            }
+            let pixel = image_buffer.get_pixel(valid_position.x, valid_position.y);
             let mut engine = self.stamping_engine.borrow_mut();
             let mut settings = engine.settings();
             settings.color_srgb = [pixel.0[0], pixel.0[1], pixel.0[2]];

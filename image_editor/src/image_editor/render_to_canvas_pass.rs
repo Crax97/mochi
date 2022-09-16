@@ -1,47 +1,44 @@
 use std::{cell::RefCell, rc::Rc};
 
-use wgpu::{ColorTargetState, FragmentState, RenderPipeline, VertexState};
-
 use framework::{
     mesh_names,
-    render_pass::{PassBindble, RenderPass},
-    AssetsLibrary, Framework, Mesh, MeshInstance2D,
+    render_pass::{self, PassBindble},
+    AssetsLibrary, Framework, Mesh, MeshInstance2D, TypedBuffer, TypedBufferConfiguration,
+};
+use wgpu::{
+    BindGroup, ColorTargetState, FragmentState, RenderPipeline, SurfaceConfiguration, VertexState,
 };
 
-pub struct LayerDrawPass {
+#[repr(C)]
+#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+struct FinalPassUniform {
+    size: [f32; 2],
+}
+
+pub struct RenderToCanvasPass {
     pipeline: RenderPipeline,
     assets: Rc<RefCell<AssetsLibrary>>,
 }
 
-impl RenderPass for LayerDrawPass {
-    fn execute_with_renderpass<'s, 'call, 'pass>(
-        &'s self,
-        mut pass: wgpu::RenderPass<'pass>,
-        items: &'call [(u32, &'pass dyn PassBindble)],
-    ) where
-        'pass: 'call,
-        's: 'pass,
-    {
-        self.bind_all(&mut pass, items);
-        self.assets.borrow().mesh(mesh_names::QUAD).draw(pass, 1);
-    }
-}
-
-impl LayerDrawPass {
-    pub fn new(framework: &Framework, assets: Rc<RefCell<AssetsLibrary>>) -> Self {
+impl RenderToCanvasPass {
+    pub fn new(
+        framework: &Framework,
+        target_format: wgpu::TextureFormat,
+        assets: Rc<RefCell<AssetsLibrary>>,
+    ) -> Self {
         let module = framework
             .device
-            .create_shader_module(wgpu::include_wgsl!("../../shaders/draw_layer.wgsl"));
+            .create_shader_module(wgpu::include_wgsl!("../shaders/render_to_canvas.wgsl"));
 
         let bind_group_layout =
             framework
                 .device
                 .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    label: Some("Layer Pipeline LayerTextures Bind layout"),
+                    label: Some("Final render group layout"),
                     entries: &[
                         wgpu::BindGroupLayoutEntry {
                             binding: 0,
-                            visibility: wgpu::ShaderStages::FRAGMENT,
+                            visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
                             ty: wgpu::BindingType::Texture {
                                 sample_type: wgpu::TextureSampleType::Float { filterable: true },
                                 view_dimension: wgpu::TextureViewDimension::D2,
@@ -51,17 +48,17 @@ impl LayerDrawPass {
                         },
                         wgpu::BindGroupLayoutEntry {
                             binding: 1,
-                            visibility: wgpu::ShaderStages::FRAGMENT,
+                            visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
                             ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                             count: None,
                         },
                     ],
                 });
-        let camera_group_layout =
+        let camera_bind_layout =
             framework
                 .device
                 .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    label: Some("Layer Draw Camera bind layout"),
+                    label: Some("Final render group layout"),
                     entries: &[wgpu::BindGroupLayoutEntry {
                         binding: 0,
                         visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
@@ -73,41 +70,19 @@ impl LayerDrawPass {
                         count: None,
                     }],
                 });
-        let settings_group_layout =
-            framework
-                .device
-                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    label: Some("Layer Draw Camera bind layout"),
-                    entries: &[wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Uniform,
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
-                    }],
-                });
-
         let render_pipeline_layout =
             framework
                 .device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label: Some("Layer Pipeline Layout"),
-                    bind_group_layouts: &[
-                        &bind_group_layout,
-                        &camera_group_layout,
-                        &settings_group_layout,
-                    ],
+                    label: Some("Render Pipeline Layout"),
+                    bind_group_layouts: &[&bind_group_layout, &camera_bind_layout],
                     push_constant_ranges: &[],
                 });
-
-        let simple_diffuse_pipeline =
+        let final_present_pipeline =
             framework
                 .device
                 .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                    label: Some("Layer pipeline"),
+                    label: Some("final render shader"),
                     layout: Some(&render_pipeline_layout),
                     depth_stencil: None,
                     vertex: VertexState {
@@ -119,8 +94,8 @@ impl LayerDrawPass {
                         module: &module,
                         entry_point: "fs",
                         targets: &[Some(ColorTargetState {
-                            format: wgpu::TextureFormat::Rgba8UnormSrgb,
-                            blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                            format: target_format,
+                            blend: Some(wgpu::BlendState::REPLACE),
                             write_mask: wgpu::ColorWrites::ALL,
                         })],
                     }),
@@ -140,17 +115,26 @@ impl LayerDrawPass {
                         unclipped_depth: false,
                     },
                 });
+
         Self {
-            pipeline: simple_diffuse_pipeline,
+            pipeline: final_present_pipeline,
+
             assets,
         }
     }
-    pub fn prepare<'s, 'pass_life, 'pass>(
+}
+
+impl render_pass::RenderPass for RenderToCanvasPass {
+    fn execute_with_renderpass<'s, 'call, 'pass>(
         &'s self,
-        render_pass: &'pass_life mut wgpu::RenderPass<'pass>,
+        mut pass: wgpu::RenderPass<'pass>,
+        items: &'call [(u32, &'pass dyn PassBindble)],
     ) where
+        'pass: 'call,
         's: 'pass,
     {
-        render_pass.set_pipeline(&self.pipeline);
+        pass.set_pipeline(&self.pipeline);
+        self.bind_all(&mut pass, items);
+        self.assets.borrow().mesh(mesh_names::QUAD).draw(pass, 1);
     }
 }

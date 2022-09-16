@@ -4,17 +4,23 @@ use crate::{
     LayerConstructionInfo,
 };
 use cgmath::{num_traits::Num, point2, vec2, Vector2};
-use image::{DynamicImage, ImageBuffer, Rgba};
-use std::{collections::HashMap, iter::FromIterator};
+use framework::{texture2d::Texture2dConfiguration, Framework, Texture2d};
+use image::{DynamicImage, ImageBuffer, Pixel, Rgba};
+use std::{
+    collections::HashMap,
+    iter::FromIterator,
+    num::{NonZeroU32, NonZeroU8},
+};
+use wgpu::{ImageDataLayout, TextureDescriptor};
 
 pub struct Document {
     document_size: Vector2<u32>,
-    canvas_size: Vector2<u32>,
     layers: HashMap<LayerIndex, Layer>,
     tree_root: RootLayer,
     final_render_result: ImageBuffer<Rgba<u8>, Vec<u8>>,
-
     current_layer_index: LayerIndex,
+
+    final_texture: Texture2d,
 }
 
 pub struct DocumentCreationInfo {
@@ -40,8 +46,7 @@ where
 }
 
 impl Document {
-    pub fn new(config: DocumentCreationInfo) -> Self {
-        let row_aligned_width = ceil_to(config.width, wgpu::COPY_BYTES_PER_ROW_ALIGNMENT);
+    pub fn new(config: DocumentCreationInfo, framework: &Framework) -> Self {
         let first_layer = Layer::new_bitmap(LayerCreationInfo {
             name: "Layer 0".to_owned(),
             width: config.width,
@@ -53,15 +58,29 @@ impl Document {
         });
 
         let first_layer_index = LayerIndex(0);
-        let final_render_result = ImageBuffer::new(config.width, config.height);
+        let mut final_render_result = ImageBuffer::new(config.width, config.height);
+        for p in final_render_result.pixels_mut() {
+            *p = Rgba([255, 255, 255, 255]);
+        }
+        let final_texture = Texture2d::new(
+            framework,
+            Texture2dConfiguration {
+                width: config.width,
+                height: config.height,
+                format: wgpu::TextureFormat::Rgba8Unorm,
+                allow_cpu_write: true,
+                allow_cpu_read: false,
+                allow_use_as_render_target: false,
+            },
+        );
 
         Self {
             document_size: vec2(config.width, config.height),
-            canvas_size: vec2(row_aligned_width, config.height),
             current_layer_index: first_layer_index,
             final_render_result,
             layers: HashMap::from_iter(std::iter::once((first_layer_index, first_layer))),
             tree_root: RootLayer(vec![LayerTree::SingleLayer(first_layer_index)]),
+            final_texture,
         }
     }
 
@@ -111,6 +130,10 @@ impl Document {
         self.tree_root.0.remove(erase_which);
     }
 
+    pub fn texture_bind_group(&self) -> &wgpu::BindGroup {
+        &self.final_texture.bind_group()
+    }
+
     pub(crate) fn add_layer(
         &mut self,
         layer_name: String,
@@ -153,16 +176,17 @@ impl Document {
         }
     }
 
+    pub(crate) fn update_gpu_data(&self, framework: &Framework) {
+        self.final_texture
+            .write_data(&self.final_render_result, framework);
+    }
+
     pub fn document_size(&self) -> Vector2<u32> {
         self.document_size
     }
 
     pub fn current_layer_index(&self) -> LayerIndex {
         self.current_layer_index
-    }
-
-    pub(crate) fn canvas_size(&self) -> Vector2<u32> {
-        self.canvas_size
     }
 
     pub fn image_bytes(&mut self) -> &ImageBuffer<Rgba<u8>, Vec<u8>> {

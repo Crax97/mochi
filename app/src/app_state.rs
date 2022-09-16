@@ -3,7 +3,7 @@ use std::{cell::RefCell, rc::Rc};
 use framework::render_pass::RenderPass;
 use framework::AssetsLibrary;
 use framework::{Debug, Framework};
-use image_editor::ImageEditor;
+use image_editor::{ImageEditor, RenderToCanvasPass};
 use log::info;
 use wgpu::{
     CommandBuffer, CommandEncoderDescriptor, RenderPassColorAttachment, RenderPassDescriptor,
@@ -31,6 +31,7 @@ pub struct ImageApplication<'framework> {
     toolbox: Toolbox<'framework>,
     ui: Box<dyn Ui>,
 
+    last_render: RenderToCanvasPass,
     stamping_engine: Rc<RefCell<StrokingEngine>>,
     brush_tool: Rc<RefCell<BrushTool<'framework>>>,
     hand_tool: Rc<RefCell<HandTool>>,
@@ -63,6 +64,8 @@ impl<'framework> ImageApplication<'framework> {
             Toolbox::new(framework, brush_tool.clone(), hand_tool.clone());
         toolbox.add_tool(color_picker.clone());
         let ui = ui::create_ui(&framework, &final_surface_configuration, &window);
+        let last_render =
+            RenderToCanvasPass::new(&framework, wgpu::TextureFormat::Bgra8Unorm, assets.clone());
         Self {
             window,
             framework,
@@ -77,6 +80,7 @@ impl<'framework> ImageApplication<'framework> {
             stamping_engine,
             brush_tool,
             hand_tool,
+            last_render,
         }
     }
 
@@ -163,11 +167,13 @@ impl<'framework> ImageApplication<'framework> {
 
                 let mut commands: Vec<CommandBuffer> = vec![];
 
-                self.image_editor.redraw_full_image();
-
                 let app_surface_view = current_texture
                     .texture
                     .create_view(&wgpu::TextureViewDescriptor::default());
+                self.image_editor.redraw_full_image();
+                {
+                    self.image_editor.render_canvas(&app_surface_view);
+                }
 
                 /*
                                let debug_command = debug.borrow_mut().end_debug(

@@ -9,21 +9,14 @@ struct PerInstanceData {
 }
 
 struct PerFrameData {
-    vp: mat4x4<f32>,
-}
-
-struct LayerSettings {
-    opacity: f32,
+       vp: mat4x4<f32>,
 }
 
 @group(0) @binding(0) var diffuse: texture_2d<f32>;
 @group(0) @binding(1) var s_diffuse: sampler;
 
-@group(1) @binding(0)
-var<uniform> uniform_data: PerFrameData;
+@group(1) @binding(0) var<uniform> uniform_data: PerFrameData;
 
-@group(2) @binding(0)
-var<uniform> layer_settings: LayerSettings;
 
 struct VertexOutput {
     @builtin(position) coordinates_position: vec4<f32>,
@@ -80,5 +73,5 @@ fn vs(in: VertexInput, instance: PerInstanceData) -> VertexOutput {
 
 @fragment
 fn fs(in: VertexOutput) -> @location(0) vec4<f32> {
-    return textureSample(diffuse, s_diffuse, in.tex_uv) * layer_settings.opacity;
+    return textureSample(diffuse, s_diffuse, in.tex_uv);
 }
