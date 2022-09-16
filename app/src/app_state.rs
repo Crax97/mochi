@@ -14,7 +14,6 @@ use winit::event::WindowEvent;
 use winit::event_loop::ControlFlow;
 use winit::window::Window;
 
-use crate::final_present_pass::FinalRenderPass;
 use crate::input_state::InputState;
 use crate::toolbox::Toolbox;
 use crate::tools::brush_engine::stamping_engine::StrokingEngine;
@@ -31,9 +30,8 @@ pub struct ImageApplication<'framework> {
     input_state: InputState,
     toolbox: Toolbox<'framework>,
     ui: Box<dyn Ui>,
-    final_pass: FinalRenderPass<'framework>,
 
-    stamping_engine: Rc<RefCell<StrokingEngine<'framework>>>,
+    stamping_engine: Rc<RefCell<StrokingEngine>>,
     brush_tool: Rc<RefCell<BrushTool<'framework>>>,
     hand_tool: Rc<RefCell<HandTool>>,
 }
@@ -51,17 +49,11 @@ impl<'framework> ImageApplication<'framework> {
 
         let image_editor = ImageEditor::new(&framework, assets.clone(), &[1024.0, 1024.0]);
         final_surface.configure(&framework.device, &final_surface_configuration);
-        let final_present_pass = FinalRenderPass::new(
-            framework,
-            final_surface_configuration.clone(),
-            &image_editor.get_full_image_texture(),
-            assets.clone(),
-        );
 
         let debug = Rc::new(RefCell::new(Debug::new()));
 
-        let test_stamp = Toolbox::create_test_stamp(image_editor.camera().buffer(), framework);
-        let stamping_engine = StrokingEngine::new(test_stamp, framework, assets.clone());
+        let test_stamp = Toolbox::create_test_stamp();
+        let stamping_engine = StrokingEngine::new(test_stamp, assets.clone());
         let stamping_engine = Rc::new(RefCell::new(stamping_engine));
         let brush_tool = Rc::new(RefCell::new(BrushTool::new(stamping_engine.clone(), 1.0)));
         let hand_tool = Rc::new(RefCell::new(HandTool::new()));
@@ -81,7 +73,6 @@ impl<'framework> ImageApplication<'framework> {
             input_state: InputState::default(),
             toolbox,
             ui: Box::new(ui),
-            final_pass: final_present_pass,
 
             stamping_engine,
             brush_tool,
@@ -93,8 +84,6 @@ impl<'framework> ImageApplication<'framework> {
         if new_size.width == 0 || new_size.height == 0 {
             return;
         }
-        self.final_pass
-            .update_size([new_size.width as f32, new_size.height as f32]);
         let half_size = LogicalSize {
             width: new_size.width as f32 * 0.5,
             height: new_size.height as f32 * 0.5,
@@ -174,8 +163,7 @@ impl<'framework> ImageApplication<'framework> {
 
                 let mut commands: Vec<CommandBuffer> = vec![];
 
-                let draw_image_in_editor = { self.image_editor.redraw_full_image() };
-                commands.push(draw_image_in_editor);
+                self.image_editor.redraw_full_image();
 
                 let app_surface_view = current_texture
                     .texture
@@ -240,10 +228,7 @@ impl<'framework> ImageApplication<'framework> {
             depth_stencil_attachment: None,
         };
 
-        {
-            let render_pass = command_encoder.begin_render_pass(&render_pass_description);
-            self.final_pass.execute_with_renderpass(render_pass, &[]);
-        }
+        {}
         command_encoder.finish()
     }
 }

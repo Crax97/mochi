@@ -4,17 +4,14 @@ use std::{
     rc::Rc,
 };
 
-use crate::stamping_engine::{Stamp, StampCreationInfo};
+use crate::stamping_engine::Stamp;
 use crate::{
     input_state::InputState,
     tools::{EditorContext, PointerClick, PointerMove, PointerRelease, Tool},
 };
 use cgmath::point2;
-use framework::{Debug, Framework, TypedBuffer};
-use image_editor::{
-    layers::{BitmapLayer, BitmapLayerConfiguration},
-    ImageEditor,
-};
+use framework::{Debug, Framework};
+use image_editor::ImageEditor;
 use winit::event::MouseButton;
 
 #[derive(Clone, Copy, Hash, Eq, PartialEq)]
@@ -44,27 +41,10 @@ impl<'framework> Toolbox<'framework> {
         (new_toolbox, primary_id, secondary_id)
     }
 
-    pub fn create_test_stamp(
-        camera_buffer: &TypedBuffer,
-        framework: &'framework Framework,
-    ) -> Stamp<'framework> {
+    pub fn create_test_stamp() -> Stamp {
         let test_stamp_bytes = include_bytes!("test/test_brush.png");
         let image = image::load_from_memory(test_stamp_bytes).unwrap();
-        let brush_bitmap = BitmapLayer::new_from_bytes(
-            &framework,
-            image.as_bytes(),
-            BitmapLayerConfiguration {
-                label: "Test brush".to_owned(),
-                width: image.width(),
-                initial_background_color: [0.0, 0.0, 0.0, 0.0],
-                height: image.height(),
-            },
-        );
-        Stamp::new(
-            brush_bitmap,
-            &framework,
-            StampCreationInfo { camera_buffer },
-        )
+        Stamp::new(image.into_rgba8())
     }
 
     pub fn add_tool(&mut self, new_tool: Rc<RefCell<dyn Tool + 'framework>>) -> ToolId {

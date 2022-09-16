@@ -1,11 +1,9 @@
 pub mod stamping_engine;
-pub mod stamping_engine_pass;
 
 use std::{cell::RefCell, rc::Rc};
 
 use cgmath::{InnerSpace, Point2};
 use framework::{asset_library::AssetsLibrary, Debug};
-use wgpu::CommandEncoder;
 
 use image_editor::{layers::Layer, ImageEditor};
 
@@ -35,9 +33,8 @@ impl std::fmt::Display for StrokePath {
 }
 
 pub struct StrokeContext<'editor, 'stroke> {
-    pub layer: &'editor Layer<'editor>,
+    pub layer: &'editor Layer,
     pub editor: &'stroke ImageEditor<'editor>,
-    pub command_encoder: &'stroke mut CommandEncoder,
     pub assets: &'editor AssetsLibrary,
     pub debug: Rc<RefCell<Debug>>,
 }

@@ -6,6 +6,7 @@ use std::{
 
 use cgmath::{point2, ElementWise};
 use framework::{render_pass::RenderPass, Framework, TypedBuffer, TypedBufferConfiguration};
+use image::Rgba;
 use scene::Camera2d;
 use wgpu::{
     BindGroup, CommandBuffer, CommandEncoder, CommandEncoderDescriptor, RenderPassColorAttachment,
@@ -18,12 +19,12 @@ use crate::{document::DocumentCreationInfo, layers::LayerDrawPass};
 
 use super::{
     document::Document,
-    layers::{BitmapLayer, BitmapLayerConfiguration, Layer, LayerIndex},
+    layers::{Layer, LayerIndex},
 };
 
 #[derive(Default)]
 pub struct LayerConstructionInfo {
-    pub initial_color: [f32; 4],
+    pub initial_color: [u8; 4],
     pub name: String,
 }
 
@@ -32,10 +33,10 @@ pub struct ImageEditor<'framework> {
     assets: Rc<RefCell<AssetsLibrary>>,
     pan_camera: Camera2d<'framework>,
 
-    document: Document<'framework>,
+    document: Document,
     layers_created: u16,
     layer_draw_pass: LayerDrawPass,
-    canvas: BitmapLayer<'framework>,
+
     camaera_bind_group: BindGroup,
 }
 impl<'framework> ImageEditor<'framework> {
@@ -46,14 +47,11 @@ impl<'framework> ImageEditor<'framework> {
     ) -> Self {
         let test_width = 1800;
         let test_height = 1024;
-        let test_document = Document::new(
-            DocumentCreationInfo {
-                width: test_width,
-                height: test_height,
-                first_layer_color: [0.0, 0.0, 0.0, 1.0],
-            },
-            framework,
-        );
+        let test_document = Document::new(DocumentCreationInfo {
+            width: test_width,
+            height: test_height,
+            first_layer_color: [0.0, 0.0, 0.0, 1.0],
+        });
         let left_right_top_bottom = [
             -initial_window_bounds[0] * 0.5,
             initial_window_bounds[0] * 0.5,
@@ -62,9 +60,9 @@ impl<'framework> ImageEditor<'framework> {
         ];
         let mut pan_camera = Camera2d::new(-0.1, 1000.0, left_right_top_bottom, &framework);
         let initial_camera_scale = if initial_window_bounds[0] > initial_window_bounds[1] {
-            test_document.outer_size().x / initial_window_bounds[0]
+            test_document.document_size().x as f32 / initial_window_bounds[0]
         } else {
-            test_document.outer_size().y / initial_window_bounds[1]
+            test_document.document_size().y as f32 / initial_window_bounds[1]
         } * 1.5;
         println!("Initial scale: {initial_camera_scale}");
         pan_camera.set_scale(initial_camera_scale);
@@ -102,19 +100,9 @@ impl<'framework> ImageEditor<'framework> {
                     ),
                 }],
             });
-        let canvas = BitmapLayer::new(
-            &framework,
-            BitmapLayerConfiguration {
-                label: "ImageEditor Canvas".to_owned(),
-                width: test_document.document_size().x,
-                height: test_document.document_size().y,
-                initial_background_color: [0.5, 0.5, 0.5, 1.0],
-            },
-        );
         ImageEditor {
             framework,
             assets,
-            canvas,
             pan_camera,
             document: test_document,
             layers_created: 0,
@@ -131,19 +119,15 @@ impl<'framework> ImageEditor<'framework> {
         &self.document
     }
 
-    pub fn mutate_document(&mut self) -> &mut Document<'framework> {
+    pub fn mutate_document(&mut self) -> &mut Document {
         &mut self.document
     }
 
     pub fn add_layer_to_document(&mut self, config: LayerConstructionInfo) {
         let layer_name = format!("Layer {}", self.layers_created);
         self.layers_created += 1;
-        self.document.add_layer(
-            self.framework,
-            layer_name,
-            LayerIndex(self.layers_created),
-            config,
-        );
+        self.document
+            .add_layer(layer_name, LayerIndex(self.layers_created), config);
     }
 
     pub fn select_new_layer(&mut self, layer_idx: LayerIndex) {
@@ -162,71 +146,18 @@ impl<'framework> ImageEditor<'framework> {
         self.mutate_document().update_layers();
     }
 
-    pub fn redraw_full_image(&mut self) -> CommandBuffer {
-        let command_encoder_description = CommandEncoderDescriptor {
-            label: Some("Image render encoder"),
-        };
-        let mut command_encoder = self
-            .framework
-            .device
-            .create_command_encoder(&command_encoder_description);
-
-        let old_scale = self.pan_camera.current_scale();
-        let old_pos = self.pan_camera.position();
-
-        self.pan_camera.set_scale(1.0);
-        self.pan_camera.set_position(point2(0.0, 0.0));
-        self.render_document(&mut command_encoder);
-
-        self.pan_camera.set_scale(old_scale);
-        self.pan_camera.set_position(old_pos);
-        self.render_canvas(&mut command_encoder);
-
-        command_encoder.finish()
+    pub fn redraw_full_image(&mut self) {
+        self.render_document();
+        self.render_canvas();
     }
 
-    fn render_document(&mut self, encoder: &mut CommandEncoder) {
-        self.document.render(encoder, &self.layer_draw_pass);
+    fn render_document(&mut self) {
+        self.document.render();
     }
 
-    fn render_canvas(&mut self, command_encoder: &mut CommandEncoder) {
-        let render_pass_description = RenderPassDescriptor {
-            label: Some("ImageEditor Canvas Pass"),
-            color_attachments: &[Some(RenderPassColorAttachment {
-                view: self.get_full_image_texture().texture_view(),
-                resolve_target: None,
-                ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(wgpu::Color {
-                        r: 0.0,
-                        g: 0.0,
-                        b: 0.0,
-                        a: 1.0,
-                    }),
-                    store: true,
-                },
-            })],
-            depth_stencil_attachment: None,
-        };
-        {
-            let mut render_pass = command_encoder.begin_render_pass(&render_pass_description);
-            self.layer_draw_pass.prepare(&mut render_pass);
-            self.layer_draw_pass.execute_with_renderpass(
-                render_pass,
-                &[
-                    (1, &self.document.final_layer().instance_buffer),
-                    (0, self.document.final_layer().bind_group()),
-                    (1, &self.camaera_bind_group),
-                    (2, self.document().settings_bind_group()),
-                ],
-            );
-        }
-    }
+    fn render_canvas(&mut self) {}
 
-    pub fn get_full_image_texture(&self) -> &BitmapLayer {
-        &self.canvas
-    }
-
-    pub fn get_full_image_bytes(&mut self) -> &image::DynamicImage {
+    pub fn get_full_image_bytes(&mut self) -> &image::ImageBuffer<Rgba<u8>, Vec<u8>> {
         self.mutate_document().image_bytes()
     }
 

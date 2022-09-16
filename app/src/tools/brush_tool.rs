@@ -79,28 +79,19 @@ impl<'framework> Tool for BrushTool<'framework> {
 
         let path = StrokePath::linear_start_to_end(start, end, self.step);
         let framework = context.image_editor.framework();
-        let mut encoder = framework
-            .device
-            .create_command_encoder(&CommandEncoderDescriptor {
-                label: Some("BrushTool stroke rendering"),
-            });
 
         {
             let context = StrokeContext {
                 layer: context.image_editor.selected_layer(),
                 editor: &context.image_editor,
-                command_encoder: &mut encoder,
                 assets: &context.image_editor.assets(),
                 debug: context.debug.clone(),
             };
 
             self.engine.borrow_mut().stroke(path, context);
-            framework.queue.submit(std::iter::once(encoder.finish()));
             self.last_mouse_position = new_pointer_position;
             self.last_pressure = pointer_motion.pressure;
         }
-
-        context.image_editor.mutate_document().mark_cpu_dirty();
     }
 
     fn on_pointer_release(

@@ -7,13 +7,13 @@ use image::GenericImageView;
 
 use super::{brush_engine::stamping_engine::StrokingEngine, tool::Tool, BrushTool};
 
-pub struct ColorPicker<'b> {
+pub struct ColorPicker {
     is_active: bool,
-    stamping_engine: Rc<RefCell<StrokingEngine<'b>>>,
+    stamping_engine: Rc<RefCell<StrokingEngine>>,
 }
 
-impl<'b> ColorPicker<'b> {
-    pub fn new(stamping_engine: Rc<RefCell<StrokingEngine<'b>>>) -> Self {
+impl ColorPicker {
+    pub fn new(stamping_engine: Rc<RefCell<StrokingEngine>>) -> Self {
         Self {
             stamping_engine,
             is_active: false,
@@ -21,7 +21,7 @@ impl<'b> ColorPicker<'b> {
     }
 }
 
-impl<'b> Tool for ColorPicker<'b> {
+impl Tool for ColorPicker {
     fn on_pointer_click(&mut self, _: super::tool::PointerClick, _: EditorContext) {
         self.is_active = true;
     }

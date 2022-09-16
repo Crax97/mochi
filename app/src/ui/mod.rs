@@ -18,7 +18,7 @@ pub struct UiContext<'app, 'framework> {
     pub toolbox: &'app mut Toolbox<'framework>,
     pub input_state: &'app InputState,
 
-    pub stamping_engine: Rc<RefCell<StrokingEngine<'framework>>>,
+    pub stamping_engine: Rc<RefCell<StrokingEngine>>,
     pub brush_tool: Rc<RefCell<BrushTool<'framework>>>,
 }
 
