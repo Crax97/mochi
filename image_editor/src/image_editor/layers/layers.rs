@@ -90,6 +90,9 @@ impl Layer {
                     &raster_src,
                     Region::new(0, 0, buffer.width(), buffer.height()),
                 );
+                context
+                    .destination
+                    .copy_from_slice(raster_dest.as_u8_slice());
             }
         }
     }

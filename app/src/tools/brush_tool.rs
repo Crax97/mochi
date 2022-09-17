@@ -36,6 +36,12 @@ impl<'framework> BrushTool<'framework> {
 
     fn reposition_point_for_draw(image_editor: &ImageEditor, point: Point2<f32>) -> Point2<f32> {
         image_editor.camera().ndc_into_world(point)
+            + image_editor
+                .document()
+                .document_size()
+                .cast::<f32>()
+                .unwrap()
+                / 2.0
     }
 }
 
@@ -78,13 +84,10 @@ impl<'framework> Tool for BrushTool<'framework> {
         };
 
         let path = StrokePath::linear_start_to_end(start, end, self.step);
-        let framework = context.image_editor.framework();
 
         {
             let context = StrokeContext {
-                layer: context.image_editor.selected_layer(),
-                editor: &context.image_editor,
-                assets: &context.image_editor.assets(),
+                editor: context.image_editor,
                 debug: context.debug.clone(),
             };
 

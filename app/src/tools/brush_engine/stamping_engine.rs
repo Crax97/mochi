@@ -2,6 +2,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use framework::AssetsLibrary;
+use image::GenericImageView;
 use image::{EncodableLayout, ImageBuffer, Rgba};
 use pix::{Raster, Region};
 
@@ -70,8 +71,9 @@ impl StrokingEngine {
 
 impl BrushEngine for StrokingEngine {
     fn stroke(&mut self, path: StrokePath, context: StrokeContext) {
-        match context.layer.layer_type {
-            image_editor::layers::LayerType::Bitmap(ref bitmap_layer) => {
+        let layer_mut = context.editor.mutate_document().current_layer_mut();
+        match layer_mut.layer_type {
+            image_editor::layers::LayerType::Bitmap(ref mut bitmap_layer) => {
                 let raster_src = Raster::<pix::rgb::Rgba8>::with_u8_buffer(
                     self.current_stamp().brush_texture.width(),
                     self.current_stamp().brush_texture.height(),
@@ -82,23 +84,23 @@ impl BrushEngine for StrokingEngine {
                     bitmap_layer.height(),
                     bitmap_layer.as_raw().as_bytes(),
                 );
-                for point in path.points {
-                    raster_dest.copy_raster(
-                        Region::new(
-                            point.position.x as i32,
-                            point.position.y as i32,
-                            self.current_stamp().brush_texture.width(),
-                            self.current_stamp().brush_texture.height(),
-                        ),
-                        &raster_src,
-                        Region::new(
-                            0,
-                            0,
-                            self.current_stamp().brush_texture.width(),
-                            self.current_stamp().brush_texture.height(),
-                        ),
-                    );
-                }
+                raster_dest.copy_raster(
+                    Region::new(
+                        200,
+                        200,
+                        self.current_stamp().brush_texture.width(),
+                        self.current_stamp().brush_texture.height(),
+                    ),
+                    &raster_src,
+                    Region::new(
+                        0,
+                        0,
+                        self.current_stamp().brush_texture.width(),
+                        self.current_stamp().brush_texture.height(),
+                    ),
+                );
+                bitmap_layer.put_pixel(0, 0, Rgba([128, 255, 128, 255]));
+                //                bitmap_layer.copy_from_slice(raster_dest.as_u8_slice());
             }
         }
     }

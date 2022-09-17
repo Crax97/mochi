@@ -6,8 +6,7 @@ use std::{
 
 use cgmath::{point2, vec2, vec4, ElementWise};
 use framework::{
-    render_pass::RenderPass, texture2d::Texture2dConfiguration, Framework, MeshInstance2D,
-    Texture2d, TypedBuffer, TypedBufferConfiguration,
+    render_pass::RenderPass, Framework, MeshInstance2D, TypedBuffer, TypedBufferConfiguration,
 };
 use image::Rgba;
 use scene::Camera2d;

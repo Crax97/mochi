@@ -87,6 +87,11 @@ impl Document {
     pub fn current_layer(&self) -> &Layer {
         self.get_layer(&self.current_layer_index)
     }
+    pub fn current_layer_mut(&mut self) -> &mut Layer {
+        self.layers
+            .get_mut(&self.current_layer_index)
+            .expect("Invalid layer index passed to document!")
+    }
 
     pub fn select_layer(&mut self, new_current_layer: LayerIndex) {
         assert!(self.layers.contains_key(&new_current_layer));
@@ -104,6 +109,7 @@ impl Document {
             .get_mut(&layer_index)
             .expect("Invalid layer index passed to document!")
     }
+
     pub(crate) fn delete_layer(&mut self, layer_idx: LayerIndex) {
         if self.layers.len() == 1 {
             return;
