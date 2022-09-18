@@ -64,35 +64,6 @@ impl Layer {
         }
     }
     pub(crate) fn update(&mut self) {}
-    pub(crate) fn draw(&self, context: &mut LayerDrawContext) {
-        if !self.settings.is_enabled {
-            return;
-        }
-
-        match &self.layer_type {
-            LayerType::Bitmap(buffer) => {
-                let raster_src = Raster::<PixRgba<Rgba8p>>::with_u8_buffer(
-                    buffer.width(),
-                    buffer.height(),
-                    buffer.as_raw().as_bytes(),
-                );
-                let mut raster_dest = Raster::<PixRgba<Rgba8p>>::with_u8_buffer(
-                    context.destination.width(),
-                    context.destination.height(),
-                    context.destination.as_raw().as_bytes(),
-                );
-
-                PixRgba::<Rgba8p>::composite_slice(
-                    raster_dest.pixels_mut(),
-                    raster_src.pixels(),
-                    pix::ops::SrcOver,
-                );
-                context
-                    .destination
-                    .copy_from_slice(raster_dest.as_u8_slice());
-            }
-        }
-    }
 
     pub fn settings(&self) -> LayerSettings {
         self.settings.clone()

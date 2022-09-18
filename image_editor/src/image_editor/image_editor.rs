@@ -17,7 +17,10 @@ use wgpu::{
 
 use framework::asset_library::AssetsLibrary;
 
-use crate::{document::DocumentCreationInfo, RenderToCanvasPass};
+use crate::{
+    document::{CpuRenderingStrategy, DocumentCreationInfo, RenderingStrategy},
+    RenderToCanvasPass,
+};
 
 use super::{
     document::Document,
@@ -35,7 +38,7 @@ pub struct ImageEditor<'framework> {
     assets: Rc<RefCell<AssetsLibrary>>,
     pan_camera: Camera2d<'framework>,
 
-    document: Document,
+    document: Document<CpuRenderingStrategy>,
     layers_created: u16,
 
     camaera_bind_group: BindGroup,
@@ -57,6 +60,7 @@ impl<'framework> ImageEditor<'framework> {
                 first_layer_color: [0.0, 0.0, 0.0, 1.0],
             },
             framework,
+            CpuRenderingStrategy::new(test_width, test_height),
         );
         let left_right_top_bottom = [
             -initial_window_bounds[0] * 0.5,
@@ -137,11 +141,11 @@ impl<'framework> ImageEditor<'framework> {
         self.framework
     }
 
-    pub fn document(&self) -> &Document {
+    pub fn document(&self) -> &Document<CpuRenderingStrategy> {
         &self.document
     }
 
-    pub fn mutate_document(&mut self) -> &mut Document {
+    pub fn mutate_document(&mut self) -> &mut Document<CpuRenderingStrategy> {
         &mut self.document
     }
 
