@@ -1,6 +1,8 @@
 use cgmath::{Point2, Vector2};
 use framework::{Framework, MeshInstance2D, TypedBuffer, TypedBufferConfiguration};
 use image::{math::Rect, EncodableLayout, ImageBuffer, Rgba};
+use pix::el::*;
+use pix::rgb::Rgba8p;
 use pix::{Raster, Region};
 use wgpu::{BindGroup, BindGroupDescriptor, BindGroupEntry};
 
@@ -69,26 +71,21 @@ impl Layer {
 
         match &self.layer_type {
             LayerType::Bitmap(buffer) => {
-                let raster_src = Raster::<pix::rgb::Rgba8>::with_u8_buffer(
+                let raster_src = Raster::<PixRgba<Rgba8p>>::with_u8_buffer(
                     buffer.width(),
                     buffer.height(),
                     buffer.as_raw().as_bytes(),
                 );
-                let mut raster_dest = Raster::<pix::rgb::Rgba8>::with_u8_buffer(
+                let mut raster_dest = Raster::<PixRgba<Rgba8p>>::with_u8_buffer(
                     context.destination.width(),
                     context.destination.height(),
                     context.destination.as_raw().as_bytes(),
                 );
 
-                raster_dest.copy_raster(
-                    Region::new(
-                        0,
-                        0,
-                        context.destination.width(),
-                        context.destination.height(),
-                    ),
-                    &raster_src,
-                    Region::new(0, 0, buffer.width(), buffer.height()),
+                PixRgba::<Rgba8p>::composite_slice(
+                    raster_dest.pixels_mut(),
+                    raster_src.pixels(),
+                    pix::ops::SrcOver,
                 );
                 context
                     .destination

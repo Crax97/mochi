@@ -1,9 +1,12 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use cgmath::Point2;
 use framework::AssetsLibrary;
 use image::GenericImageView;
 use image::{EncodableLayout, ImageBuffer, Rgba};
+use pix::el::{PixRgba, Pixel};
+use pix::rgb::Rgba8p;
 use pix::{Raster, Region};
 
 use crate::{StrokeContext, StrokePath};
@@ -74,33 +77,30 @@ impl BrushEngine for StrokingEngine {
         let layer_mut = context.editor.mutate_document().current_layer_mut();
         match layer_mut.layer_type {
             image_editor::layers::LayerType::Bitmap(ref mut bitmap_layer) => {
-                let raster_src = Raster::<pix::rgb::Rgba8>::with_u8_buffer(
+                let raster_src = Raster::<Rgba8p>::with_u8_buffer(
                     self.current_stamp().brush_texture.width(),
                     self.current_stamp().brush_texture.height(),
                     self.current_stamp().brush_texture.as_raw().as_bytes(),
                 );
-                let mut raster_dest = Raster::<pix::rgb::Rgba8>::with_u8_buffer(
+                let mut raster_dest = Raster::<Rgba8p>::with_u8_buffer(
                     bitmap_layer.width(),
                     bitmap_layer.height(),
                     bitmap_layer.as_raw().as_bytes(),
                 );
-                raster_dest.copy_raster(
-                    Region::new(
-                        200,
-                        200,
-                        self.current_stamp().brush_texture.width(),
-                        self.current_stamp().brush_texture.height(),
-                    ),
-                    &raster_src,
-                    Region::new(
-                        0,
-                        0,
-                        self.current_stamp().brush_texture.width(),
-                        self.current_stamp().brush_texture.height(),
-                    ),
-                );
-                bitmap_layer.put_pixel(0, 0, Rgba([128, 255, 128, 255]));
-                //                bitmap_layer.copy_from_slice(raster_dest.as_u8_slice());
+
+                for pt in path.points {
+                    let pt_pos = pt.position.cast::<i32>();
+                    if let Some(pt_pos) = pt_pos {
+                        raster_dest.composite_raster(
+                            Region::new(pt_pos.x, pt_pos.y, 128, 128),
+                            &raster_src,
+                            (),
+                            pix::ops::SrcOver,
+                        )
+                    }
+                }
+
+                bitmap_layer.copy_from_slice(raster_dest.as_u8_slice());
             }
         }
     }

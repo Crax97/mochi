@@ -1,6 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
-use cgmath::{point2, MetricSpace, Point2};
+use cgmath::{point2, ElementWise, MetricSpace, Point2};
 use image_editor::ImageEditor;
 use wgpu::CommandEncoderDescriptor;
 
@@ -35,13 +35,9 @@ impl<'framework> BrushTool<'framework> {
     }
 
     fn reposition_point_for_draw(image_editor: &ImageEditor, point: Point2<f32>) -> Point2<f32> {
-        image_editor.camera().ndc_into_world(point)
-            + image_editor
-                .document()
-                .document_size()
-                .cast::<f32>()
-                .unwrap()
-                / 2.0
+        image_editor
+            .camera()
+            .ndc_into_world(point.add_element_wise(1.0).mul_element_wise(2.0))
     }
 }
 

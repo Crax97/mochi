@@ -51,7 +51,7 @@ impl Document {
             name: "Layer 0".to_owned(),
             width: config.width,
             height: config.height,
-            initial_color: Rgba([0, 0, 0, 255]),
+            initial_color: Rgba([0, 0, 0, 0]),
             position: point2(0.0, 0.0),
             scale: vec2(1.0, 1.0),
             rotation_radians: 0.0,
