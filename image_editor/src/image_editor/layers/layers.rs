@@ -120,6 +120,7 @@ impl<'framework> Layer<'framework> {
                     self.position.clone(),
                     real_scale,
                     self.rotation_radians,
+                    false,
                 )]);
             }
         }

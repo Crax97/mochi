@@ -1,14 +1,17 @@
 pub mod asset_library;
 pub mod debug_utils;
 pub mod framework;
+pub mod math;
 pub mod mesh;
 pub mod render_pass;
+pub mod texture2d;
 pub mod typed_buffer;
 
 pub use asset_library::*;
 pub use debug_utils::*;
 pub use framework::AdapterCreationError;
 pub use framework::Framework;
+pub use math::*;
 pub use mesh::Index;
 pub use mesh::Indices;
 pub use mesh::Mesh;
@@ -16,4 +19,6 @@ pub use mesh::MeshConstructionDetails;
 pub use mesh::MeshInstance2D;
 pub use mesh::Vertex;
 pub use mesh::Vertices;
+pub use texture2d::Texture2d;
+pub use texture2d::Texture2dConfiguration;
 pub use typed_buffer::{BufferType, TypedBuffer, TypedBufferConfiguration};
