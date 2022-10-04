@@ -211,6 +211,10 @@ impl Texture2d {
         &self.texture_view
     }
 
+    pub fn sampler(&self) -> &wgpu::Sampler {
+        &self.sampler
+    }
+
     pub fn bind_group(&self) -> &BindGroup {
         &self.bind_group
     }

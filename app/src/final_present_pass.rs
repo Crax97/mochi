@@ -129,11 +129,13 @@ impl<'framework> FinalRenderPass<'framework> {
                 entries: &[
                     wgpu::BindGroupEntry {
                         binding: 0,
-                        resource: wgpu::BindingResource::TextureView(final_render.texture_view()),
+                        resource: wgpu::BindingResource::TextureView(
+                            final_render.texture().texture_view(),
+                        ),
                     },
                     wgpu::BindGroupEntry {
                         binding: 1,
-                        resource: wgpu::BindingResource::Sampler(final_render.sampler()),
+                        resource: wgpu::BindingResource::Sampler(final_render.texture().sampler()),
                     },
                 ],
             });

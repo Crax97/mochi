@@ -61,11 +61,13 @@ impl<'framework> Stamp<'framework> {
                 entries: &[
                     wgpu::BindGroupEntry {
                         binding: 0,
-                        resource: wgpu::BindingResource::TextureView(brush_texture.texture_view()),
+                        resource: wgpu::BindingResource::TextureView(
+                            brush_texture.texture().texture_view(),
+                        ),
                     },
                     wgpu::BindGroupEntry {
                         binding: 1,
-                        resource: wgpu::BindingResource::Sampler(brush_texture.sampler()),
+                        resource: wgpu::BindingResource::Sampler(brush_texture.texture().sampler()),
                     },
                 ],
             });
@@ -172,7 +174,7 @@ impl<'framework> BrushEngine for StrokingEngine<'framework> {
                 let stroking_engine_render_pass = RenderPassDescriptor {
                     label: Some("Stamping Engine render pass"),
                     color_attachments: &[Some(RenderPassColorAttachment {
-                        view: bitmap_layer.texture_view(),
+                        view: bitmap_layer.texture().texture_view(),
                         resolve_target: None,
                         ops: wgpu::Operations {
                             load: wgpu::LoadOp::Load,

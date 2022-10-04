@@ -193,7 +193,7 @@ impl<'framework> ImageEditor<'framework> {
         let render_pass_description = RenderPassDescriptor {
             label: Some("ImageEditor Canvas Pass"),
             color_attachments: &[Some(RenderPassColorAttachment {
-                view: self.get_full_image_texture().texture_view(),
+                view: self.get_full_image_texture().texture().texture_view(),
                 resolve_target: None,
                 ops: wgpu::Operations {
                     load: wgpu::LoadOp::Clear(wgpu::Color {
@@ -226,7 +226,7 @@ impl<'framework> ImageEditor<'framework> {
         &self.canvas
     }
 
-    pub fn get_full_image_bytes(&mut self) -> &image::DynamicImage {
+    pub fn get_full_image_bytes(&mut self) -> image::DynamicImage {
         self.mutate_document().image_bytes()
     }
 

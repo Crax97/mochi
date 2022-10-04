@@ -1,5 +1,7 @@
 use cgmath::{num_traits::ToPrimitive, Vector2};
-use framework::{Framework, TypedBuffer, TypedBufferConfiguration};
+use framework::{
+    Framework, Texture2d, Texture2dConfiguration, TypedBuffer, TypedBufferConfiguration,
+};
 use scene::{Camera2d, Camera2dUniformBlock};
 use wgpu::{
     BindGroup, ImageDataLayout, Sampler, SamplerDescriptor, Texture, TextureDescriptor,
@@ -13,11 +15,8 @@ pub struct BitmapLayerConfiguration {
     pub height: u32,
 }
 pub struct BitmapLayer<'framework> {
-    texture: Texture,
-    rgba_texture_view: TextureView,
-    sampler: Sampler,
+    texture: Texture2d,
     configuration: BitmapLayerConfiguration,
-    bind_group: BindGroup,
     camera_buffer: TypedBuffer<'framework>,
     camaera_bind_group: BindGroup,
 }
@@ -52,56 +51,18 @@ impl<'framework> BitmapLayer<'framework> {
             depth_or_array_layers: 1,
         };
 
-        let texture = framework.device.create_texture(&TextureDescriptor {
-            label: Some(format!("Layer {}", &configuration.label).as_ref()),
-            dimension,
-            format,
-            size,
-            mip_level_count: 1,
-            sample_count: 1,
-            usage: wgpu::TextureUsages::TEXTURE_BINDING
-                | wgpu::TextureUsages::RENDER_ATTACHMENT
-                | wgpu::TextureUsages::COPY_SRC
-                | wgpu::TextureUsages::COPY_DST,
-        });
-
-        framework.queue.write_texture(
-            wgpu::ImageCopyTexture {
-                texture: &texture,
-                mip_level: 0,
-                origin: wgpu::Origin3d::ZERO,
-                aspect: wgpu::TextureAspect::All,
+        let mut texture = Texture2d::new(
+            framework,
+            Texture2dConfiguration {
+                width: configuration.width,
+                height: configuration.height,
+                format,
+                allow_cpu_write: true,
+                allow_cpu_read: true,
+                allow_use_as_render_target: true,
             },
-            &bytemuck::cast_slice(&bytes),
-            ImageDataLayout {
-                bytes_per_row: std::num::NonZeroU32::new(configuration.width * 4),
-                rows_per_image: std::num::NonZeroU32::new(configuration.height),
-                offset: 0,
-            },
-            size,
         );
-
-        let rgba_texture_view = texture.create_view(&TextureViewDescriptor {
-            label: Some(format!("Layer View {}", &configuration.label).as_ref()),
-            dimension: Some(TextureViewDimension::D2),
-            format: Some(format),
-            aspect: wgpu::TextureAspect::All,
-            array_layer_count: None,
-            base_array_layer: 0,
-            base_mip_level: 0,
-            mip_level_count: None,
-        });
-
-        let sampler = framework.device.create_sampler(&SamplerDescriptor {
-            label: Some(format!("Layer Sampler {}", &configuration.label).as_ref()),
-            address_mode_u: wgpu::AddressMode::ClampToEdge,
-            address_mode_v: wgpu::AddressMode::ClampToEdge,
-            address_mode_w: wgpu::AddressMode::ClampToEdge,
-            mag_filter: wgpu::FilterMode::Nearest,
-            min_filter: wgpu::FilterMode::Nearest,
-            mipmap_filter: wgpu::FilterMode::Nearest,
-            ..Default::default()
-        });
+        texture.write_data(bytes, framework);
 
         let camera = TypedBuffer::new(
             framework,
@@ -124,47 +85,6 @@ impl<'framework> BitmapLayer<'framework> {
                 allow_read: false,
             },
         );
-        let bind_group_layout =
-            framework
-                .device
-                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    label: Some("BitmapLayer render pass bind layout"),
-                    entries: &[
-                        wgpu::BindGroupLayoutEntry {
-                            binding: 0,
-                            visibility: wgpu::ShaderStages::FRAGMENT,
-                            ty: wgpu::BindingType::Texture {
-                                sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                                view_dimension: wgpu::TextureViewDimension::D2,
-                                multisampled: false,
-                            },
-                            count: None,
-                        },
-                        wgpu::BindGroupLayoutEntry {
-                            binding: 1,
-                            visibility: wgpu::ShaderStages::FRAGMENT,
-                            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                            count: None,
-                        },
-                    ],
-                });
-
-        let bind_group = framework
-            .device
-            .create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("BitmapLayer render pass"),
-                layout: &bind_group_layout,
-                entries: &[
-                    wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: wgpu::BindingResource::TextureView(&rgba_texture_view),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 1,
-                        resource: wgpu::BindingResource::Sampler(&sampler),
-                    },
-                ],
-            });
         let camera_bind_group_layout =
             framework
                 .device
@@ -193,29 +113,18 @@ impl<'framework> BitmapLayer<'framework> {
             });
         Self {
             texture,
-            rgba_texture_view,
             configuration,
-            sampler,
             camera_buffer: camera,
-            bind_group,
             camaera_bind_group,
         }
     }
 
-    pub fn texture_view(&self) -> &TextureView {
-        &self.rgba_texture_view
-    }
-
-    pub fn texture(&self) -> &Texture {
+    pub fn texture(&self) -> &Texture2d {
         &self.texture
     }
 
-    pub fn sampler(&self) -> &Sampler {
-        &self.sampler
-    }
-
     pub fn bind_group(&self) -> &BindGroup {
-        &self.bind_group
+        self.texture.bind_group()
     }
 
     pub fn size(&self) -> Vector2<f32> {
