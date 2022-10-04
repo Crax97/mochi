@@ -44,15 +44,34 @@ impl<'b> Tool for ColorPicker<'b> {
             .unwrap();
         let pixel_position = (position_into_canvas + half_document_size).cast::<u32>();
         if let Some(valid_position) = pixel_position {
-            let pixel = context
-                .image_editor
-                .get_full_image_bytes()
-                .get_pixel(valid_position.x, valid_position.y);
-            let mut engine = self.stamping_engine.borrow_mut();
-            let mut settings = engine.settings();
-            settings.color_srgb = [pixel.0[0], pixel.0[1], pixel.0[2]];
-            settings.opacity = pixel.0[3];
-            engine.set_new_settings(settings);
+            if valid_position.x >= context.image_editor.document().document_size().x
+                || valid_position.y >= context.image_editor.document().document_size().y
+            {
+                return;
+            }
+
+            //TODO, FIXME: Final layer should not be flipped.
+            let (x, y) = (
+                valid_position.x,
+                context.image_editor.document().document_size().y - valid_position.y,
+            );
+
+            if let image_editor::layers::LayerType::Bitmap(ref bm) =
+                context.image_editor.document().final_layer().layer_type
+            {
+                let pixel = bm
+                    .texture()
+                    .sample_pixel(x, y, context.image_editor.framework());
+                let mut engine = self.stamping_engine.borrow_mut();
+                let mut settings = engine.settings();
+                settings.color_srgb = [
+                    (pixel.r * 255.0) as u8,
+                    (pixel.g * 255.0) as u8,
+                    (pixel.b * 255.0) as u8,
+                ];
+                settings.opacity = (pixel.a * 255.0) as u8;
+                engine.set_new_settings(settings);
+            }
         }
     }
 

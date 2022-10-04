@@ -167,7 +167,7 @@ impl<'framework> BrushEngine for StrokingEngine<'framework> {
                 let instances: Vec<MeshInstance2D> = path
                     .points
                     .iter()
-                    .map(|pt| MeshInstance2D::new(pt.position, vec2(pt.size, pt.size), 0.0, false))
+                    .map(|pt| MeshInstance2D::new(pt.position, vec2(pt.size, pt.size), 0.0, true))
                     .collect();
                 self.stamp_pass.update(instances);
                 // 2. Do draw

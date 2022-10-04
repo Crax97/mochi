@@ -195,4 +195,11 @@ impl InputState {
     pub(crate) fn current_pointer_pressure(&self) -> f32 {
         self.current_pointer_pressure
     }
+
+    pub(crate) fn window_size(&self) -> Vector2<u32> {
+        Vector2 {
+            x: self.window_size.width,
+            y: self.window_size.height,
+        }
+    }
 }

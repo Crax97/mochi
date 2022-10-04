@@ -76,7 +76,7 @@ where
         } else {
             wgpu::BufferUsages::empty()
         }
-        | if config.allow_write {
+        | if config.allow_read {
             wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_SRC
         } else {
             wgpu::BufferUsages::empty()
@@ -172,6 +172,24 @@ impl<'framework> TypedBuffer<'framework> {
 
     pub fn elem_count(&self) -> usize {
         self.buffer.num_items
+    }
+
+    pub fn read_region(&self, begin_and_size: (u64, u64)) -> Vec<u8> {
+        let (begin, size) = begin_and_size;
+        let (tx, rx) = std::sync::mpsc::channel();
+        let buffer_slice = self.inner_buffer().slice(begin..begin + size);
+        buffer_slice.map_async(wgpu::MapMode::Read, move |v| {
+            tx.send(v).unwrap();
+        });
+        self.owner_framework.device.poll(wgpu::Maintain::Wait);
+        if let Err(e) = rx.recv() {
+            panic!("While reading texture pixel: {e}");
+        }
+        let mapped_range = buffer_slice.get_mapped_range();
+        let data = mapped_range.iter().map(|b| *b).collect();
+        drop(mapped_range);
+        self.inner_buffer().unmap();
+        data
     }
 }
 

@@ -22,6 +22,7 @@ pub struct PointerMove {
     pub delta: Vector2<f32>,
     pub delta_normalized: Vector2<f32>,
     pub pressure: f32,
+    pub window_width: Vector2<u32>,
 }
 #[derive(Debug, Clone, Copy)]
 pub struct PointerRelease {}

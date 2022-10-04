@@ -1,6 +1,10 @@
 use std::num::{NonZeroU32, NonZeroU8};
 
-use wgpu::{BindGroup, Extent3d, ImageDataLayout, RenderBundleEncoderDescriptor};
+use cgmath::{num_traits::one, Point2};
+use wgpu::{
+    BindGroup, Color, Extent3d, ImageCopyBuffer, ImageCopyTexture, ImageDataLayout,
+    RenderBundleEncoderDescriptor,
+};
 
 use crate::{framework, render_pass::PassBindble, Framework};
 
@@ -128,6 +132,54 @@ impl Texture2d {
 }
 
 impl Texture2d {
+    pub fn sample_pixel(&self, x: u32, y: u32, framework: &Framework) -> wgpu::Color {
+        let texture_region = wgpu::ImageCopyTexture {
+            texture: &self.texture,
+            mip_level: 0,
+            origin: wgpu::Origin3d { x, y, z: 0 },
+            aspect: wgpu::TextureAspect::All,
+        };
+        let oneshot_buffer =
+            framework.allocate_typed_buffer(crate::TypedBufferConfiguration::<u8> {
+                initial_setup: crate::typed_buffer::BufferInitialSetup::Size(
+                    wgpu::COPY_BYTES_PER_ROW_ALIGNMENT as u64,
+                ),
+                buffer_type: crate::BufferType::Oneshot,
+                allow_write: true,
+                allow_read: true,
+            });
+        let mut encoder =
+            framework
+                .device
+                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("Gpu -> pixel"),
+                });
+        encoder.copy_texture_to_buffer(
+            texture_region,
+            ImageCopyBuffer {
+                buffer: oneshot_buffer.inner_buffer(),
+                layout: ImageDataLayout {
+                    offset: 0,
+                    bytes_per_row: NonZeroU32::new(wgpu::COPY_BYTES_PER_ROW_ALIGNMENT),
+                    rows_per_image: NonZeroU32::new(1),
+                },
+            },
+            Extent3d {
+                width: 1,
+                height: 1,
+                depth_or_array_layers: 1,
+            },
+        );
+        framework.queue.submit(std::iter::once(encoder.finish()));
+        let color_bytes = oneshot_buffer.read_region((0, 4));
+        Color {
+            r: (color_bytes[0] as f64) / 255.0,
+            g: (color_bytes[1] as f64) / 255.0,
+            b: (color_bytes[2] as f64) / 255.0,
+            a: (color_bytes[3] as f64) / 255.0,
+        }
+    }
+
     pub fn write_data(&self, bytes: &[u8], framework: &Framework) {
         self.write_region(bytes, (0, 0, self.width, self.height), framework);
     }

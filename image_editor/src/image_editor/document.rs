@@ -18,7 +18,6 @@ use wgpu::{
 pub struct Document<'framework> {
     framework: &'framework Framework,
     document_size: Vector2<u32>,
-    canvas_size: Vector2<u32>,
     layers: HashMap<LayerIndex, Layer<'framework>>,
     tree_root: RootLayer,
     final_layer: Layer<'framework>,
@@ -53,12 +52,11 @@ where
 
 impl<'l> Document<'l> {
     pub fn new(config: DocumentCreationInfo, framework: &'l Framework) -> Self {
-        let row_aligned_width = ceil_to(config.width, wgpu::COPY_BYTES_PER_ROW_ALIGNMENT);
         let final_layer = BitmapLayer::new(
             &framework,
             BitmapLayerConfiguration {
                 label: "Final Rendering Layer".to_owned(),
-                width: row_aligned_width,
+                width: config.width,
                 height: config.height,
                 initial_background_color: [0.5, 0.5, 0.5, 1.0],
             },
@@ -67,7 +65,7 @@ impl<'l> Document<'l> {
             &framework,
             BitmapLayerConfiguration {
                 label: "Layer 0".to_owned(),
-                width: row_aligned_width,
+                width: config.width,
                 height: config.height,
                 initial_background_color: [1.0, 1.0, 1.0, 1.0],
             },
@@ -131,7 +129,6 @@ impl<'l> Document<'l> {
         Self {
             framework,
             document_size: vec2(config.width, config.height),
-            canvas_size: vec2(row_aligned_width, config.height),
             current_layer_index: first_layer_index,
             final_layer,
             layers: HashMap::from_iter(std::iter::once((first_layer_index, first_layer))),
@@ -223,8 +220,8 @@ impl<'l> Document<'l> {
             framework,
             BitmapLayerConfiguration {
                 label: layer_name.clone(),
-                width: self.canvas_size().x,
-                height: self.canvas_size().y,
+                width: self.document_size.x,
+                height: self.document_size.y,
                 initial_background_color: config.initial_color,
             },
         );
@@ -330,10 +327,6 @@ impl<'l> Document<'l> {
 
     pub fn current_layer_index(&self) -> LayerIndex {
         self.current_layer_index
-    }
-
-    pub(crate) fn canvas_size(&self) -> Vector2<u32> {
-        self.canvas_size
     }
 
     pub fn image_bytes(&mut self) -> DynamicImage {

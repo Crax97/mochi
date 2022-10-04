@@ -126,6 +126,7 @@ impl<'framework> Toolbox<'framework> {
                     pressure: input_state.current_pointer_pressure(),
                     new_pointer_location: input_state.mouse_position(),
                     delta: input_state.mouse_delta(),
+                    window_width: input_state.window_size(),
                 },
                 EditorContext {
                     image_editor: &mut image_editor,
@@ -160,6 +161,7 @@ impl<'framework> Toolbox<'framework> {
                     pressure: input_state.current_pointer_pressure(),
                     new_pointer_location: input_state.mouse_position(),
                     delta: input_state.mouse_delta(),
+                    window_width: input_state.window_size(),
                 },
                 EditorContext {
                     image_editor: &mut image_editor,
