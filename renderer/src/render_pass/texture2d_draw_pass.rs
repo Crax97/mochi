@@ -1,3 +1,4 @@
+use cgmath::{point2, vec2, vec3, Point2, Point3};
 use framework::{TypedBuffer, TypedBufferConfiguration};
 use wgpu::{
     BindGroup, ColorTargetState, FragmentState, RenderPassColorAttachment, RenderPassDescriptor,
@@ -7,7 +8,7 @@ use wgpu::{
 use framework::asset_library::mesh_names;
 use framework::framework::{Framework, TextureId};
 use framework::mesh::{Mesh, MeshInstance2D};
-use scene::{Camera2d, Camera2dUniformBlock};
+use scene::{Camera2d, Camera2dUniformBlock, Transform2d};
 
 struct TextureDrawInfo {
     texture: TextureId,
@@ -17,9 +18,10 @@ struct TextureDrawInfo {
 pub struct Texture2dDrawPass<'framework> {
     pipeline: RenderPipeline,
     textures: Vec<TextureDrawInfo>,
-    camera_buffer: TypedBuffer<'framework>,
-    camaera_bind_group: BindGroup,
+    clear_color: wgpu::Color,
     camera: Camera2d,
+    camera_buffer: TypedBuffer<'framework>,
+    camera_bind_group: BindGroup,
 }
 
 impl<'tex, 'framework> Texture2dDrawPass<'framework> {
@@ -77,7 +79,7 @@ impl<'tex, 'framework> Texture2dDrawPass<'framework> {
                         count: None,
                     }],
                 });
-        let camaera_bind_group = framework
+        let camera_bind_group = framework
             .device
             .create_bind_group(&wgpu::BindGroupDescriptor {
                 label: Some("Texture2D Camera"),
@@ -139,8 +141,9 @@ impl<'tex, 'framework> Texture2dDrawPass<'framework> {
         Self {
             pipeline: simple_diffuse_pipeline,
             textures: vec![],
+            clear_color: wgpu::Color::BLACK,
             camera_buffer,
-            camaera_bind_group,
+            camera_bind_group,
             camera: Camera2d::new(0.01, 1000.0, [-1.0, 1.0, 1.0, -1.0]),
         }
     }
@@ -150,10 +153,17 @@ impl<'tex, 'framework> Texture2dDrawPass<'framework> {
             instance_data,
         })
     }
+
+    pub fn set_clear_color(&mut self, color: wgpu::Color) {
+        self.clear_color = color;
+    }
+
     pub fn begin(&mut self, camera: &Camera2d) {
-        self.camera = camera.clone();
+        let mut new_camera = camera.clone();
+        new_camera.set_position(point2(camera.position().x, -camera.position().y));
+        self.camera = new_camera;
         self.camera_buffer
-            .write_sync::<Camera2dUniformBlock>(&vec![camera.into()]);
+            .write_sync::<Camera2dUniformBlock>(&vec![(&self.camera).into()]);
     }
     pub fn execute(&mut self, framework: &Framework, output_texture: &TextureView, clear: bool) {
         let render_pass_description = RenderPassDescriptor {
@@ -163,12 +173,7 @@ impl<'tex, 'framework> Texture2dDrawPass<'framework> {
                 resolve_target: None,
                 ops: wgpu::Operations {
                     load: if clear {
-                        wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.0,
-                            g: 0.0,
-                            b: 0.0,
-                            a: 1.0,
-                        })
+                        wgpu::LoadOp::Clear(self.clear_color)
                     } else {
                         wgpu::LoadOp::Load
                     },
@@ -198,18 +203,10 @@ impl<'tex, 'framework> Texture2dDrawPass<'framework> {
                 {
                     let framework_texture = framework.texture2d(&texture.texture);
                     let mut pass = encoder.begin_render_pass(&render_pass_description);
-                    pass.set_viewport(
-                        0.0,
-                        0.0,
-                        self.camera.width() as f32,
-                        self.camera.height() as f32,
-                        0.0,
-                        1.0,
-                    );
                     pass.set_pipeline(&self.pipeline);
 
                     pass.set_bind_group(0, framework_texture.bind_group(), &[]);
-                    pass.set_bind_group(1, &self.camaera_bind_group, &[]);
+                    pass.set_bind_group(1, &self.camera_bind_group, &[]);
                     pass.set_vertex_buffer(1, instance_buffer.inner_buffer().slice(..));
 
                     quad_mesh.draw(&mut pass, 1);

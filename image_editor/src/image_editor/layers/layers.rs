@@ -39,10 +39,6 @@ pub enum LayerType {
     Bitmap(bitmap_layer::BitmapLayer),
 }
 
-pub(crate) struct LayerDrawContext<'pass> {
-    pub render_pass: wgpu::RenderPass<'pass>,
-}
-
 impl<'framework> Layer<'framework> {
     pub fn new_bitmap(
         bitmap_layer: BitmapLayer,
@@ -91,7 +87,7 @@ impl<'framework> Layer<'framework> {
     pub(crate) fn draw<'library, 'pass, 'l>(
         &'l self,
         framework: &'framework Framework,
-        mut pass: &mut Texture2dDrawPass<'framework>,
+        pass: &mut Texture2dDrawPass<'framework>,
         target: &TextureView,
     ) where
         'framework: 'pass,

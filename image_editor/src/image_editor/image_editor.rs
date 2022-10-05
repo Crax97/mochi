@@ -1,16 +1,8 @@
-use std::{
-    cell::{Ref, RefCell},
-    rc::Rc,
-};
-
-use cgmath::{point2, vec2, ElementWise};
-use framework::{Framework, MeshInstance2D, TypedBuffer, TypedBufferConfiguration};
+use cgmath::{point2, ElementWise};
+use framework::{Framework, MeshInstance2D};
 use renderer::render_pass::texture2d_draw_pass::Texture2dDrawPass;
 use scene::Camera2d;
-use wgpu::{
-    BindGroup, CommandBuffer, CommandEncoder, CommandEncoderDescriptor, RenderPassColorAttachment,
-    RenderPassDescriptor, TextureView,
-};
+use wgpu::TextureView;
 
 use crate::document::DocumentCreationInfo;
 
@@ -30,7 +22,6 @@ pub struct ImageEditor<'framework> {
     pan_camera: Camera2d,
 
     document: Document<'framework>,
-    layers_created: u16,
     canvas: BitmapLayer,
 }
 impl<'framework> ImageEditor<'framework> {
@@ -51,7 +42,7 @@ impl<'framework> ImageEditor<'framework> {
             initial_window_bounds[1] * 0.5,
             -initial_window_bounds[1] * 0.5,
         ];
-        let mut pan_camera = Camera2d::new(-0.1, 1000.0, left_right_top_bottom);
+        let pan_camera = Camera2d::new(-0.1, 1000.0, left_right_top_bottom);
         let initial_camera_scale = if initial_window_bounds[0] > initial_window_bounds[1] {
             test_document.outer_size().x / initial_window_bounds[0]
         } else {
@@ -74,7 +65,6 @@ impl<'framework> ImageEditor<'framework> {
             canvas,
             pan_camera,
             document: test_document,
-            layers_created: 0,
         }
     }
 
@@ -91,14 +81,7 @@ impl<'framework> ImageEditor<'framework> {
     }
 
     pub fn add_layer_to_document(&mut self, config: LayerConstructionInfo) {
-        let layer_name = format!("Layer {}", self.layers_created);
-        self.layers_created += 1;
-        self.document.add_layer(
-            self.framework,
-            layer_name,
-            LayerIndex(self.layers_created),
-            config,
-        );
+        self.document.add_layer(self.framework, config);
     }
 
     pub fn select_new_layer(&mut self, layer_idx: LayerIndex) {
@@ -129,7 +112,7 @@ impl<'framework> ImageEditor<'framework> {
         pass.draw_texture(
             self.document.final_layer(),
             MeshInstance2D::new(
-                self.pan_camera.position().mul_element_wise(-1.0),
+                point2(0.0, 0.0),
                 self.document.document_size().cast::<f32>().unwrap() * 0.5,
                 0.0,
                 false,

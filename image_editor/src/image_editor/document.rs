@@ -1,24 +1,19 @@
 use super::layers::{Layer, LayerIndex, RootLayer};
 use crate::{
-    layers::{
-        BitmapLayer, BitmapLayerConfiguration, LayerCreationInfo, LayerDrawContext, LayerTree,
-        ShaderLayerSettings,
-    },
+    layers::{BitmapLayer, BitmapLayerConfiguration, LayerCreationInfo, LayerTree},
     LayerConstructionInfo,
 };
 use cgmath::{point2, vec2, Vector2};
-use framework::{framework::TextureId, Framework, Texture2d, TypedBufferConfiguration};
-use image::{DynamicImage, ImageBuffer};
+use framework::{framework::TextureId, Framework};
+use image::DynamicImage;
 use renderer::render_pass::texture2d_draw_pass::Texture2dDrawPass;
-use scene::Camera2d;
-use std::{collections::HashMap, iter::FromIterator};
-use wgpu::{
-    BindGroup, BindGroupDescriptor, BindGroupEntry, CommandEncoder, RenderPassColorAttachment,
-    RenderPassDescriptor,
-};
+
+use std::collections::HashMap;
 
 pub struct Document<'framework> {
     framework: &'framework Framework,
+    layers_created: u16,
+
     document_size: Vector2<u32>,
     layers: HashMap<LayerIndex, Layer<'framework>>,
     tree_root: RootLayer,
@@ -44,62 +39,35 @@ impl<'l> Document<'l> {
                 initial_background_color: [0.5, 0.5, 0.5, 1.0],
             },
         );
-        let background_layer = BitmapLayer::new(
-            framework,
-            BitmapLayerConfiguration {
-                label: "Background Layer".to_owned(),
-                width: config.width,
-                height: config.height,
-                initial_background_color: [1.0, 1.0, 1.0, 1.0],
-            },
-        );
-        let background_layer = Layer::new_bitmap(
-            background_layer,
-            LayerCreationInfo {
-                name: "Background Layer".to_owned(),
-                position: point2(0.0, 0.0),
-                scale: vec2(1.0, 1.0),
-                rotation_radians: 0.0,
-            },
-            framework,
-        );
-        let background_layer_index = LayerIndex(0);
-        let first_layer = BitmapLayer::new(
-            framework,
-            BitmapLayerConfiguration {
-                label: "Layer 0".to_owned(),
-                width: config.width,
-                height: config.height,
-                initial_background_color: [0.0, 0.0, 0.0, 0.0],
-            },
-        );
-        let first_layer = Layer::new_bitmap(
-            first_layer,
-            LayerCreationInfo {
-                name: "Layer 0".to_owned(),
-                position: point2(0.0, 0.0),
-                scale: vec2(1.0, 1.0),
-                rotation_radians: 0.0,
-            },
-            framework,
-        );
 
         let first_layer_index = LayerIndex(1);
 
-        Self {
+        let mut document = Self {
             framework,
+            layers_created: 0,
             document_size: vec2(config.width, config.height),
             current_layer_index: first_layer_index,
             final_layer,
-            layers: HashMap::from_iter([
-                (background_layer_index, background_layer),
-                (first_layer_index, first_layer),
-            ]),
-            tree_root: RootLayer(vec![
-                LayerTree::SingleLayer(background_layer_index),
-                LayerTree::SingleLayer(first_layer_index),
-            ]),
-        }
+            layers: HashMap::new(),
+            tree_root: RootLayer(vec![]),
+        };
+
+        document.add_layer(
+            framework,
+            LayerConstructionInfo {
+                initial_color: [1.0, 1.0, 1.0, 1.0],
+                name: "Background Layer".into(),
+            },
+        );
+        document.add_layer(
+            framework,
+            LayerConstructionInfo {
+                initial_color: [0.0, 0.0, 0.0, 0.0],
+                name: "Layer 0".into(),
+            },
+        );
+
+        document
     }
 
     pub fn outer_size(&self) -> Vector2<f32> {
@@ -159,17 +127,13 @@ impl<'l> Document<'l> {
         self.tree_root.0.remove(erase_which);
     }
 
-    pub(crate) fn add_layer(
-        &mut self,
-        framework: &'l Framework,
-        layer_name: String,
-        layer_index: LayerIndex,
-        config: LayerConstructionInfo,
-    ) {
+    pub(crate) fn add_layer(&mut self, framework: &'l Framework, config: LayerConstructionInfo) {
+        let layer_index = LayerIndex(self.layers_created);
+        self.layers_created += 1;
         let new_layer = BitmapLayer::new(
             framework,
             BitmapLayerConfiguration {
-                label: layer_name.clone(),
+                label: config.name.clone(),
                 width: self.document_size.x,
                 height: self.document_size.y,
                 initial_background_color: config.initial_color,

@@ -50,9 +50,15 @@ impl<'framework> ImageApplication<'framework> {
         final_surface.configure(&framework.device, &final_surface_configuration);
 
         let render_pass = Texture2dDrawPass::new(framework, wgpu::TextureFormat::Rgba8UnormSrgb);
-        let final_present_pass =
+        let mut final_present_pass =
             Texture2dDrawPass::new(framework, wgpu::TextureFormat::Bgra8UnormSrgb);
 
+        final_present_pass.set_clear_color(wgpu::Color {
+            r: 0.1,
+            g: 0.1,
+            b: 0.1,
+            a: 1.0,
+        });
         let test_stamp = Toolbox::create_test_stamp(framework);
         let stamping_engine = StrokingEngine::new(test_stamp, framework);
         let stamping_engine = Rc::new(RefCell::new(stamping_engine));

@@ -5,9 +5,7 @@ struct VertexInput {
 
 struct PerInstanceData {
     @location(2) position_and_size: vec4<f32>,
-    @location(3) rotation_radians: f32,
-    @location(4) flip_y: f32,
-    @location(5) opacity: f32,
+    @location(3) rotation_flip_opacity: vec4<f32>,
 }
 
 struct PerFrameData {
@@ -62,16 +60,16 @@ fn vs(in: VertexInput, instance: PerInstanceData) -> VertexOutput {
     var out : VertexOutput;
     var vp = OPENGL_CORRECT * uniform_data.vp;
     var trans = translation(instance.position_and_size.xy);
-    var rot = rot_z(instance.rotation_radians);
+    var rot = rot_z(instance.rotation_flip_opacity.x);
     var scale = scale(instance.position_and_size.zw);
     var model = rot * scale * trans;
     var projected = vec4<f32>(in.position, 1.0) * model;
-
-    let y = instance.flip_y * (1.0 - in.tex_uv.y) + (1.0 - instance.flip_y) * in.tex_uv.y;
+    let flip = instance.rotation_flip_opacity.y;
+    let y = flip * (1.0 - in.tex_uv.y) + (1.0 - flip) * in.tex_uv.y;
     out.coordinates_position = vp * projected;
     out.position = in.position;
     out.tex_uv = vec2<f32>(in.tex_uv.x, y);
-    out.opacity = instance.opacity;
+    out.opacity = instance.rotation_flip_opacity.z;
     return out;
 }
 
