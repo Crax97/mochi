@@ -1,15 +1,16 @@
 use std::{cell::RefCell, rc::Rc};
 
 use framework::{
-    mesh_names,
-    render_pass::{PassBindble, RenderPass},
-    AssetsLibrary, Framework, Mesh, MeshInstance2D, TypedBuffer, TypedBufferConfiguration,
+    asset_library::mesh_names, AssetsLibrary, Framework, Mesh, MeshInstance2D, Texture2d,
+    TypedBuffer, TypedBufferConfiguration,
 };
 use wgpu::{
     BindGroup, BlendComponent, ColorTargetState, FragmentState, RenderPipeline, VertexState,
 };
 
 use crate::stamping_engine::{StampConfiguration, StampUniformData};
+
+use super::stamping_engine::Stamp;
 
 pub struct StampingEngineRenderPass<'framework> {
     instance_buffer: TypedBuffer<'framework>,
@@ -18,10 +19,9 @@ pub struct StampingEngineRenderPass<'framework> {
     stamp_data_buffer: TypedBuffer<'framework>,
     brush_bind_group: BindGroup,
     stamp_settings: StampConfiguration,
-    asset_library: Rc<RefCell<AssetsLibrary>>,
 }
 impl<'framework> StampingEngineRenderPass<'framework> {
-    pub fn new(framework: &'framework Framework, assets: Rc<RefCell<AssetsLibrary>>) -> Self {
+    pub fn new(framework: &'framework Framework) -> Self {
         let instance_buffer = TypedBuffer::new(
             framework,
             TypedBufferConfiguration::<MeshInstance2D> {
@@ -47,7 +47,7 @@ impl<'framework> StampingEngineRenderPass<'framework> {
                     entries: &[
                         wgpu::BindGroupLayoutEntry {
                             binding: 0,
-                            visibility: wgpu::ShaderStages::FRAGMENT,
+                            visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
                             ty: wgpu::BindingType::Texture {
                                 sample_type: wgpu::TextureSampleType::Float { filterable: true },
                                 view_dimension: wgpu::TextureViewDimension::D2,
@@ -57,7 +57,7 @@ impl<'framework> StampingEngineRenderPass<'framework> {
                         },
                         wgpu::BindGroupLayoutEntry {
                             binding: 1,
-                            visibility: wgpu::ShaderStages::FRAGMENT,
+                            visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
                             ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                             count: None,
                         },
@@ -224,7 +224,6 @@ impl<'framework> StampingEngineRenderPass<'framework> {
             stamp_pipeline,
             eraser_pipeline,
             stamp_settings: initial_setup,
-            asset_library: assets,
         }
     }
 
@@ -241,13 +240,13 @@ impl<'framework> StampingEngineRenderPass<'framework> {
     pub(crate) fn get_stamp_settings(&self) -> StampConfiguration {
         self.stamp_settings
     }
-}
 
-impl<'framework> RenderPass for StampingEngineRenderPass<'framework> {
-    fn execute_with_renderpass<'s, 'call, 'pass>(
+    pub fn execute<'s, 'call, 'pass>(
         &'s self,
         mut pass: wgpu::RenderPass<'pass>,
-        items: &'call [(u32, &'pass dyn PassBindble)],
+        stamp: &'pass Texture2d,
+        asset_library: &'pass AssetsLibrary,
+        camera_bind_group: &'pass BindGroup,
     ) where
         'pass: 'call,
         's: 'pass,
@@ -257,12 +256,13 @@ impl<'framework> RenderPass for StampingEngineRenderPass<'framework> {
         } else {
             pass.set_pipeline(&self.stamp_pipeline);
         }
-        self.bind_all(&mut pass, items);
+
+        pass.set_bind_group(0, stamp.bind_group(), &[]);
         pass.set_bind_group(1, &self.brush_bind_group, &[]);
-        self.instance_buffer.bind(1, &mut pass);
-        self.asset_library
-            .borrow()
+        pass.set_bind_group(2, &camera_bind_group, &[]);
+        pass.set_vertex_buffer(1, self.instance_buffer.entire_slice());
+        asset_library
             .mesh(mesh_names::QUAD)
-            .draw(pass, self.instance_buffer.elem_count() as u32)
+            .draw(&mut pass, self.instance_buffer.elem_count() as u32)
     }
 }

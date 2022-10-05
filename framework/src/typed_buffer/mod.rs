@@ -1,6 +1,4 @@
-use wgpu::{util::DeviceExt, BufferUsages};
-
-use crate::render_pass::PassBindble;
+use wgpu::{util::DeviceExt, BufferSlice, BufferUsages};
 
 use super::framework::Framework;
 
@@ -191,27 +189,7 @@ impl<'framework> TypedBuffer<'framework> {
         self.inner_buffer().unmap();
         data
     }
-}
-
-impl<'framework> PassBindble for TypedBuffer<'framework> {
-    fn bind<'s, 'call, 'pass>(&'s self, index: u32, pass: &'call mut wgpu::RenderPass<'pass>)
-    where
-        'pass: 'call,
-        's: 'pass,
-    {
-        match self.config.buffer_type {
-            BufferType::Vertex => {
-                let buffer = &self.buffer.buffer;
-
-                pass.set_vertex_buffer(index, buffer.slice(..));
-            }
-            BufferType::Uniform => {
-                panic!("Uniform buffers should be set by using the associated bind group!")
-            }
-            BufferType::Storage => todo!(),
-            BufferType::Oneshot => {
-                panic!("Oneshot buffers aren't supposed to be bound!")
-            }
-        };
+    pub fn entire_slice(&self) -> BufferSlice {
+        self.buffer.buffer.slice(..)
     }
 }

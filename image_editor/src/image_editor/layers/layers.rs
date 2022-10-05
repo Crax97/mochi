@@ -1,9 +1,9 @@
 use cgmath::{Point2, Vector2};
-use framework::render_pass::RenderPass;
 use framework::{Framework, MeshInstance2D, TypedBuffer, TypedBufferConfiguration};
-use wgpu::{BindGroup, BindGroupDescriptor, BindGroupEntry};
+use renderer::render_pass::texture2d_draw_pass::Texture2dDrawPass;
+use scene::Camera2d;
+use wgpu::{BindGroup, BindGroupDescriptor, BindGroupEntry, TextureView};
 
-use super::texture2d_draw_pass::Texture2dDrawPass;
 use super::{bitmap_layer, BitmapLayer};
 
 #[derive(Clone, PartialEq)]
@@ -21,7 +21,7 @@ pub struct ShaderLayerSettings {
 
 pub struct Layer<'framework> {
     pub settings: LayerSettings,
-    pub layer_type: LayerType<'framework>,
+    pub layer_type: LayerType,
     pub position: Point2<f32>,
     pub scale: Vector2<f32>,
     pub rotation_radians: f32,
@@ -35,18 +35,17 @@ pub struct LayerCreationInfo {
     pub rotation_radians: f32,
 }
 
-pub enum LayerType<'framework> {
-    Bitmap(bitmap_layer::BitmapLayer<'framework>),
+pub enum LayerType {
+    Bitmap(bitmap_layer::BitmapLayer),
 }
 
-pub(crate) struct LayerDrawContext<'context, 'pass> {
+pub(crate) struct LayerDrawContext<'pass> {
     pub render_pass: wgpu::RenderPass<'pass>,
-    pub draw_pass: &'context Texture2dDrawPass,
 }
 
 impl<'framework> Layer<'framework> {
     pub fn new_bitmap(
-        bitmap_layer: BitmapLayer<'framework>,
+        bitmap_layer: BitmapLayer,
         creation_info: LayerCreationInfo,
         framework: &'framework Framework,
     ) -> Self {
@@ -89,27 +88,40 @@ impl<'framework> Layer<'framework> {
             }
         }
     }
-    pub(crate) fn draw<'context, 'library, 'pass, 'l>(
+    pub(crate) fn draw<'library, 'pass, 'l>(
         &'l self,
-        draw_context: LayerDrawContext<'context, 'pass>,
+        framework: &'framework Framework,
+        mut pass: &mut Texture2dDrawPass<'framework>,
+        target: &TextureView,
     ) where
         'framework: 'pass,
         'l: 'pass,
-        'context: 'pass,
     {
         if !self.settings.is_enabled {
             return;
         }
         match &self.layer_type {
             LayerType::Bitmap(ref bm) => {
-                draw_context.draw_pass.execute_with_renderpass(
-                    draw_context.render_pass,
-                    &[
-                        (1, &self.instance_buffer),
-                        (0, bm.texture().bind_group()),
-                        (1, self.camera_bind_group()),
-                    ],
+                let real_scale = Vector2 {
+                    x: self.scale.x * bm.size().x * 0.5,
+                    y: self.scale.y * bm.size().y * 0.5,
+                };
+                pass.begin(&Camera2d::new(
+                    -0.1,
+                    1000.0,
+                    [-real_scale.x, real_scale.x, real_scale.y, -real_scale.y],
+                ));
+                pass.draw_texture(
+                    bm.texture(),
+                    MeshInstance2D::new(
+                        self.position,
+                        real_scale,
+                        self.rotation_radians,
+                        true,
+                        self.settings.opacity,
+                    ),
                 );
+                pass.execute(framework, target, false);
             }
         }
     }
@@ -127,17 +139,5 @@ impl<'framework> Layer<'framework> {
             true,
             self.settings.opacity,
         )])
-    }
-
-    pub(crate) fn bind_group(&self) -> &BindGroup {
-        match self.layer_type {
-            LayerType::Bitmap(ref bm) => bm.bind_group(),
-        }
-    }
-
-    fn camera_bind_group(&self) -> &BindGroup {
-        match self.layer_type {
-            LayerType::Bitmap(ref bm) => bm.camera_bind_group(),
-        }
     }
 }

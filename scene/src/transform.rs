@@ -2,6 +2,7 @@ use std::f32::consts::PI;
 
 use cgmath::{point3, Point3, Rad, Vector3};
 
+#[derive(Clone, Copy)]
 pub struct Transform2d {
     pub position: Point3<f32>,
     pub scale: Vector3<f32>,

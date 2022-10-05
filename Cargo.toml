@@ -4,5 +4,6 @@ members = [
     "framework",
     "scene",
     "image_editor",
-    "app"
+    "app",
+    "renderer"
 ]

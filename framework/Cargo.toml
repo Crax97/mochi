@@ -21,3 +21,10 @@ as-slice="0.2.1"
 anyhow="1.0.63"
 futures-intrusive = "0.4.0"
 pollster = "0.2"
+[dependencies.uuid]
+version = "1.1.2"
+features = [
+    "v4",                # Lets you generate random UUIDs
+    "fast-rng",          # Use a faster (but still sufficiently random) RNG
+    "macro-diagnostics", # Enable better diagnostics for compile-time UUIDs
+]

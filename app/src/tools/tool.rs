@@ -2,12 +2,10 @@ use std::{cell::RefCell, rc::Rc};
 
 use cgmath::{Point2, Vector2};
 
-use framework::Debug;
 use image_editor::ImageEditor;
 
 pub struct EditorContext<'editor, 'framework> {
     pub image_editor: &'editor mut ImageEditor<'framework>,
-    pub debug: Rc<RefCell<Debug>>,
 }
 
 #[derive(Debug, Clone, Copy)]

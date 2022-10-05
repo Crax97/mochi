@@ -3,74 +3,42 @@ use cgmath::{
 };
 
 use super::super::transform::Transform2d;
-use framework::{
-    typed_buffer::{BufferType, TypedBuffer, TypedBufferConfiguration},
-    Framework,
-};
+use framework::Framework;
 
-pub struct Camera2d<'framework> {
+#[derive(Clone, Copy)]
+pub struct Camera2d {
     transform: Transform2d,
     pub near: f32,
     pub far: f32,
     pub left_right_top_bottom: [f32; 4],
-
-    camera_buffer: TypedBuffer<'framework>,
 }
 
-impl<'framework> Camera2d<'framework> {
-    pub fn new(
-        near: f32,
-        far: f32,
-        left_right_top_bottom: [f32; 4],
-        framework: &'framework Framework,
-    ) -> Self {
+impl Camera2d {
+    pub fn new(near: f32, far: f32, left_right_top_bottom: [f32; 4]) -> Self {
         assert!(far > near);
 
-        let camera_buffer =
-            framework.allocate_typed_buffer::<Camera2dUniformBlock>(TypedBufferConfiguration {
-                initial_setup: framework::typed_buffer::BufferInitialSetup::Data(&vec![
-                    Camera2dUniformBlock {
-                        ortho_matrix: Matrix4::identity(),
-                    },
-                ]),
-                buffer_type: BufferType::Uniform,
-                allow_write: true,
-                allow_read: false,
-            });
-
-        let mut new_camera = Self {
+        Self {
             transform: Transform2d::default(),
             near,
             far,
             left_right_top_bottom,
-            camera_buffer,
-        };
-        new_camera.update_camera_buffer();
-        new_camera
+        }
+    }
+
+    pub fn unit() -> Self {
+        Camera2d::new(-0.1, 1000.0, [-1.0, 1.0, 1.0, -1.0])
     }
 
     pub fn set_new_bounds(&mut self, lrtb: [f32; 4]) {
         self.left_right_top_bottom = lrtb;
-        self.update_camera_buffer();
-    }
-
-    fn update_camera_buffer(&mut self) {
-        self.camera_buffer
-            .write_sync(&vec![Camera2dUniformBlock::from(self as &Camera2d)]);
-    }
-
-    pub fn buffer(&self) -> &TypedBuffer {
-        &self.camera_buffer
     }
 
     pub fn translate(&mut self, delta: Vector2<f32>) {
         self.transform.translate(vec3(delta.x, delta.y, 0.0));
-        self.update_camera_buffer();
     }
 
     pub fn set_position(&mut self, new_position: Point2<f32>) {
         self.transform.position = point3(new_position.x, new_position.y, 0.0);
-        self.update_camera_buffer();
     }
 
     pub fn position(&self) -> Point2<f32> {
@@ -79,12 +47,10 @@ impl<'framework> Camera2d<'framework> {
 
     pub fn scale(&mut self, delta: f32) {
         self.transform.scale(vec3(delta, delta, 0.0));
-        self.update_camera_buffer();
     }
 
     pub fn set_scale(&mut self, new_scale: f32) {
         self.transform.set_scale(vec3(new_scale, new_scale, 0.0));
-        self.update_camera_buffer();
     }
 
     pub fn current_scale(&self) -> f32 {
@@ -154,7 +120,7 @@ pub struct Camera2dUniformBlock {
 unsafe impl bytemuck::Pod for Camera2dUniformBlock {}
 unsafe impl bytemuck::Zeroable for Camera2dUniformBlock {}
 
-impl From<&Camera2d<'_>> for Camera2dUniformBlock {
+impl From<&Camera2d> for Camera2dUniformBlock {
     fn from(camera: &Camera2d) -> Self {
         Self {
             ortho_matrix: camera.view_projection(),

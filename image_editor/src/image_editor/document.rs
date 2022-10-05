@@ -7,8 +7,10 @@ use crate::{
     LayerConstructionInfo,
 };
 use cgmath::{point2, vec2, Vector2};
-use framework::{Framework, Texture2d, TypedBufferConfiguration};
+use framework::{framework::TextureId, Framework, Texture2d, TypedBufferConfiguration};
 use image::{DynamicImage, ImageBuffer};
+use renderer::render_pass::texture2d_draw_pass::Texture2dDrawPass;
+use scene::Camera2d;
 use std::{collections::HashMap, iter::FromIterator};
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, CommandEncoder, RenderPassColorAttachment,
@@ -20,7 +22,7 @@ pub struct Document<'framework> {
     document_size: Vector2<u32>,
     layers: HashMap<LayerIndex, Layer<'framework>>,
     tree_root: RootLayer,
-    final_layer: BitmapLayer<'framework>,
+    final_layer: BitmapLayer,
 
     current_layer_index: LayerIndex,
 }
@@ -34,7 +36,7 @@ pub struct DocumentCreationInfo {
 impl<'l> Document<'l> {
     pub fn new(config: DocumentCreationInfo, framework: &'l Framework) -> Self {
         let final_layer = BitmapLayer::new(
-            &framework,
+            framework,
             BitmapLayerConfiguration {
                 label: "Final Rendering Layer".to_owned(),
                 width: config.width,
@@ -43,7 +45,7 @@ impl<'l> Document<'l> {
             },
         );
         let background_layer = BitmapLayer::new(
-            &framework,
+            framework,
             BitmapLayerConfiguration {
                 label: "Background Layer".to_owned(),
                 width: config.width,
@@ -59,11 +61,11 @@ impl<'l> Document<'l> {
                 scale: vec2(1.0, 1.0),
                 rotation_radians: 0.0,
             },
-            &framework,
+            framework,
         );
         let background_layer_index = LayerIndex(0);
         let first_layer = BitmapLayer::new(
-            &framework,
+            framework,
             BitmapLayerConfiguration {
                 label: "Layer 0".to_owned(),
                 width: config.width,
@@ -79,26 +81,11 @@ impl<'l> Document<'l> {
                 scale: vec2(1.0, 1.0),
                 rotation_radians: 0.0,
             },
-            &framework,
+            framework,
         );
 
         let first_layer_index = LayerIndex(1);
-        let settings_group_layout =
-            framework
-                .device
-                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    label: Some("Layer Draw Settings bind layout"),
-                    entries: &[wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Uniform,
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
-                    }],
-                });
+
         Self {
             framework,
             document_size: vec2(config.width, config.height),
@@ -172,14 +159,6 @@ impl<'l> Document<'l> {
         self.tree_root.0.remove(erase_which);
     }
 
-    pub(crate) fn final_layer_texture_view(&self) -> &wgpu::TextureView {
-        self.final_layer.texture().texture_view()
-    }
-
-    pub(crate) fn final_texture(&self) -> &Texture2d {
-        self.final_layer.texture()
-    }
-
     pub(crate) fn add_layer(
         &mut self,
         framework: &'l Framework,
@@ -216,71 +195,31 @@ impl<'l> Document<'l> {
         }
     }
 
-    pub(crate) fn render(
+    pub(crate) fn render<'tex>(
         &mut self,
-        encoder: &mut CommandEncoder,
-        layer_draw_pass: &crate::layers::Texture2dDrawPass,
-    ) {
-        {
-            {
-                let render_pass_description = RenderPassDescriptor {
-                    label: Some("ImageEditor Clear Final Image"),
-                    color_attachments: &[Some(RenderPassColorAttachment {
-                        view: self.final_layer_texture_view(),
-                        resolve_target: None,
-                        ops: wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(wgpu::Color {
-                                r: 0.0,
-                                g: 0.0,
-                                b: 0.0,
-                                a: 1.0,
-                            }),
-                            store: true,
-                        },
-                    })],
-                    depth_stencil_attachment: None,
-                };
-                let _ = encoder.begin_render_pass(&render_pass_description);
-            }
-        }
-        let render_pass_description = RenderPassDescriptor {
-            label: Some("ImageEditor Redraw Image Pass"),
-            color_attachments: &[Some(RenderPassColorAttachment {
-                view: self.final_layer_texture_view(),
-                resolve_target: None,
-                ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Load,
-                    store: true,
-                },
-            })],
-            depth_stencil_attachment: None,
-        };
+        mut pass: &mut Texture2dDrawPass<'l>, // layer_draw_pass: &crate::layers::Texture2dDrawPass,
+    ) where
+        'l: 'tex,
+    {
+        let final_layer = self.final_layer.texture();
+        let final_texture = self.framework.texture2d(&final_layer);
         for layer_node in self.tree_root.0.iter() {
             match layer_node {
                 LayerTree::SingleLayer(index) => {
                     let layer = self.layers.get(&index).expect("Nonexistent layer");
-                    let mut render_pass = encoder.begin_render_pass(&render_pass_description);
-                    layer_draw_pass.prepare(&mut render_pass);
-                    layer.draw(LayerDrawContext {
-                        render_pass,
-                        draw_pass: &layer_draw_pass,
-                    });
+                    layer.draw(self.framework, &mut pass, final_texture.texture_view());
                 }
                 LayerTree::Group(indices) => {
                     for index in indices {
                         let layer = self.layers.get(index).expect("Nonexistent layer");
-                        let render_pass = encoder.begin_render_pass(&render_pass_description);
-                        layer.draw(LayerDrawContext {
-                            render_pass,
-                            draw_pass: &layer_draw_pass,
-                        });
+                        layer.draw(self.framework, &mut pass, final_texture.texture_view());
                     }
                 }
             };
         }
     }
 
-    pub fn final_layer(&self) -> &Texture2d {
+    pub fn final_layer(&self) -> &TextureId {
         &self.final_layer.texture()
     }
 
@@ -293,10 +232,12 @@ impl<'l> Document<'l> {
     }
 
     pub fn final_image_bytes(&self) -> DynamicImage {
-        let bytes = self.final_texture().read_data(&self.framework);
+        todo!()
+        /*let bytes = self.final_texture().read_data(&self.framework);
         DynamicImage::ImageRgba8(
             ImageBuffer::from_vec(self.document_size.x, self.document_size.y, bytes).unwrap(),
         )
+        */
     }
 
     pub fn for_each_layer<F: FnMut(&Layer, &LayerIndex)>(&self, mut f: F) {

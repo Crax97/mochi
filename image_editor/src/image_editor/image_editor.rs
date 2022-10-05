@@ -4,18 +4,15 @@ use std::{
 };
 
 use cgmath::{point2, vec2, ElementWise};
-use framework::{
-    render_pass::RenderPass, Framework, MeshInstance2D, TypedBuffer, TypedBufferConfiguration,
-};
+use framework::{Framework, MeshInstance2D, TypedBuffer, TypedBufferConfiguration};
+use renderer::render_pass::texture2d_draw_pass::Texture2dDrawPass;
 use scene::Camera2d;
 use wgpu::{
     BindGroup, CommandBuffer, CommandEncoder, CommandEncoderDescriptor, RenderPassColorAttachment,
-    RenderPassDescriptor,
+    RenderPassDescriptor, TextureView,
 };
 
-use framework::asset_library::AssetsLibrary;
-
-use crate::{document::DocumentCreationInfo, layers::Texture2dDrawPass};
+use crate::document::DocumentCreationInfo;
 
 use super::{
     document::Document,
@@ -30,22 +27,14 @@ pub struct LayerConstructionInfo {
 
 pub struct ImageEditor<'framework> {
     framework: &'framework Framework,
-    assets: Rc<RefCell<AssetsLibrary>>,
-    pan_camera: Camera2d<'framework>,
+    pan_camera: Camera2d,
 
     document: Document<'framework>,
     layers_created: u16,
-    layer_draw_pass: Texture2dDrawPass,
-    canvas: BitmapLayer<'framework>,
-    camaera_bind_group: BindGroup,
-    canvas_instance_buffer: TypedBuffer<'framework>,
+    canvas: BitmapLayer,
 }
 impl<'framework> ImageEditor<'framework> {
-    pub fn new(
-        framework: &'framework Framework,
-        assets: Rc<RefCell<AssetsLibrary>>,
-        initial_window_bounds: &[f32; 2],
-    ) -> Self {
+    pub fn new(framework: &'framework Framework, initial_window_bounds: &[f32; 2]) -> Self {
         let test_width = 1800;
         let test_height = 1024;
         let test_document = Document::new(
@@ -56,70 +45,23 @@ impl<'framework> ImageEditor<'framework> {
             },
             framework,
         );
-        let canvas_instance_buffer = framework.allocate_typed_buffer(TypedBufferConfiguration {
-            initial_setup: framework::typed_buffer::BufferInitialSetup::Data(&vec![
-                MeshInstance2D::new(
-                    point2(0.0, 0.0),
-                    vec2(test_width as f32 * 0.5, test_height as f32 * 0.5),
-                    0.0,
-                    true,
-                    1.0,
-                ),
-            ]),
-            buffer_type: framework::BufferType::Vertex,
-            allow_write: true,
-            allow_read: false,
-        });
         let left_right_top_bottom = [
             -initial_window_bounds[0] * 0.5,
             initial_window_bounds[0] * 0.5,
             initial_window_bounds[1] * 0.5,
             -initial_window_bounds[1] * 0.5,
         ];
-        let mut pan_camera = Camera2d::new(-0.1, 1000.0, left_right_top_bottom, &framework);
+        let mut pan_camera = Camera2d::new(-0.1, 1000.0, left_right_top_bottom);
         let initial_camera_scale = if initial_window_bounds[0] > initial_window_bounds[1] {
             test_document.outer_size().x / initial_window_bounds[0]
         } else {
             test_document.outer_size().y / initial_window_bounds[1]
         } * 1.5;
         println!("Initial scale: {initial_camera_scale}");
-        pan_camera.set_scale(initial_camera_scale);
+        //pan_camera.set_scale(initial_camera_scale);
 
-        let layer_draw_pass = Texture2dDrawPass::new(framework, assets.clone());
-
-        let camera_bind_group_layout =
-            framework
-                .device
-                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    label: Some("Layer render pass bind layout"),
-                    entries: &[wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Uniform,
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
-                    }],
-                });
-        let camaera_bind_group = framework
-            .device
-            .create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("Layer Camera render pass"),
-                layout: &camera_bind_group_layout,
-                entries: &[wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::Buffer(
-                        pan_camera
-                            .buffer()
-                            .inner_buffer()
-                            .as_entire_buffer_binding(),
-                    ),
-                }],
-            });
         let canvas = BitmapLayer::new(
-            &framework,
+            framework,
             BitmapLayerConfiguration {
                 label: "ImageEditor Canvas".to_owned(),
                 width: test_document.document_size().x,
@@ -129,14 +71,10 @@ impl<'framework> ImageEditor<'framework> {
         );
         ImageEditor {
             framework,
-            assets,
             canvas,
             pan_camera,
             document: test_document,
             layers_created: 0,
-            layer_draw_pass,
-            camaera_bind_group,
-            canvas_instance_buffer,
         }
     }
 
@@ -179,63 +117,26 @@ impl<'framework> ImageEditor<'framework> {
         self.mutate_document(|d| d.update_layers());
     }
 
-    pub fn redraw_full_image(&mut self) -> CommandBuffer {
-        let command_encoder_description = CommandEncoderDescriptor {
-            label: Some("Image render encoder"),
-        };
-        let mut command_encoder = self
-            .framework
-            .device
-            .create_command_encoder(&command_encoder_description);
-
-        let old_scale = self.pan_camera.current_scale();
-        let old_pos = self.pan_camera.position();
-
-        self.pan_camera.set_scale(1.0);
-        self.pan_camera.set_position(point2(0.0, 0.0));
-        self.render_document(&mut command_encoder);
-
-        self.pan_camera.set_scale(old_scale);
-        self.pan_camera.set_position(old_pos);
-        self.render_canvas(&mut command_encoder);
-
-        command_encoder.finish()
+    pub fn render_document<'s, 't>(&'s mut self, mut pass: &mut Texture2dDrawPass<'framework>)
+    where
+        'framework: 't,
+    {
+        self.document.render(&mut pass);
     }
 
-    fn render_document(&mut self, encoder: &mut CommandEncoder) {
-        self.document.render(encoder, &self.layer_draw_pass);
-    }
-
-    fn render_canvas(&mut self, command_encoder: &mut CommandEncoder) {
-        let render_pass_description = RenderPassDescriptor {
-            label: Some("ImageEditor Canvas Pass"),
-            color_attachments: &[Some(RenderPassColorAttachment {
-                view: self.get_full_image_texture().texture().texture_view(),
-                resolve_target: None,
-                ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(wgpu::Color {
-                        r: 0.0,
-                        g: 0.0,
-                        b: 0.0,
-                        a: 1.0,
-                    }),
-                    store: true,
-                },
-            })],
-            depth_stencil_attachment: None,
-        };
-        {
-            let mut render_pass = command_encoder.begin_render_pass(&render_pass_description);
-            self.layer_draw_pass.prepare(&mut render_pass);
-            self.layer_draw_pass.execute_with_renderpass(
-                render_pass,
-                &[
-                    (1, &self.canvas_instance_buffer),
-                    (0, self.document.final_layer().bind_group()),
-                    (1, &self.camaera_bind_group),
-                ],
-            );
-        }
+    pub fn render_canvas(&mut self, output_canvas: &TextureView, pass: &mut Texture2dDrawPass) {
+        pass.begin(&self.camera());
+        pass.draw_texture(
+            self.document.final_layer(),
+            MeshInstance2D::new(
+                self.pan_camera.position().mul_element_wise(-1.0),
+                self.document.document_size().cast::<f32>().unwrap() * 0.5,
+                0.0,
+                false,
+                1.0,
+            ),
+        );
+        pass.execute(&self.framework, &output_canvas, true);
     }
 
     pub fn get_full_image_texture(&self) -> &BitmapLayer {
@@ -269,14 +170,10 @@ impl<'framework> ImageEditor<'framework> {
         self.document.current_layer()
     }
 
-    pub fn assets(&self) -> Ref<AssetsLibrary> {
-        self.assets.borrow()
-    }
-
     pub fn camera(&self) -> &Camera2d {
         &self.pan_camera
     }
-    pub fn camera_mut(&mut self) -> &mut Camera2d<'framework> {
+    pub fn camera_mut(&mut self) -> &mut Camera2d {
         &mut self.pan_camera
     }
 }

@@ -4,7 +4,7 @@ pub mod stamping_engine_pass;
 use std::{cell::RefCell, rc::Rc};
 
 use cgmath::{InnerSpace, Point2};
-use framework::{asset_library::AssetsLibrary, Debug};
+use framework::asset_library::AssetsLibrary;
 use wgpu::CommandEncoder;
 
 use image_editor::{layers::Layer, ImageEditor};
@@ -38,8 +38,6 @@ pub struct StrokeContext<'editor, 'stroke> {
     pub layer: &'editor Layer<'editor>,
     pub editor: &'stroke ImageEditor<'editor>,
     pub command_encoder: &'stroke mut CommandEncoder,
-    pub assets: &'editor AssetsLibrary,
-    pub debug: Rc<RefCell<Debug>>,
 }
 
 pub trait BrushEngine {

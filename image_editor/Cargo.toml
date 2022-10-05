@@ -18,6 +18,7 @@ cgmath="0.18.0"
 
 framework={path="../framework"}
 scene={path="../scene"}
+renderer={path="../renderer"}
 
 [dependencies.image]
 version = "0.24"

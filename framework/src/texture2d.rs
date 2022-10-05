@@ -1,12 +1,8 @@
 use std::num::{NonZeroU32, NonZeroU8};
 
-use cgmath::{num_traits::one, Point2};
-use wgpu::{
-    BindGroup, Color, Extent3d, ImageCopyBuffer, ImageCopyTexture, ImageDataLayout,
-    RenderBundleEncoderDescriptor,
-};
+use wgpu::{BindGroup, Color, Extent3d, ImageCopyBuffer, ImageDataLayout};
 
-use crate::{framework, render_pass::PassBindble, Framework};
+use crate::Framework;
 
 pub struct Texture2d {
     texture: wgpu::Texture,
@@ -27,7 +23,7 @@ pub struct Texture2dConfiguration {
 }
 
 impl Texture2d {
-    pub fn new(framework: &Framework, config: Texture2dConfiguration) -> Self {
+    pub(crate) fn new(framework: &Framework, config: Texture2dConfiguration) -> Self {
         let enable_if = |cond, feature| {
             if cond {
                 feature
@@ -270,9 +266,6 @@ impl Texture2d {
     pub fn bind_group(&self) -> &BindGroup {
         &self.bind_group
     }
-}
-
-impl PassBindble for Texture2d {
     fn bind<'s, 'call, 'pass>(&'s self, index: u32, pass: &'call mut wgpu::RenderPass<'pass>)
     where
         'pass: 'call,

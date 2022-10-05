@@ -10,7 +10,7 @@ use crate::{
     tools::{EditorContext, PointerClick, PointerMove, PointerRelease, Tool},
 };
 use cgmath::point2;
-use framework::{Debug, Framework, TypedBuffer};
+use framework::{Framework, TypedBuffer};
 use image_editor::{
     layers::{BitmapLayer, BitmapLayerConfiguration},
     ImageEditor,
@@ -44,10 +44,7 @@ impl<'framework> Toolbox<'framework> {
         (new_toolbox, primary_id, secondary_id)
     }
 
-    pub fn create_test_stamp(
-        camera_buffer: &TypedBuffer,
-        framework: &'framework Framework,
-    ) -> Stamp<'framework> {
+    pub fn create_test_stamp(framework: &'framework Framework) -> Stamp {
         let test_stamp_bytes = include_bytes!("test/test_brush.png");
         let image = image::load_from_memory(test_stamp_bytes).unwrap();
         let brush_bitmap = BitmapLayer::new_from_bytes(
@@ -60,11 +57,7 @@ impl<'framework> Toolbox<'framework> {
                 height: image.height(),
             },
         );
-        Stamp::new(
-            brush_bitmap,
-            &framework,
-            StampCreationInfo { camera_buffer },
-        )
+        Stamp::new(brush_bitmap, &framework)
     }
 
     pub fn add_tool(&mut self, new_tool: Rc<RefCell<dyn Tool + 'framework>>) -> ToolId {
@@ -93,12 +86,7 @@ impl<'framework> Toolbox<'framework> {
         }
     }
 
-    pub fn update(
-        &mut self,
-        input_state: &InputState,
-        mut image_editor: &mut ImageEditor,
-        debug: Rc<RefCell<Debug>>,
-    ) {
+    pub fn update(&mut self, input_state: &InputState, mut image_editor: &mut ImageEditor) {
         if input_state.is_mouse_button_just_pressed(MouseButton::Left) {
             self.primary_tool().on_pointer_click(
                 PointerClick {
@@ -107,7 +95,6 @@ impl<'framework> Toolbox<'framework> {
                 },
                 EditorContext {
                     image_editor: &mut image_editor,
-                    debug: debug.clone(),
                 },
             );
         } else if input_state.is_mouse_button_just_released(MouseButton::Left) {
@@ -115,7 +102,6 @@ impl<'framework> Toolbox<'framework> {
                 PointerRelease {},
                 EditorContext {
                     image_editor: &mut image_editor,
-                    debug: debug.clone(),
                 },
             );
         } else {
@@ -130,7 +116,6 @@ impl<'framework> Toolbox<'framework> {
                 },
                 EditorContext {
                     image_editor: &mut image_editor,
-                    debug: debug.clone(),
                 },
             );
         }
@@ -142,7 +127,6 @@ impl<'framework> Toolbox<'framework> {
                 },
                 EditorContext {
                     image_editor: &mut image_editor,
-                    debug: debug.clone(),
                 },
             );
         } else if input_state.is_mouse_button_just_released(MouseButton::Right) {
@@ -150,7 +134,6 @@ impl<'framework> Toolbox<'framework> {
                 PointerRelease {},
                 EditorContext {
                     image_editor: &mut image_editor,
-                    debug: debug.clone(),
                 },
             );
         } else {
@@ -165,7 +148,6 @@ impl<'framework> Toolbox<'framework> {
                 },
                 EditorContext {
                     image_editor: &mut image_editor,
-                    debug: debug.clone(),
                 },
             );
         }

@@ -2,10 +2,10 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use cgmath::vec2;
-use framework::render_pass::RenderPass;
-use framework::AssetsLibrary;
+use framework::{AssetsLibrary, TypedBufferConfiguration};
 use framework::{Framework, MeshInstance2D, TypedBuffer};
 use image_editor::layers::BitmapLayer;
+use scene::{Camera2d, Camera2dUniformBlock};
 use wgpu::{BindGroup, BindGroupLayout, RenderPassColorAttachment, RenderPassDescriptor};
 
 use crate::{StrokeContext, StrokePath};
@@ -13,69 +13,17 @@ use crate::{StrokeContext, StrokePath};
 use super::stamping_engine_pass::StampingEngineRenderPass;
 use super::BrushEngine;
 
-pub struct Stamp<'framework> {
-    brush_texture: BitmapLayer<'framework>,
-    bind_group: BindGroup,
-    bind_group_layout: BindGroupLayout,
+pub struct Stamp {
+    pub(crate) brush_texture: BitmapLayer,
 }
 
 pub struct StampCreationInfo<'framework> {
     pub camera_buffer: &'framework TypedBuffer<'framework>,
 }
 
-impl<'framework> Stamp<'framework> {
-    pub fn new(
-        brush_texture: BitmapLayer<'framework>,
-        framework: &'framework Framework,
-        creation_info: StampCreationInfo,
-    ) -> Self {
-        let bind_group_layout =
-            framework
-                .device
-                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    label: Some("Layer render pass bind layout"),
-                    entries: &[
-                        wgpu::BindGroupLayoutEntry {
-                            binding: 0,
-                            visibility: wgpu::ShaderStages::FRAGMENT,
-                            ty: wgpu::BindingType::Texture {
-                                sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                                view_dimension: wgpu::TextureViewDimension::D2,
-                                multisampled: false,
-                            },
-                            count: None,
-                        },
-                        wgpu::BindGroupLayoutEntry {
-                            binding: 1,
-                            visibility: wgpu::ShaderStages::FRAGMENT,
-                            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                            count: None,
-                        },
-                    ],
-                });
-        let bind_group = framework
-            .device
-            .create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("Stamp render bind group"),
-                layout: &bind_group_layout,
-                entries: &[
-                    wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: wgpu::BindingResource::TextureView(
-                            brush_texture.texture().texture_view(),
-                        ),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 1,
-                        resource: wgpu::BindingResource::Sampler(brush_texture.texture().sampler()),
-                    },
-                ],
-            });
-        Self {
-            brush_texture,
-            bind_group,
-            bind_group_layout,
-        }
+impl Stamp {
+    pub fn new(brush_texture: BitmapLayer, framework: &Framework) -> Self {
+        Self { brush_texture }
     }
 }
 
@@ -117,31 +65,69 @@ impl From<StampConfiguration> for StampUniformData {
 
 pub struct StrokingEngine<'framework> {
     current_stamp: usize,
-    stamps: Vec<Stamp<'framework>>,
+    stamps: Vec<Stamp>,
     stamp_pass: StampingEngineRenderPass<'framework>,
+    camera_buffer: TypedBuffer<'framework>,
+    camera_bind_group: BindGroup,
 }
 
 impl<'framework> StrokingEngine<'framework> {
-    pub fn new(
-        initial_stamp: Stamp<'framework>,
-        framework: &'framework Framework,
-        assets: Rc<RefCell<AssetsLibrary>>,
-    ) -> Self {
-        let stamp_pass = StampingEngineRenderPass::new(framework, assets);
+    pub fn new(initial_stamp: Stamp, framework: &'framework Framework) -> Self {
+        let stamp_pass = StampingEngineRenderPass::new(framework);
+
+        let camera_buffer =
+            framework.allocate_typed_buffer(TypedBufferConfiguration::<Camera2dUniformBlock> {
+                initial_setup: framework::typed_buffer::BufferInitialSetup::Size(
+                    std::mem::size_of::<Camera2dUniformBlock>() as u64,
+                ),
+                buffer_type: framework::BufferType::Uniform,
+                allow_write: true,
+                allow_read: false,
+            });
+        let camera_bind_group_layout =
+            framework
+                .device
+                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                    label: Some("Texture2D Camera Layout"),
+                    entries: &[wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    }],
+                });
+        let camera_bind_group = framework
+            .device
+            .create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some("Texture2D Camera"),
+                layout: &camera_bind_group_layout,
+                entries: &[wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::Buffer(
+                        camera_buffer.inner_buffer().as_entire_buffer_binding(),
+                    ),
+                }],
+            });
+
         Self {
             stamps: vec![initial_stamp],
             current_stamp: 0,
             stamp_pass,
+            camera_buffer,
+            camera_bind_group,
         }
     }
 
     pub fn create_stamp(
         &self,
-        brush_texture: BitmapLayer<'framework>,
+        brush_texture: BitmapLayer,
         framework: &'framework Framework,
-        info: StampCreationInfo,
     ) -> Stamp {
-        Stamp::new(brush_texture, framework, info)
+        Stamp::new(brush_texture, framework)
     }
 
     pub fn settings(&self) -> StampConfiguration {
@@ -171,12 +157,26 @@ impl<'framework> BrushEngine for StrokingEngine<'framework> {
                         MeshInstance2D::new(pt.position, vec2(pt.size, pt.size), 0.0, true, 1.0)
                     })
                     .collect();
+
+                let bm_camera = Camera2d::new(
+                    -0.1,
+                    1000.0,
+                    [
+                        -bitmap_layer.size().x as f32 * 0.5,
+                        bitmap_layer.size().x as f32 * 0.5,
+                        bitmap_layer.size().y as f32 * 0.5,
+                        -bitmap_layer.size().y as f32 * 0.5,
+                    ],
+                );
+                self.camera_buffer
+                    .write_sync::<Camera2dUniformBlock>(&vec![(&bm_camera).into()]);
                 self.stamp_pass.update(instances);
                 // 2. Do draw
+                let bitmap_texture = context.editor.framework().texture2d(bitmap_layer.texture());
                 let stroking_engine_render_pass = RenderPassDescriptor {
                     label: Some("Stamping Engine render pass"),
                     color_attachments: &[Some(RenderPassColorAttachment {
-                        view: bitmap_layer.texture().texture_view(),
+                        view: bitmap_texture.texture_view(),
                         resolve_target: None,
                         ops: wgpu::Operations {
                             load: wgpu::LoadOp::Load,
@@ -197,12 +197,13 @@ impl<'framework> BrushEngine for StrokingEngine<'framework> {
                     0.0,
                     1.0,
                 );
-                self.stamp_pass.execute_with_renderpass(
+                let stamp = self.current_stamp().brush_texture.texture();
+                let stamp = context.editor.framework().texture2d(stamp);
+                self.stamp_pass.execute(
                     render_pass,
-                    &[
-                        (0, &self.current_stamp().bind_group),
-                        (2, bitmap_layer.camera_bind_group()),
-                    ],
+                    &stamp,
+                    &context.editor.framework().asset_library,
+                    &self.camera_bind_group,
                 );
             }
         }
