@@ -14,7 +14,7 @@ use winit::window::Window;
 use crate::toolbox::ToolId;
 
 use super::{Ui, UiContext};
-
+use rfd::FileDialog;
 enum LayerAction {
     NewLayerRequest,
     CancelNewLayerRequest,
@@ -104,11 +104,19 @@ impl EguiUI {
             ui.add(egui::DragValue::new(&mut brush_tool.step).clamp_range(1.0..=1000.0));
         });
 
-        if ui.button("save test").clicked() {
-            let image = app_ctx.image_editor.get_full_image_bytes();
-            if let Err(e) = image.save("image.png") {
-                log::error!("While saving image: {e}");
-            };
+        if ui.button("Save").clicked() {
+            let file_path = rfd::FileDialog::new()
+                .add_filter("PNG Image", &["png"])
+                .add_filter("JPG Image", &["jpg", "jpeg"])
+                .add_filter("Bitmap", &["bmp"])
+                .set_title("Save image")
+                .save_file();
+            if let Some(file_path) = file_path {
+                let image = app_ctx.image_editor.get_full_image_bytes();
+                if let Err(e) = image.save(file_path) {
+                    log::error!("While saving image: {e}");
+                };
+            }
         }
 
         event_handled
