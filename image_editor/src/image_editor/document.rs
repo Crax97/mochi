@@ -5,7 +5,7 @@ use crate::{
 };
 use cgmath::{point2, vec2, Vector2};
 use framework::Framework;
-use image::{DynamicImage, ImageBuffer};
+use image::{DynamicImage, GenericImage, ImageBuffer};
 use renderer::render_pass::texture2d_draw_pass::Texture2dDrawPass;
 
 use std::collections::HashMap;
@@ -200,9 +200,12 @@ impl<'l> Document<'l> {
     pub fn final_image_bytes(&self) -> DynamicImage {
         let final_layer_texture = self.framework.texture2d(self.final_layer.texture());
         let bytes = final_layer_texture.read_data(&self.framework);
-        DynamicImage::ImageRgba8(
-            ImageBuffer::from_vec(self.document_size.x, self.document_size.y, bytes).unwrap(),
-        )
+        let mut raw_image =
+            ImageBuffer::from_raw(bytes.padded_width, bytes.height, bytes.data).unwrap();
+        let subimg = raw_image.sub_image(0, 0, bytes.width, bytes.height);
+        let subimg = subimg.to_image();
+        let new_image = image::imageops::flip_vertical(&subimg);
+        DynamicImage::ImageRgba8(new_image)
     }
 
     pub fn for_each_layer<F: FnMut(&Layer, &LayerIndex)>(&self, mut f: F) {

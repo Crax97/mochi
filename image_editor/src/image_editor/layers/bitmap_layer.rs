@@ -37,6 +37,7 @@ impl BitmapLayer {
 
         let texture = framework.allocate_texture2d(
             Texture2dConfiguration {
+                debug_name: Some(configuration.label.clone() + " Texture"),
                 width: configuration.width,
                 height: configuration.height,
                 format,

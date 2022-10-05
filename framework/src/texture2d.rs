@@ -1,8 +1,14 @@
 use std::num::{NonZeroU32, NonZeroU8};
-
 use wgpu::{BindGroup, Color, Extent3d, ImageCopyBuffer, ImageDataLayout};
 
 use crate::Framework;
+
+pub struct GpuImageData {
+    pub data: Vec<u8>,
+    pub width: u32,
+    pub height: u32,
+    pub padded_width: u32,
+}
 
 pub struct Texture2d {
     texture: wgpu::Texture,
@@ -14,6 +20,7 @@ pub struct Texture2d {
 }
 
 pub struct Texture2dConfiguration {
+    pub debug_name: Option<String>,
     pub width: u32,
     pub height: u32,
     pub format: wgpu::TextureFormat,
@@ -33,7 +40,7 @@ impl Texture2d {
         };
 
         let texture = framework.device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("Framework Texture"),
+            label: config.debug_name.as_deref(),
             size: wgpu::Extent3d {
                 width: config.width,
                 height: config.height,
@@ -214,7 +221,7 @@ impl Texture2d {
         )
     }
 
-    pub fn read_data(&self, framework: &Framework) -> Vec<u8> {
+    pub fn read_data(&self, framework: &Framework) -> GpuImageData {
         let mut encoder =
             framework
                 .device
@@ -252,9 +259,15 @@ impl Texture2d {
                 depth_or_array_layers: 1,
             },
         );
+        framework.queue.submit(std::iter::once(encoder.finish()));
 
         let bytes = oneshot_buffer.read_all_sync();
-        bytes
+        GpuImageData {
+            data: bytes,
+            width: self.width,
+            height: self.height,
+            padded_width: padded_width / channels,
+        }
     }
 
     pub fn texture_view(&self) -> &wgpu::TextureView {
