@@ -6,13 +6,13 @@ use crate::{
     },
     LayerConstructionInfo,
 };
-use cgmath::{num_traits::Num, point2, vec2, Vector2};
-use framework::{Framework, Texture2d, TypedBuffer, TypedBufferConfiguration};
+use cgmath::{point2, vec2, Vector2};
+use framework::{Framework, Texture2d, TypedBufferConfiguration};
 use image::{DynamicImage, ImageBuffer};
-use std::{collections::HashMap, iter::FromIterator, num::NonZeroU32};
+use std::{collections::HashMap, iter::FromIterator};
 use wgpu::{
-    BindGroup, BindGroupDescriptor, BindGroupEntry, CommandEncoder, CommandEncoderDescriptor,
-    RenderPassColorAttachment, RenderPassDescriptor,
+    BindGroup, BindGroupDescriptor, BindGroupEntry, CommandEncoder, RenderPassColorAttachment,
+    RenderPassDescriptor,
 };
 
 pub struct Document<'framework> {
@@ -20,34 +20,15 @@ pub struct Document<'framework> {
     document_size: Vector2<u32>,
     layers: HashMap<LayerIndex, Layer<'framework>>,
     tree_root: RootLayer,
-    final_layer: Layer<'framework>,
+    final_layer: BitmapLayer<'framework>,
 
     current_layer_index: LayerIndex,
-    settings_bind_group: BindGroup,
-    image_data: DynamicImage,
-    needs_cpu_update: bool,
 }
 
 pub struct DocumentCreationInfo {
     pub width: u32,
     pub height: u32,
     pub first_layer_color: [f32; 4],
-}
-
-pub fn ceil_to<N: Num + Copy + PartialOrd + From<u32>>(n: N, align_to: N) -> N
-where
-    u32: From<N>,
-{
-    let d = {
-        let m = n % align_to;
-        if m > N::from(0) {
-            (u32::from(n) / u32::from(align_to)) + 1
-        } else {
-            return n;
-        }
-    };
-
-    align_to * N::from(d)
 }
 
 impl<'l> Document<'l> {
@@ -61,13 +42,33 @@ impl<'l> Document<'l> {
                 initial_background_color: [0.5, 0.5, 0.5, 1.0],
             },
         );
+        let background_layer = BitmapLayer::new(
+            &framework,
+            BitmapLayerConfiguration {
+                label: "Background Layer".to_owned(),
+                width: config.width,
+                height: config.height,
+                initial_background_color: [1.0, 1.0, 1.0, 1.0],
+            },
+        );
+        let background_layer = Layer::new_bitmap(
+            background_layer,
+            LayerCreationInfo {
+                name: "Background Layer".to_owned(),
+                position: point2(0.0, 0.0),
+                scale: vec2(1.0, 1.0),
+                rotation_radians: 0.0,
+            },
+            &framework,
+        );
+        let background_layer_index = LayerIndex(0);
         let first_layer = BitmapLayer::new(
             &framework,
             BitmapLayerConfiguration {
                 label: "Layer 0".to_owned(),
                 width: config.width,
                 height: config.height,
-                initial_background_color: [1.0, 1.0, 1.0, 1.0],
+                initial_background_color: [0.0, 0.0, 0.0, 0.0],
             },
         );
         let first_layer = Layer::new_bitmap(
@@ -81,18 +82,7 @@ impl<'l> Document<'l> {
             &framework,
         );
 
-        let first_layer_index = LayerIndex(0);
-        let mut final_layer = Layer::new_bitmap(
-            final_layer,
-            LayerCreationInfo {
-                name: "Test Layer".to_owned(),
-                position: point2(0.0, 0.0),
-                scale: vec2(1.0, 1.0),
-                rotation_radians: 0.0,
-            },
-            &framework,
-        );
-        final_layer.update();
+        let first_layer_index = LayerIndex(1);
         let settings_group_layout =
             framework
                 .device
@@ -109,40 +99,24 @@ impl<'l> Document<'l> {
                         count: None,
                     }],
                 });
-
-        let settings_buffer = framework.allocate_typed_buffer(TypedBufferConfiguration {
-            initial_setup: framework::typed_buffer::BufferInitialSetup::Data(&vec![
-                ShaderLayerSettings { opacity: 1.0 },
-            ]),
-            buffer_type: framework::BufferType::Uniform,
-            allow_write: true,
-            allow_read: false,
-        });
-        let settings_bind_group = framework.device.create_bind_group(&BindGroupDescriptor {
-            label: Some("Layer Settings Bind Group"),
-            layout: &settings_group_layout,
-            entries: &[BindGroupEntry {
-                binding: 0,
-                resource: wgpu::BindingResource::Buffer(settings_buffer.binding_resource()),
-            }],
-        });
         Self {
             framework,
             document_size: vec2(config.width, config.height),
             current_layer_index: first_layer_index,
             final_layer,
-            layers: HashMap::from_iter(std::iter::once((first_layer_index, first_layer))),
-            tree_root: RootLayer(vec![LayerTree::SingleLayer(first_layer_index)]),
-            settings_bind_group,
-            image_data: DynamicImage::new_rgba32f(config.width, config.height),
-            needs_cpu_update: true,
+            layers: HashMap::from_iter([
+                (background_layer_index, background_layer),
+                (first_layer_index, first_layer),
+            ]),
+            tree_root: RootLayer(vec![
+                LayerTree::SingleLayer(background_layer_index),
+                LayerTree::SingleLayer(first_layer_index),
+            ]),
         }
     }
 
     pub fn outer_size(&self) -> Vector2<f32> {
-        match self.final_layer.layer_type {
-            crate::layers::LayerType::Bitmap(ref bm) => bm.size().clone(),
-        }
+        self.final_layer.size()
     }
 
     pub fn current_layer(&self) -> &Layer {
@@ -160,10 +134,17 @@ impl<'l> Document<'l> {
             .expect("Invalid layer index passed to document!")
     }
 
-    pub fn get_layer_mut(&mut self, layer_index: &LayerIndex) -> &mut Layer<'l> {
-        self.layers
+    pub fn mutate_layer<F: FnMut(&mut Layer)>(
+        &mut self,
+        layer_index: &LayerIndex,
+        mut mutate_fn: F,
+    ) {
+        let layer = self
+            .layers
             .get_mut(&layer_index)
-            .expect("Invalid layer index passed to document!")
+            .expect("Invalid layer index passed to document!");
+
+        mutate_fn(layer);
     }
     pub(crate) fn delete_layer(&mut self, layer_idx: LayerIndex) {
         if self.layers.len() == 1 {
@@ -192,21 +173,11 @@ impl<'l> Document<'l> {
     }
 
     pub(crate) fn final_layer_texture_view(&self) -> &wgpu::TextureView {
-        match self.final_layer.layer_type {
-            crate::layers::LayerType::Bitmap(ref bm) => bm.texture().texture_view(),
-        }
+        self.final_layer.texture().texture_view()
     }
 
     pub(crate) fn final_texture(&self) -> &Texture2d {
-        match self.final_layer.layer_type {
-            crate::layers::LayerType::Bitmap(ref bm) => bm.texture(),
-        }
-    }
-
-    pub(crate) fn final_bind_group(&self) -> &BindGroup {
-        match self.final_layer.layer_type {
-            crate::layers::LayerType::Bitmap(ref bm) => bm.bind_group(),
-        }
+        self.final_layer.texture()
     }
 
     pub(crate) fn add_layer(
@@ -248,7 +219,7 @@ impl<'l> Document<'l> {
     pub(crate) fn render(
         &mut self,
         encoder: &mut CommandEncoder,
-        layer_draw_pass: &crate::layers::LayerDrawPass,
+        layer_draw_pass: &crate::layers::Texture2dDrawPass,
     ) {
         {
             {
@@ -309,16 +280,8 @@ impl<'l> Document<'l> {
         }
     }
 
-    pub fn mark_cpu_dirty(&mut self) {
-        self.needs_cpu_update = true;
-    }
-
-    pub fn final_layer(&self) -> &Layer {
-        &self.final_layer
-    }
-
-    pub fn settings_bind_group(&self) -> &BindGroup {
-        &self.settings_bind_group
+    pub fn final_layer(&self) -> &Texture2d {
+        &self.final_layer.texture()
     }
 
     pub fn document_size(&self) -> Vector2<u32> {
@@ -329,7 +292,7 @@ impl<'l> Document<'l> {
         self.current_layer_index
     }
 
-    pub fn image_bytes(&mut self) -> DynamicImage {
+    pub fn final_image_bytes(&self) -> DynamicImage {
         let bytes = self.final_texture().read_data(&self.framework);
         DynamicImage::ImageRgba8(
             ImageBuffer::from_vec(self.document_size.x, self.document_size.y, bytes).unwrap(),

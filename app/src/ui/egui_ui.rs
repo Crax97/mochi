@@ -258,8 +258,9 @@ impl Ui for EguiUI {
             LayerAction::DeleteLayer(idx) => app_ctx.image_editor.delete_layer(idx),
             LayerAction::SelectLayer(idx) => app_ctx.image_editor.select_new_layer(idx),
             LayerAction::SetLayerSettings(idx, settings) => {
-                let document = app_ctx.image_editor.mutate_document();
-                document.get_layer_mut(&idx).set_settings(settings);
+                app_ctx.image_editor.mutate_document(|d| {
+                    d.mutate_layer(&idx, |l| l.set_settings(settings.clone()));
+                });
             }
             LayerAction::SelectNewTool(new_tool_id) => {
                 app_ctx.toolbox.set_primary_tool(&new_tool_id);

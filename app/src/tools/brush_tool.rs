@@ -99,8 +99,6 @@ impl<'framework> Tool for BrushTool<'framework> {
             self.last_mouse_position = new_pointer_position;
             self.last_pressure = pointer_motion.pressure;
         }
-
-        context.image_editor.mutate_document().mark_cpu_dirty();
     }
 
     fn on_pointer_release(

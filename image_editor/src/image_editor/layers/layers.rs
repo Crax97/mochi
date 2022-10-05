@@ -3,7 +3,7 @@ use framework::render_pass::RenderPass;
 use framework::{Framework, MeshInstance2D, TypedBuffer, TypedBufferConfiguration};
 use wgpu::{BindGroup, BindGroupDescriptor, BindGroupEntry};
 
-use super::layer_draw_pass::LayerDrawPass;
+use super::texture2d_draw_pass::Texture2dDrawPass;
 use super::{bitmap_layer, BitmapLayer};
 
 #[derive(Clone, PartialEq)]
@@ -26,8 +26,6 @@ pub struct Layer<'framework> {
     pub scale: Vector2<f32>,
     pub rotation_radians: f32,
     pub instance_buffer: TypedBuffer<'framework>,
-    pub settings_buffer: TypedBuffer<'framework>,
-    pub settings_bind_group: BindGroup,
 }
 
 pub struct LayerCreationInfo {
@@ -43,7 +41,7 @@ pub enum LayerType<'framework> {
 
 pub(crate) struct LayerDrawContext<'context, 'pass> {
     pub render_pass: wgpu::RenderPass<'pass>,
-    pub draw_pass: &'context LayerDrawPass,
+    pub draw_pass: &'context Texture2dDrawPass,
 }
 
 impl<'framework> Layer<'framework> {
@@ -60,39 +58,6 @@ impl<'framework> Layer<'framework> {
             allow_write: true,
             allow_read: false,
         });
-        let settings_buffer = framework.allocate_typed_buffer(TypedBufferConfiguration {
-            initial_setup: framework::typed_buffer::BufferInitialSetup::Data(&vec![
-                ShaderLayerSettings { opacity: 1.0 },
-            ]),
-            buffer_type: framework::BufferType::Uniform,
-            allow_write: true,
-            allow_read: false,
-        });
-
-        let settings_group_layout =
-            framework
-                .device
-                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    label: Some("Layer Draw Settings bind layout"),
-                    entries: &[wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Uniform,
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
-                    }],
-                });
-        let settings_bind_group = framework.device.create_bind_group(&BindGroupDescriptor {
-            label: Some("Layer Settings Bind Group"),
-            layout: &settings_group_layout,
-            entries: &[BindGroupEntry {
-                binding: 0,
-                resource: wgpu::BindingResource::Buffer(settings_buffer.binding_resource()),
-            }],
-        });
 
         Self {
             settings: LayerSettings {
@@ -103,10 +68,8 @@ impl<'framework> Layer<'framework> {
             layer_type: LayerType::Bitmap(bitmap_layer),
             position: creation_info.position,
             scale: creation_info.scale,
-            instance_buffer,
-            settings_buffer,
-            settings_bind_group,
             rotation_radians: creation_info.rotation_radians,
+            instance_buffer,
         }
     }
     pub(crate) fn update(&mut self) {
@@ -121,6 +84,7 @@ impl<'framework> Layer<'framework> {
                     real_scale,
                     self.rotation_radians,
                     true,
+                    self.settings.opacity,
                 )]);
             }
         }
@@ -137,14 +101,13 @@ impl<'framework> Layer<'framework> {
             return;
         }
         match &self.layer_type {
-            LayerType::Bitmap(_) => {
+            LayerType::Bitmap(ref bm) => {
                 draw_context.draw_pass.execute_with_renderpass(
                     draw_context.render_pass,
                     &[
                         (1, &self.instance_buffer),
-                        (0, self.bind_group()),
+                        (0, bm.texture().bind_group()),
                         (1, self.camera_bind_group()),
-                        (2, &self.settings_bind_group),
                     ],
                 );
             }
@@ -157,9 +120,13 @@ impl<'framework> Layer<'framework> {
 
     pub fn set_settings(&mut self, new_settings: LayerSettings) {
         self.settings = new_settings;
-        self.settings_buffer.write_sync(&vec![ShaderLayerSettings {
-            opacity: self.settings.opacity,
-        }])
+        self.instance_buffer.write_sync(&vec![MeshInstance2D::new(
+            self.position,
+            self.scale,
+            self.rotation_radians,
+            true,
+            self.settings.opacity,
+        )])
     }
 
     pub(crate) fn bind_group(&self) -> &BindGroup {

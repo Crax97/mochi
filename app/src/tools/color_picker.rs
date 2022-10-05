@@ -2,10 +2,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use crate::tools::{EditorContext, PointerRelease};
 
-use cgmath::num_traits::Pow;
-use image::GenericImageView;
-
-use super::{brush_engine::stamping_engine::StrokingEngine, tool::Tool, BrushTool};
+use super::{brush_engine::stamping_engine::StrokingEngine, tool::Tool};
 
 pub struct ColorPicker<'b> {
     is_active: bool,
@@ -56,22 +53,20 @@ impl<'b> Tool for ColorPicker<'b> {
                 context.image_editor.document().document_size().y - valid_position.y,
             );
 
-            if let image_editor::layers::LayerType::Bitmap(ref bm) =
-                context.image_editor.document().final_layer().layer_type
-            {
-                let pixel = bm
-                    .texture()
-                    .sample_pixel(x, y, context.image_editor.framework());
-                let mut engine = self.stamping_engine.borrow_mut();
-                let mut settings = engine.settings();
-                settings.color_srgb = [
-                    (pixel.r * 255.0) as u8,
-                    (pixel.g * 255.0) as u8,
-                    (pixel.b * 255.0) as u8,
-                ];
-                settings.opacity = (pixel.a * 255.0) as u8;
-                engine.set_new_settings(settings);
-            }
+            let pixel = context.image_editor.document().final_layer().sample_pixel(
+                x,
+                y,
+                context.image_editor.framework(),
+            );
+            let mut engine = self.stamping_engine.borrow_mut();
+            let mut settings = engine.settings();
+            settings.color_srgb = [
+                (pixel.r * 255.0) as u8,
+                (pixel.g * 255.0) as u8,
+                (pixel.b * 255.0) as u8,
+            ];
+            settings.opacity = (pixel.a * 255.0) as u8;
+            engine.set_new_settings(settings);
         }
     }
 

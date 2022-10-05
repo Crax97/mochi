@@ -8,12 +8,12 @@ use framework::{
     AssetsLibrary, Framework, Mesh, MeshInstance2D,
 };
 
-pub struct LayerDrawPass {
+pub struct Texture2dDrawPass {
     pipeline: RenderPipeline,
     assets: Rc<RefCell<AssetsLibrary>>,
 }
 
-impl RenderPass for LayerDrawPass {
+impl RenderPass for Texture2dDrawPass {
     fn execute_with_renderpass<'s, 'call, 'pass>(
         &'s self,
         mut pass: wgpu::RenderPass<'pass>,
@@ -27,11 +27,11 @@ impl RenderPass for LayerDrawPass {
     }
 }
 
-impl LayerDrawPass {
+impl Texture2dDrawPass {
     pub fn new(framework: &Framework, assets: Rc<RefCell<AssetsLibrary>>) -> Self {
         let module = framework
             .device
-            .create_shader_module(wgpu::include_wgsl!("../../shaders/draw_layer.wgsl"));
+            .create_shader_module(wgpu::include_wgsl!("../../shaders/draw_texture2d.wgsl"));
 
         let bind_group_layout =
             framework
@@ -73,33 +73,13 @@ impl LayerDrawPass {
                         count: None,
                     }],
                 });
-        let settings_group_layout =
-            framework
-                .device
-                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    label: Some("Layer Draw Camera bind layout"),
-                    entries: &[wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Uniform,
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
-                    }],
-                });
 
         let render_pipeline_layout =
             framework
                 .device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("Layer Pipeline Layout"),
-                    bind_group_layouts: &[
-                        &bind_group_layout,
-                        &camera_group_layout,
-                        &settings_group_layout,
-                    ],
+                    bind_group_layouts: &[&bind_group_layout, &camera_group_layout],
                     push_constant_ranges: &[],
                 });
 

@@ -7,14 +7,11 @@ struct PerInstanceData {
     @location(2) position_and_size: vec4<f32>,
     @location(3) rotation_radians: f32,
     @location(4) flip_y: f32,
+    @location(5) opacity: f32,
 }
 
 struct PerFrameData {
     vp: mat4x4<f32>,
-}
-
-struct LayerSettings {
-    opacity: f32,
 }
 
 @group(0) @binding(0) var diffuse: texture_2d<f32>;
@@ -23,13 +20,11 @@ struct LayerSettings {
 @group(1) @binding(0)
 var<uniform> uniform_data: PerFrameData;
 
-@group(2) @binding(0)
-var<uniform> layer_settings: LayerSettings;
-
 struct VertexOutput {
     @builtin(position) coordinates_position: vec4<f32>,
     @location(0) position: vec3<f32>,
     @location(1) tex_uv: vec2<f32>,
+    @location(2) opacity: f32,
 }
 
 fn rot_z(angle_rads: f32) -> mat4x4<f32> {
@@ -76,11 +71,12 @@ fn vs(in: VertexInput, instance: PerInstanceData) -> VertexOutput {
     out.coordinates_position = vp * projected;
     out.position = in.position;
     out.tex_uv = vec2<f32>(in.tex_uv.x, y);
+    out.opacity = instance.opacity;
     return out;
 }
 
 
 @fragment
 fn fs(in: VertexOutput) -> @location(0) vec4<f32> {
-    return textureSample(diffuse, s_diffuse, in.tex_uv) * layer_settings.opacity;
+    return textureSample(diffuse, s_diffuse, in.tex_uv) * in.opacity;
 }
