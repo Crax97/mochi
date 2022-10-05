@@ -183,6 +183,19 @@ impl<'tex, 'framework> Texture2dDrawPass<'framework> {
             depth_stencil_attachment: None,
         };
 
+        if clear {
+            let mut encoder =
+                framework
+                    .device
+                    .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                        label: Some("Texture2D Render Pass Clear"),
+                    });
+            {
+                let _ = encoder.begin_render_pass(&render_pass_description);
+            }
+            framework.queue.submit(std::iter::once(encoder.finish()));
+        }
+
         {
             let quad_mesh = framework.asset_library.mesh(mesh_names::QUAD);
             for texture in self.textures.iter() {

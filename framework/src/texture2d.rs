@@ -223,24 +223,26 @@ impl Texture2d {
                 });
 
         let channels = 4;
-
-        let buffer_size_total = self.width * self.height * channels; // TODO: Hardcoded
+        let unpadded_width = self.width * channels;
+        let pad_bytes = (wgpu::COPY_BYTES_PER_ROW_ALIGNMENT
+            - (unpadded_width % wgpu::COPY_BYTES_PER_ROW_ALIGNMENT))
+            % wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
+        let padded_width = unpadded_width + pad_bytes;
         let oneshot_buffer = framework.allocate_typed_buffer(crate::TypedBufferConfiguration {
             initial_setup: crate::typed_buffer::BufferInitialSetup::Size::<u8>(
-                buffer_size_total as u64,
+                (padded_width * self.height) as u64,
             ),
             buffer_type: crate::BufferType::Oneshot,
             allow_write: true,
             allow_read: true,
         });
-
         encoder.copy_texture_to_buffer(
             self.texture.as_image_copy(),
             wgpu::ImageCopyBuffer {
                 buffer: &oneshot_buffer.inner_buffer(),
                 layout: ImageDataLayout {
                     offset: 0,
-                    bytes_per_row: std::num::NonZeroU32::new(self.width * channels),
+                    bytes_per_row: std::num::NonZeroU32::new(padded_width),
                     rows_per_image: std::num::NonZeroU32::new(self.height),
                 },
             },

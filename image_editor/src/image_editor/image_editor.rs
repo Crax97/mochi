@@ -8,7 +8,7 @@ use crate::document::DocumentCreationInfo;
 
 use super::{
     document::Document,
-    layers::{BitmapLayer, BitmapLayerConfiguration, Layer, LayerIndex},
+    layers::{BitmapLayer, Layer, LayerIndex},
 };
 
 #[derive(Default)]
@@ -22,7 +22,6 @@ pub struct ImageEditor<'framework> {
     pan_camera: Camera2d,
 
     document: Document<'framework>,
-    canvas: BitmapLayer,
 }
 impl<'framework> ImageEditor<'framework> {
     pub fn new(framework: &'framework Framework, initial_window_bounds: &[f32; 2]) -> Self {
@@ -50,19 +49,8 @@ impl<'framework> ImageEditor<'framework> {
         } * 1.5;
         println!("Initial scale: {initial_camera_scale}");
         //pan_camera.set_scale(initial_camera_scale);
-
-        let canvas = BitmapLayer::new(
-            framework,
-            BitmapLayerConfiguration {
-                label: "ImageEditor Canvas".to_owned(),
-                width: test_document.document_size().x,
-                height: test_document.document_size().y,
-                initial_background_color: [0.5, 0.5, 0.5, 1.0],
-            },
-        );
         ImageEditor {
             framework,
-            canvas,
             pan_camera,
             document: test_document,
         }
@@ -110,7 +98,7 @@ impl<'framework> ImageEditor<'framework> {
     pub fn render_canvas(&mut self, output_canvas: &TextureView, pass: &mut Texture2dDrawPass) {
         pass.begin(&self.camera());
         pass.draw_texture(
-            self.document.final_layer(),
+            self.document.final_layer().texture(),
             MeshInstance2D::new(
                 point2(0.0, 0.0),
                 self.document.document_size().cast::<f32>().unwrap() * 0.5,
@@ -123,7 +111,7 @@ impl<'framework> ImageEditor<'framework> {
     }
 
     pub fn get_full_image_texture(&self) -> &BitmapLayer {
-        &self.canvas
+        &self.document().final_layer()
     }
 
     pub fn get_full_image_bytes(&mut self) -> image::DynamicImage {

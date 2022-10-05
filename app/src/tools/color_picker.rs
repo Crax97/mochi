@@ -53,7 +53,7 @@ impl<'b> Tool for ColorPicker<'b> {
                 context.image_editor.document().document_size().y - valid_position.y,
             );
 
-            let final_texture_id = context.image_editor.document().final_layer();
+            let final_texture_id = context.image_editor.document().final_layer().texture();
             let final_texture = context.image_editor.framework().texture2d(final_texture_id);
             let pixel = final_texture.sample_pixel(x, y, context.image_editor.framework());
             let mut engine = self.stamping_engine.borrow_mut();

@@ -4,8 +4,8 @@ use crate::{
     LayerConstructionInfo,
 };
 use cgmath::{point2, vec2, Vector2};
-use framework::{framework::TextureId, Framework};
-use image::DynamicImage;
+use framework::Framework;
+use image::{DynamicImage, ImageBuffer};
 use renderer::render_pass::texture2d_draw_pass::Texture2dDrawPass;
 
 use std::collections::HashMap;
@@ -167,6 +167,8 @@ impl<'l> Document<'l> {
     {
         let final_layer = self.final_layer.texture();
         let final_texture = self.framework.texture2d(&final_layer);
+
+        pass.execute(self.framework, final_texture.texture_view(), true);
         for layer_node in self.tree_root.0.iter() {
             match layer_node {
                 LayerTree::SingleLayer(index) => {
@@ -183,8 +185,8 @@ impl<'l> Document<'l> {
         }
     }
 
-    pub fn final_layer(&self) -> &TextureId {
-        &self.final_layer.texture()
+    pub fn final_layer(&self) -> &BitmapLayer {
+        &self.final_layer
     }
 
     pub fn document_size(&self) -> Vector2<u32> {
@@ -196,12 +198,11 @@ impl<'l> Document<'l> {
     }
 
     pub fn final_image_bytes(&self) -> DynamicImage {
-        todo!()
-        /*let bytes = self.final_texture().read_data(&self.framework);
+        let final_layer_texture = self.framework.texture2d(self.final_layer.texture());
+        let bytes = final_layer_texture.read_data(&self.framework);
         DynamicImage::ImageRgba8(
             ImageBuffer::from_vec(self.document_size.x, self.document_size.y, bytes).unwrap(),
         )
-        */
     }
 
     pub fn for_each_layer<F: FnMut(&Layer, &LayerIndex)>(&self, mut f: F) {

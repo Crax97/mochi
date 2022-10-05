@@ -22,20 +22,17 @@ pub struct ToolId(usize);
 
 pub struct Toolbox<'framework> {
     tools: HashMap<ToolId, Rc<RefCell<dyn Tool + 'framework>>>,
-    framework: &'framework Framework,
     primary_tool: Rc<RefCell<dyn Tool + 'framework>>,
     secondary_tool: Rc<RefCell<dyn Tool + 'framework>>,
 }
 
 impl<'framework> Toolbox<'framework> {
     pub fn new(
-        framework: &'framework Framework,
         primary_tool: Rc<RefCell<dyn Tool + 'framework>>,
         secondary_tool: Rc<RefCell<dyn Tool + 'framework>>,
     ) -> (Self, ToolId, ToolId) {
         let mut new_toolbox = Self {
             tools: HashMap::new(),
-            framework,
             primary_tool: primary_tool.clone(),
             secondary_tool: secondary_tool.clone(),
         };

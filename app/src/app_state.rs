@@ -45,7 +45,14 @@ impl<'framework> ImageApplication<'framework> {
         let image_editor = ImageEditor::new(&framework, &[1024.0, 1024.0]);
         final_surface.configure(&framework.device, &final_surface_configuration);
 
-        let render_pass = Texture2dDrawPass::new(framework, wgpu::TextureFormat::Rgba8UnormSrgb);
+        let mut render_pass =
+            Texture2dDrawPass::new(framework, wgpu::TextureFormat::Rgba8UnormSrgb);
+        render_pass.set_clear_color(wgpu::Color {
+            r: 0.0,
+            g: 0.0,
+            b: 0.0,
+            a: 0.0,
+        });
         let mut final_present_pass =
             Texture2dDrawPass::new(framework, wgpu::TextureFormat::Bgra8UnormSrgb);
 
@@ -62,8 +69,7 @@ impl<'framework> ImageApplication<'framework> {
         let hand_tool = Rc::new(RefCell::new(HandTool::new()));
         let color_picker = Rc::new(RefCell::new(ColorPicker::new(stamping_engine.clone())));
 
-        let (mut toolbox, brush_id, hand_id) =
-            Toolbox::new(framework, brush_tool.clone(), hand_tool.clone());
+        let (mut toolbox, brush_id, hand_id) = Toolbox::new(brush_tool.clone(), hand_tool.clone());
         toolbox.add_tool(color_picker.clone());
         let ui = ui::create_ui(&framework, &final_surface_configuration, &window);
         Self {

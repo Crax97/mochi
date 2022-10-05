@@ -1,10 +1,7 @@
 pub mod stamping_engine;
 pub mod stamping_engine_pass;
 
-use std::{cell::RefCell, rc::Rc};
-
 use cgmath::{InnerSpace, Point2};
-use framework::asset_library::AssetsLibrary;
 use wgpu::CommandEncoder;
 
 use image_editor::{layers::Layer, ImageEditor};
