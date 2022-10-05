@@ -1,10 +1,5 @@
 use cgmath::{num_traits::ToPrimitive, Vector2};
-use framework::{
-    framework::TextureId, Framework, Texture2d, Texture2dConfiguration, TypedBuffer,
-    TypedBufferConfiguration,
-};
-use scene::{Camera2d, Camera2dUniformBlock};
-use wgpu::BindGroup;
+use framework::{framework::TextureId, Framework, Texture2dConfiguration};
 
 pub struct BitmapLayerConfiguration {
     pub label: String,

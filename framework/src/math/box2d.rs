@@ -1,5 +1,3 @@
-use std::ops::Deref;
-
 use cgmath::{
     num_traits::{Num, NumCast},
     Point2, Vector2,
@@ -107,17 +105,6 @@ impl<T: Num + Copy + NumCast + Ord> Box2d<T> {
         if other.contains(self) {
             return *other;
         }
-
-        let (delta_x, size_x) = if other.left() > self.left() {
-            (other.left() - self.left(), other.size.x)
-        } else {
-            (self.left() - other.left(), self.size.x)
-        };
-        let (delta_y, size_y) = if other.top() > self.top() {
-            (other.top() - self.top(), other.size.y)
-        } else {
-            (self.top() - other.top(), self.size.y)
-        };
 
         let x = self.left().min(other.left());
         let y = self.top().min(other.top());

@@ -2,7 +2,7 @@ use cgmath::{Point2, Vector2};
 use framework::{Framework, MeshInstance2D, TypedBuffer, TypedBufferConfiguration};
 use renderer::render_pass::texture2d_draw_pass::Texture2dDrawPass;
 use scene::Camera2d;
-use wgpu::{BindGroup, BindGroupDescriptor, BindGroupEntry, TextureView};
+use wgpu::TextureView;
 
 use super::{bitmap_layer, BitmapLayer};
 

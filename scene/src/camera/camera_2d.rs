@@ -3,7 +3,6 @@ use cgmath::{
 };
 
 use super::super::transform::Transform2d;
-use framework::Framework;
 
 #[derive(Clone, Copy)]
 pub struct Camera2d {

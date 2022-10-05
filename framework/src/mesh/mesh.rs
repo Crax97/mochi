@@ -68,7 +68,7 @@ impl Mesh {
         }
     }
 
-    pub fn draw<'a, 'pass>(&'a self, mut render_pass: &mut RenderPass<'pass>, instance_count: u32)
+    pub fn draw<'a, 'pass>(&'a self, render_pass: &mut RenderPass<'pass>, instance_count: u32)
     where
         'a: 'pass,
     {

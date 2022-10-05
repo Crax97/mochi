@@ -1,5 +1,3 @@
-use std::{cell::RefCell, rc::Rc};
-
 use framework::{
     asset_library::mesh_names, AssetsLibrary, Framework, Mesh, MeshInstance2D, Texture2d,
     TypedBuffer, TypedBufferConfiguration,
@@ -9,8 +7,6 @@ use wgpu::{
 };
 
 use crate::stamping_engine::{StampConfiguration, StampUniformData};
-
-use super::stamping_engine::Stamp;
 
 pub struct StampingEngineRenderPass<'framework> {
     instance_buffer: TypedBuffer<'framework>,

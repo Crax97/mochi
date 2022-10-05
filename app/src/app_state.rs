@@ -1,14 +1,10 @@
 use std::{cell::RefCell, rc::Rc};
 
-use framework::AssetsLibrary;
 use framework::Framework;
 use image_editor::ImageEditor;
 use log::info;
 use renderer::render_pass::texture2d_draw_pass::Texture2dDrawPass;
-use wgpu::{
-    CommandBuffer, CommandEncoderDescriptor, RenderPassColorAttachment, RenderPassDescriptor,
-    Surface, SurfaceConfiguration, TextureView,
-};
+use wgpu::{CommandBuffer, Surface, SurfaceConfiguration};
 use winit::dpi::LogicalSize;
 use winit::event::WindowEvent;
 use winit::event_loop::ControlFlow;

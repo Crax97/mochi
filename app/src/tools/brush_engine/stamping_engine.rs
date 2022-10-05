@@ -1,12 +1,9 @@
-use std::cell::RefCell;
-use std::rc::Rc;
-
 use cgmath::vec2;
-use framework::{AssetsLibrary, TypedBufferConfiguration};
+use framework::TypedBufferConfiguration;
 use framework::{Framework, MeshInstance2D, TypedBuffer};
 use image_editor::layers::BitmapLayer;
 use scene::{Camera2d, Camera2dUniformBlock};
-use wgpu::{BindGroup, BindGroupLayout, RenderPassColorAttachment, RenderPassDescriptor};
+use wgpu::{BindGroup, RenderPassColorAttachment, RenderPassDescriptor};
 
 use crate::{StrokeContext, StrokePath};
 
@@ -22,7 +19,7 @@ pub struct StampCreationInfo<'framework> {
 }
 
 impl Stamp {
-    pub fn new(brush_texture: BitmapLayer, framework: &Framework) -> Self {
+    pub fn new(brush_texture: BitmapLayer) -> Self {
         Self { brush_texture }
     }
 }
@@ -122,12 +119,8 @@ impl<'framework> StrokingEngine<'framework> {
         }
     }
 
-    pub fn create_stamp(
-        &self,
-        brush_texture: BitmapLayer,
-        framework: &'framework Framework,
-    ) -> Stamp {
-        Stamp::new(brush_texture, framework)
+    pub fn create_stamp(&self, brush_texture: BitmapLayer) -> Stamp {
+        Stamp::new(brush_texture)
     }
 
     pub fn settings(&self) -> StampConfiguration {

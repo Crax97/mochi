@@ -1,5 +1,3 @@
-use std::{cell::RefCell, rc::Rc};
-
 use cgmath::{Point2, Vector2};
 
 use image_editor::ImageEditor;

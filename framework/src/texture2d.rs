@@ -266,11 +266,4 @@ impl Texture2d {
     pub fn bind_group(&self) -> &BindGroup {
         &self.bind_group
     }
-    fn bind<'s, 'call, 'pass>(&'s self, index: u32, pass: &'call mut wgpu::RenderPass<'pass>)
-    where
-        'pass: 'call,
-        's: 'pass,
-    {
-        pass.set_bind_group(index, &self.bind_group, &[]);
-    }
 }

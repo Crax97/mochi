@@ -4,13 +4,13 @@ use std::{
     rc::Rc,
 };
 
-use crate::stamping_engine::{Stamp, StampCreationInfo};
+use crate::stamping_engine::Stamp;
 use crate::{
     input_state::InputState,
     tools::{EditorContext, PointerClick, PointerMove, PointerRelease, Tool},
 };
 use cgmath::point2;
-use framework::{Framework, TypedBuffer};
+use framework::Framework;
 use image_editor::{
     layers::{BitmapLayer, BitmapLayerConfiguration},
     ImageEditor,
@@ -57,7 +57,7 @@ impl<'framework> Toolbox<'framework> {
                 height: image.height(),
             },
         );
-        Stamp::new(brush_bitmap, &framework)
+        Stamp::new(brush_bitmap)
     }
 
     pub fn add_tool(&mut self, new_tool: Rc<RefCell<dyn Tool + 'framework>>) -> ToolId {

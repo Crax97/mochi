@@ -1,4 +1,4 @@
-use cgmath::{point2, vec2, vec3, Point2, Point3};
+use cgmath::point2;
 use framework::{TypedBuffer, TypedBufferConfiguration};
 use wgpu::{
     BindGroup, ColorTargetState, FragmentState, RenderPassColorAttachment, RenderPassDescriptor,
@@ -8,7 +8,7 @@ use wgpu::{
 use framework::asset_library::mesh_names;
 use framework::framework::{Framework, TextureId};
 use framework::mesh::{Mesh, MeshInstance2D};
-use scene::{Camera2d, Camera2dUniformBlock, Transform2d};
+use scene::{Camera2d, Camera2dUniformBlock};
 
 struct TextureDrawInfo {
     texture: TextureId,
