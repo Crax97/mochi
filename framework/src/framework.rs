@@ -16,8 +16,44 @@ use crate::{
 
 use super::typed_buffer::{TypedBuffer, TypedBufferConfiguration};
 
-#[derive(Copy, Clone, Debug)]
-pub struct TextureId(Uuid);
+struct AllocatedTexture {
+    texture: Arc<Texture2d>,
+    refcount: u32,
+}
+
+type TextureMap = Arc<Mutex<HashMap<Uuid, AllocatedTexture>>>;
+
+pub struct TextureId(Uuid, TextureMap);
+
+impl Clone for TextureId {
+    fn clone(&self) -> Self {
+        {
+            let mut textures = self.1.lock().unwrap();
+            textures.get_mut(&self.0).unwrap().refcount += 1;
+        }
+        Self(self.0.clone(), self.1.clone())
+    }
+}
+
+impl Drop for TextureId {
+    fn drop(&mut self) {
+        let mut textures = self.1.lock().unwrap();
+        let refcount = {
+            let texture_slot = textures.get_mut(&self.0).unwrap();
+            texture_slot.refcount -= 1;
+            texture_slot.refcount
+        };
+        if refcount == 0 {
+            textures.remove(&self.0).unwrap();
+        }
+    }
+}
+
+impl std::fmt::Debug for TextureId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("TextureId").field(&self.0).finish()
+    }
+}
 
 pub struct Framework {
     pub instance: wgpu::Instance,
@@ -26,7 +62,7 @@ pub struct Framework {
     pub queue: wgpu::Queue,
     pub asset_library: AssetsLibrary,
 
-    allocated_textures: Arc<Mutex<HashMap<Uuid, Arc<Texture2d>>>>,
+    allocated_textures: TextureMap,
 }
 
 #[derive(Debug)]
@@ -117,11 +153,15 @@ impl<'a> Framework {
         if let Some(data) = initial_data {
             tex.write_data(data, &self);
         }
-        let tex_id = TextureId(Uuid::new_v4());
+        let alloc_texture = AllocatedTexture {
+            texture: Arc::new(tex),
+            refcount: 1,
+        };
+        let tex_id = TextureId(Uuid::new_v4(), self.allocated_textures.clone());
         self.allocated_textures
             .lock()
             .unwrap()
-            .insert(tex_id.0.clone(), Arc::new(tex));
+            .insert(tex_id.0.clone(), alloc_texture);
         tex_id
     }
 
@@ -131,6 +171,7 @@ impl<'a> Framework {
             .unwrap()
             .get(&id.0)
             .expect("Failed to find given texture2d")
+            .texture
             .clone()
     }
 
