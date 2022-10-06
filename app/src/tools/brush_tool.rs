@@ -1,6 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
-use cgmath::{point2, MetricSpace, Point2};
+use cgmath::{point2, EuclideanSpace, MetricSpace, Point2};
 use image_editor::ImageEditor;
 use wgpu::CommandEncoderDescriptor;
 
@@ -34,19 +34,25 @@ impl<'framework> BrushTool<'framework> {
         }
     }
 
-    fn reposition_point_for_draw(image_editor: &ImageEditor, point: Point2<f32>) -> Point2<f32> {
-        image_editor.camera().ndc_into_world(point)
+    fn reposition_point_for_draw(
+        image_editor: &ImageEditor,
+        point: Point2<f32>,
+    ) -> Option<Point2<f32>> {
+        image_editor.transform_point_into_pixel_position(point)
     }
 }
 
 impl<'framework> Tool for BrushTool<'framework> {
     fn on_pointer_click(&mut self, pointer_click: PointerClick, context: EditorContext) {
         self.is_active = true;
-        self.last_mouse_position = BrushTool::reposition_point_for_draw(
+        let pt = BrushTool::reposition_point_for_draw(
             &context.image_editor,
             pointer_click.pointer_location_normalized,
         );
-        self.last_pressure = pointer_click.pressure;
+        if let Some(pos) = pt {
+            self.last_mouse_position = pos;
+            self.last_pressure = pointer_click.pressure;
+        }
     }
 
     fn on_pointer_move(&mut self, pointer_motion: PointerMove, context: EditorContext) {
@@ -58,44 +64,45 @@ impl<'framework> Tool for BrushTool<'framework> {
             context.image_editor,
             pointer_motion.new_pointer_location_normalized,
         );
+        if let Some(new_pointer_position) = new_pointer_position {
+            let distance_from_last_point = self.last_mouse_position.distance(new_pointer_position);
+            if distance_from_last_point < self.step {
+                return;
+            }
 
-        let distance_from_last_point = self.last_mouse_position.distance(new_pointer_position);
-        if distance_from_last_point < self.step {
-            return;
-        }
+            let size_delta = self.max_size - self.min_size;
+            let start_size = self.min_size + size_delta * self.last_pressure;
+            let end_size = self.min_size + size_delta * pointer_motion.pressure;
 
-        let size_delta = self.max_size - self.min_size;
-        let start_size = self.min_size + size_delta * self.last_pressure;
-        let end_size = self.min_size + size_delta * pointer_motion.pressure;
-
-        let start = StrokePoint {
-            position: self.last_mouse_position,
-            size: start_size,
-        };
-        let end = StrokePoint {
-            position: new_pointer_position,
-            size: end_size,
-        };
-
-        let path = StrokePath::linear_start_to_end(start, end, self.step);
-        let framework = context.image_editor.framework();
-        let mut encoder = framework
-            .device
-            .create_command_encoder(&CommandEncoderDescriptor {
-                label: Some("BrushTool stroke rendering"),
-            });
-
-        {
-            let context = StrokeContext {
-                layer: context.image_editor.selected_layer(),
-                editor: &context.image_editor,
-                command_encoder: &mut encoder,
+            let start = StrokePoint {
+                position: self.last_mouse_position,
+                size: start_size,
+            };
+            let end = StrokePoint {
+                position: new_pointer_position,
+                size: end_size,
             };
 
-            self.engine.borrow_mut().stroke(path, context);
-            framework.queue.submit(std::iter::once(encoder.finish()));
-            self.last_mouse_position = new_pointer_position;
-            self.last_pressure = pointer_motion.pressure;
+            let path = StrokePath::linear_start_to_end(start, end, self.step);
+            let framework = context.image_editor.framework();
+            let mut encoder = framework
+                .device
+                .create_command_encoder(&CommandEncoderDescriptor {
+                    label: Some("BrushTool stroke rendering"),
+                });
+
+            {
+                let context = StrokeContext {
+                    layer: context.image_editor.selected_layer(),
+                    editor: &context.image_editor,
+                    command_encoder: &mut encoder,
+                };
+
+                self.engine.borrow_mut().stroke(path, context);
+                framework.queue.submit(std::iter::once(encoder.finish()));
+                self.last_mouse_position = new_pointer_position;
+                self.last_pressure = pointer_motion.pressure;
+            }
         }
     }
 

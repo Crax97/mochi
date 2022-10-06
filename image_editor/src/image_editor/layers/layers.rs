@@ -1,7 +1,7 @@
-use cgmath::{Point2, Vector2};
+use cgmath::{Point2, Point3, Vector2, Vector3};
 use framework::{Framework, MeshInstance2D, TypedBuffer, TypedBufferConfiguration};
 use renderer::render_pass::texture2d_draw_pass::Texture2dDrawPass;
-use scene::Camera2d;
+use scene::{Camera2d, Transform2d};
 use wgpu::TextureView;
 
 use super::{bitmap_layer, BitmapLayer};
@@ -135,5 +135,21 @@ impl<'framework> Layer<'framework> {
             true,
             self.settings.opacity,
         )])
+    }
+
+    pub fn transform(&self) -> Transform2d {
+        Transform2d {
+            position: Point3 {
+                x: self.position.x,
+                y: self.position.y,
+                z: 0.0,
+            },
+            scale: Vector3 {
+                x: self.scale.x,
+                y: self.scale.y,
+                z: 1.0,
+            },
+            rotation_radians: cgmath::Rad(self.rotation_radians),
+        }
     }
 }

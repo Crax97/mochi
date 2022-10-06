@@ -1,6 +1,6 @@
 use std::f32::consts::PI;
 
-use cgmath::{point3, Point3, Rad, Vector3};
+use cgmath::{point3, Matrix4, Point3, Rad, Vector3};
 
 #[derive(Clone, Copy)]
 pub struct Transform2d {
@@ -57,5 +57,15 @@ impl Transform2d {
         if self.scale.z <= 0.0 {
             self.scale.z = 0.01;
         }
+    }
+
+    pub fn matrix(&self) -> Matrix4<f32> {
+        Matrix4::from_nonuniform_scale(self.scale.x, self.scale.y, self.scale.z)
+            * Matrix4::from_angle_z(self.rotation_radians)
+            * Matrix4::from_translation(Vector3 {
+                x: self.position.x,
+                y: self.position.y,
+                z: self.position.z,
+            })
     }
 }

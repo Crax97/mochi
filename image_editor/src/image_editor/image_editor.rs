@@ -1,4 +1,4 @@
-use cgmath::{point2, ElementWise};
+use cgmath::{point2, point3, ElementWise, EuclideanSpace, Point2, Transform};
 use framework::{Framework, MeshInstance2D};
 use renderer::render_pass::texture2d_draw_pass::Texture2dDrawPass;
 use scene::Camera2d;
@@ -135,6 +135,21 @@ impl<'framework> ImageEditor<'framework> {
     pub fn scale_view(&mut self, delta: f32) {
         const SCALE_SPEED: f32 = 100.0; // TODO: Make this customizable
         self.pan_camera.scale(delta * SCALE_SPEED);
+    }
+
+    // Transforms according to current camera position and current layer transform
+    pub fn transform_point_into_pixel_position(
+        &self,
+        point_normalized: Point2<f32>,
+    ) -> Option<Point2<f32>> {
+        let current_layer_transform = self.document().current_layer().transform();
+        let inv_layer_matrix = current_layer_transform.matrix();
+        let position_into_layer = self.camera().ndc_into_world(point_normalized);
+        let inv_layer = inv_layer_matrix.inverse_transform();
+        inv_layer.map(|mat| {
+            let pt = mat.transform_point(point3(position_into_layer.x, position_into_layer.y, 0.0));
+            point2(pt.x, pt.y)
+        })
     }
 
     pub fn selected_layer(&self) -> &Layer {
