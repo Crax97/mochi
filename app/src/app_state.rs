@@ -13,7 +13,7 @@ use winit::window::Window;
 use crate::input_state::InputState;
 use crate::toolbox::Toolbox;
 use crate::tools::brush_engine::stamping_engine::StrokingEngine;
-use crate::tools::{BrushTool, ColorPicker, HandTool, TransformLayerTool};
+use crate::tools::{BrushTool, ColorPicker, DebugSelectRegionTool, HandTool, TransformLayerTool};
 use crate::ui::{self, Ui, UiContext};
 
 pub struct ImageApplication<'framework> {
@@ -69,10 +69,13 @@ impl<'framework> ImageApplication<'framework> {
         let hand_tool = Rc::new(RefCell::new(HandTool::new()));
         let color_picker = Rc::new(RefCell::new(ColorPicker::new(stamping_engine.clone())));
         let move_tool = Rc::new(RefCell::new(TransformLayerTool::new()));
+        let test_tool = Rc::new(RefCell::new(DebugSelectRegionTool::new()));
 
         let (mut toolbox, brush_id, hand_id) = Toolbox::new(brush_tool.clone(), hand_tool.clone());
         toolbox.add_tool(color_picker.clone());
         toolbox.add_tool(move_tool);
+        toolbox.add_tool(test_tool);
+
         let ui = ui::create_ui(&framework, &final_surface_configuration, &window);
         Self {
             window,

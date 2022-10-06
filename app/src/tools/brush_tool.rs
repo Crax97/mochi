@@ -1,11 +1,11 @@
 use std::{cell::RefCell, rc::Rc};
 
-use cgmath::{point2, EuclideanSpace, MetricSpace, Point2};
+use cgmath::{point2, MetricSpace, Point2};
 use image_editor::ImageEditor;
 use wgpu::CommandEncoderDescriptor;
 
 use crate::{
-    tools::{EditorContext, PointerClick, PointerMove},
+    tools::{EditorContext, PointerEvent},
     StrokeContext, StrokePoint,
 };
 
@@ -43,11 +43,11 @@ impl<'framework> BrushTool<'framework> {
 }
 
 impl<'framework> Tool for BrushTool<'framework> {
-    fn on_pointer_click(&mut self, pointer_click: PointerClick, context: EditorContext) {
+    fn on_pointer_click(&mut self, pointer_click: PointerEvent, context: EditorContext) {
         self.is_active = true;
         let pt = BrushTool::reposition_point_for_draw(
             &context.image_editor,
-            pointer_click.pointer_location_normalized,
+            pointer_click.new_pointer_location_normalized,
         );
         if let Some(pos) = pt {
             self.last_mouse_position = pos;
@@ -55,7 +55,7 @@ impl<'framework> Tool for BrushTool<'framework> {
         }
     }
 
-    fn on_pointer_move(&mut self, pointer_motion: PointerMove, context: EditorContext) {
+    fn on_pointer_move(&mut self, pointer_motion: PointerEvent, context: EditorContext) {
         if !self.is_active {
             return;
         }
@@ -106,11 +106,7 @@ impl<'framework> Tool for BrushTool<'framework> {
         }
     }
 
-    fn on_pointer_release(
-        &mut self,
-        _pointer_release: crate::PointerRelease,
-        _context: EditorContext,
-    ) {
+    fn on_pointer_release(&mut self, _pointer_release: PointerEvent, _context: EditorContext) {
         self.is_active = false;
     }
     fn name(&self) -> &'static str {

@@ -1,6 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
-use crate::tools::{EditorContext, PointerRelease};
+use crate::tools::{EditorContext, PointerEvent};
 
 use super::{brush_engine::stamping_engine::StrokingEngine, tool::Tool};
 
@@ -19,15 +19,11 @@ impl<'b> ColorPicker<'b> {
 }
 
 impl<'b> Tool for ColorPicker<'b> {
-    fn on_pointer_click(&mut self, _: super::tool::PointerClick, _: EditorContext) {
+    fn on_pointer_click(&mut self, _: PointerEvent, _: EditorContext) {
         self.is_active = true;
     }
 
-    fn on_pointer_move(
-        &mut self,
-        pointer_motion: super::tool::PointerMove,
-        context: EditorContext,
-    ) {
+    fn on_pointer_move(&mut self, pointer_motion: PointerEvent, context: EditorContext) {
         if !self.is_active {
             return;
         }
@@ -68,7 +64,7 @@ impl<'b> Tool for ColorPicker<'b> {
         }
     }
 
-    fn on_pointer_release(&mut self, _pointer_release: PointerRelease, _context: EditorContext) {
+    fn on_pointer_release(&mut self, _pointer_release: PointerEvent, _context: EditorContext) {
         self.is_active = false;
     }
     fn name(&self) -> &'static str {

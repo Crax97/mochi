@@ -7,7 +7,7 @@ use std::{
 use crate::stamping_engine::Stamp;
 use crate::{
     input_state::InputState,
-    tools::{EditorContext, PointerClick, PointerMove, PointerRelease, Tool},
+    tools::{EditorContext, PointerEvent, Tool},
 };
 use cgmath::point2;
 use framework::Framework;
@@ -84,33 +84,29 @@ impl<'framework> Toolbox<'framework> {
     }
 
     pub fn update(&mut self, input_state: &InputState, mut image_editor: &mut ImageEditor) {
+        let event = PointerEvent {
+            new_pointer_location_normalized: input_state.normalized_mouse_position(),
+            new_pointer_location: input_state.mouse_position(),
+            pressure: input_state.current_pointer_pressure(),
+            window_width: input_state.window_size(),
+        };
         if input_state.is_mouse_button_just_pressed(MouseButton::Left) {
             self.primary_tool().on_pointer_click(
-                PointerClick {
-                    pointer_location_normalized: input_state.normalized_mouse_position(),
-                    pressure: input_state.current_pointer_pressure(),
-                },
+                event,
                 EditorContext {
                     image_editor: &mut image_editor,
                 },
             );
         } else if input_state.is_mouse_button_just_released(MouseButton::Left) {
             self.primary_tool().on_pointer_release(
-                PointerRelease {},
+                event,
                 EditorContext {
                     image_editor: &mut image_editor,
                 },
             );
         } else {
             self.primary_tool().on_pointer_move(
-                PointerMove {
-                    new_pointer_location_normalized: input_state.normalized_mouse_position(),
-                    delta_normalized: input_state.normalized_mouse_delta(),
-                    pressure: input_state.current_pointer_pressure(),
-                    new_pointer_location: input_state.mouse_position(),
-                    delta: input_state.mouse_delta(),
-                    window_width: input_state.window_size(),
-                },
+                event,
                 EditorContext {
                     image_editor: &mut image_editor,
                 },
@@ -118,31 +114,21 @@ impl<'framework> Toolbox<'framework> {
         }
         if input_state.is_mouse_button_just_pressed(MouseButton::Right) {
             self.secondary_tool().on_pointer_click(
-                PointerClick {
-                    pointer_location_normalized: input_state.normalized_mouse_position(),
-                    pressure: input_state.current_pointer_pressure(),
-                },
+                event,
                 EditorContext {
                     image_editor: &mut image_editor,
                 },
             );
         } else if input_state.is_mouse_button_just_released(MouseButton::Right) {
             self.secondary_tool().on_pointer_release(
-                PointerRelease {},
+                event,
                 EditorContext {
                     image_editor: &mut image_editor,
                 },
             );
         } else {
             self.secondary_tool().on_pointer_move(
-                PointerMove {
-                    new_pointer_location_normalized: input_state.normalized_mouse_position(),
-                    delta_normalized: input_state.normalized_mouse_delta(),
-                    pressure: input_state.current_pointer_pressure(),
-                    new_pointer_location: input_state.mouse_position(),
-                    delta: input_state.mouse_delta(),
-                    window_width: input_state.window_size(),
-                },
+                event,
                 EditorContext {
                     image_editor: &mut image_editor,
                 },
