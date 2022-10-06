@@ -10,50 +10,15 @@ use uuid::Uuid;
 use wgpu::*;
 
 use crate::{
-    asset_library, AssetsLibrary, Mesh, MeshConstructionDetails, Texture2d, Texture2dConfiguration,
-    Vertex,
+    asset_library, AllocatedAsset, AssetId, AssetMap, AssetsLibrary, Mesh, MeshConstructionDetails,
+    Texture2d, Texture2dConfiguration, Vertex,
 };
 
 use super::typed_buffer::{TypedBuffer, TypedBufferConfiguration};
 
-struct AllocatedTexture {
-    texture: Arc<Texture2d>,
-    refcount: u32,
-}
-
-type TextureMap = Arc<Mutex<HashMap<Uuid, AllocatedTexture>>>;
-
-pub struct TextureId(Uuid, TextureMap);
-
-impl Clone for TextureId {
-    fn clone(&self) -> Self {
-        {
-            let mut textures = self.1.lock().unwrap();
-            textures.get_mut(&self.0).unwrap().refcount += 1;
-        }
-        Self(self.0.clone(), self.1.clone())
-    }
-}
-
-impl Drop for TextureId {
-    fn drop(&mut self) {
-        let mut textures = self.1.lock().unwrap();
-        let refcount = {
-            let texture_slot = textures.get_mut(&self.0).unwrap();
-            texture_slot.refcount -= 1;
-            texture_slot.refcount
-        };
-        if refcount == 0 {
-            textures.remove(&self.0).unwrap();
-        }
-    }
-}
-
-impl std::fmt::Debug for TextureId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("TextureId").field(&self.0).finish()
-    }
-}
+pub type TextureId = AssetId<Texture2d>;
+type TextureMap = AssetMap<Texture2d>;
+type AllocatedTexture = AllocatedAsset<Texture2d>;
 
 pub struct Framework {
     pub instance: wgpu::Instance,
@@ -154,10 +119,10 @@ impl<'a> Framework {
             tex.write_data(data, &self);
         }
         let alloc_texture = AllocatedTexture {
-            texture: Arc::new(tex),
+            asset: Arc::new(tex),
             refcount: 1,
         };
-        let tex_id = TextureId(Uuid::new_v4(), self.allocated_textures.clone());
+        let tex_id = TextureId::new(self.allocated_textures.clone());
         self.allocated_textures
             .lock()
             .unwrap()
@@ -171,7 +136,7 @@ impl<'a> Framework {
             .unwrap()
             .get(&id.0)
             .expect("Failed to find given texture2d")
-            .texture
+            .asset
             .clone()
     }
 

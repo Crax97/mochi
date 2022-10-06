@@ -1,3 +1,4 @@
+pub mod asset_id;
 pub mod asset_library;
 pub mod framework;
 pub mod math;
@@ -5,6 +6,7 @@ pub mod mesh;
 pub mod texture2d;
 pub mod typed_buffer;
 
+pub use asset_id::*;
 pub use asset_library::AssetsLibrary;
 pub use framework::AdapterCreationError;
 pub use framework::Framework;
