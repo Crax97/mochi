@@ -15,6 +15,8 @@ use super::{
 pub struct LayerConstructionInfo {
     pub initial_color: [f32; 4],
     pub name: String,
+    pub width: u32,
+    pub height: u32,
 }
 
 pub struct ImageEditor<'framework> {

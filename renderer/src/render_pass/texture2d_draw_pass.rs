@@ -217,7 +217,6 @@ impl<'tex, 'framework> Texture2dDrawPass<'framework> {
                     let framework_texture = framework.texture2d(&texture.texture);
                     let mut pass = encoder.begin_render_pass(&render_pass_description);
                     pass.set_pipeline(&self.pipeline);
-
                     pass.set_bind_group(0, framework_texture.bind_group(), &[]);
                     pass.set_bind_group(1, &self.camera_bind_group, &[]);
                     pass.set_vertex_buffer(1, instance_buffer.inner_buffer().slice(..));

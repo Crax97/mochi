@@ -102,11 +102,6 @@ impl<'framework> Layer<'framework> {
                     x: self.scale.x * bm.size().x * 0.5,
                     y: self.scale.y * bm.size().y * 0.5,
                 };
-                pass.begin(&Camera2d::new(
-                    -0.1,
-                    1000.0,
-                    [-real_scale.x, real_scale.x, real_scale.y, -real_scale.y],
-                ));
                 pass.draw_texture(
                     bm.texture(),
                     MeshInstance2D::new(

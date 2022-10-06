@@ -7,6 +7,7 @@ use cgmath::{point2, vec2, Vector2};
 use framework::Framework;
 use image::{DynamicImage, GenericImage, ImageBuffer};
 use renderer::render_pass::texture2d_draw_pass::Texture2dDrawPass;
+use scene::Camera2d;
 
 use std::collections::HashMap;
 
@@ -57,6 +58,8 @@ impl<'l> Document<'l> {
             LayerConstructionInfo {
                 initial_color: [1.0, 1.0, 1.0, 1.0],
                 name: "Background Layer".into(),
+                width: document.document_size.x,
+                height: document.document_size.y,
             },
         );
         document.add_layer(
@@ -64,6 +67,8 @@ impl<'l> Document<'l> {
             LayerConstructionInfo {
                 initial_color: [0.0, 0.0, 0.0, 0.0],
                 name: "Layer 0".into(),
+                width: document.document_size.x,
+                height: document.document_size.y,
             },
         );
 
@@ -134,8 +139,8 @@ impl<'l> Document<'l> {
             framework,
             BitmapLayerConfiguration {
                 label: config.name.clone(),
-                width: self.document_size.x,
-                height: self.document_size.y,
+                width: config.width,
+                height: config.height,
                 initial_background_color: config.initial_color,
             },
         );
@@ -169,6 +174,17 @@ impl<'l> Document<'l> {
         let final_texture = self.framework.texture2d(&final_layer);
 
         pass.execute(self.framework, final_texture.texture_view(), true);
+
+        pass.begin(&Camera2d::new(
+            -0.1,
+            1000.0,
+            [
+                -(self.document_size().x as f32 * 0.5),
+                self.document_size().x as f32 * 0.5,
+                self.document_size().y as f32 * 0.5,
+                -(self.document_size().y as f32 * 0.5),
+            ],
+        ));
         for layer_node in self.tree_root.0.iter() {
             match layer_node {
                 LayerTree::SingleLayer(index) => {
