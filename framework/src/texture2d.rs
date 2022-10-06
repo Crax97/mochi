@@ -1,13 +1,39 @@
-use std::num::{NonZeroU32, NonZeroU8};
+use std::{
+    num::{NonZeroU32, NonZeroU8},
+    slice::Chunks,
+};
 use wgpu::{BindGroup, Color, Extent3d, ImageCopyBuffer, ImageDataLayout};
 
 use crate::Framework;
 
 pub struct GpuImageData {
-    pub data: Vec<u8>,
+    data: Vec<u8>,
     pub width: u32,
     pub height: u32,
-    pub padded_width: u32,
+    pub channels: u32,
+    padded_width: u32,
+}
+
+impl GpuImageData {
+    pub fn to_bytes(self, flip_y: bool) -> Vec<u8> {
+        let padded_rows = self
+            .data
+            .chunks((self.padded_width * self.channels) as usize);
+        let unpadded_rows = padded_rows
+            .into_iter()
+            .map(|c| c.chunks((self.width * self.channels) as usize));
+        if flip_y {
+            unpadded_rows.rev().fold(vec![], |vec, mut c| {
+                let row_bytes = c.next().unwrap().to_owned();
+                [vec, row_bytes].concat()
+            })
+        } else {
+            unpadded_rows.fold(vec![], |vec, mut c| {
+                let row_bytes = c.next().unwrap().to_owned();
+                [vec, row_bytes].concat()
+            })
+        }
+    }
 }
 
 pub struct Texture2d {
@@ -266,6 +292,7 @@ impl Texture2d {
             data: bytes,
             width: self.width,
             height: self.height,
+            channels,
             padded_width: padded_width / channels,
         }
     }

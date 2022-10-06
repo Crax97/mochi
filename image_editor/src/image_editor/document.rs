@@ -200,12 +200,11 @@ impl<'l> Document<'l> {
     pub fn final_image_bytes(&self) -> DynamicImage {
         let final_layer_texture = self.framework.texture2d(self.final_layer.texture());
         let bytes = final_layer_texture.read_data(&self.framework);
-        let mut raw_image =
-            ImageBuffer::from_raw(bytes.padded_width, bytes.height, bytes.data).unwrap();
-        let subimg = raw_image.sub_image(0, 0, bytes.width, bytes.height);
-        let subimg = subimg.to_image();
-        let new_image = image::imageops::flip_vertical(&subimg);
-        DynamicImage::ImageRgba8(new_image)
+        let width = bytes.width;
+        let height = bytes.height;
+        let data = bytes.to_bytes(true);
+        let raw_image = ImageBuffer::from_raw(width, height, data).unwrap();
+        DynamicImage::ImageRgba8(raw_image)
     }
 
     pub fn for_each_layer<F: FnMut(&Layer, &LayerIndex)>(&self, mut f: F) {
