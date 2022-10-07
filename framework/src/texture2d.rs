@@ -161,6 +161,10 @@ impl Texture2d {
 }
 
 impl Texture2d {
+    fn convert_region_y_to_wgpu_y(&self, y: u32, region_height: u32) -> u32 {
+        self.height - y - region_height
+    }
+
     pub fn sample_pixel(&self, x: u32, y: u32, framework: &Framework) -> wgpu::Color {
         let texture_region = wgpu::ImageCopyTexture {
             texture: &self.texture,
@@ -268,7 +272,7 @@ impl Texture2d {
 
         // Needed because textures in wgpu go from bottom to top, and we
         // pass coords from top to bottom
-        let real_y = self.height - y - height;
+        let real_y = self.convert_region_y_to_wgpu_y(y, height);
 
         let channels = 4;
 
