@@ -4,7 +4,7 @@ use std::{
 };
 use wgpu::{BindGroup, Color, Extent3d, ImageCopyBuffer, ImageDataLayout, Origin3d};
 
-use crate::Framework;
+use crate::{framework::TextureId, Framework};
 
 pub struct GpuImageData {
     data: Vec<u8>,
@@ -41,6 +41,7 @@ pub struct Texture2d {
     texture_view: wgpu::TextureView,
     sampler: wgpu::Sampler,
     bind_group: wgpu::BindGroup,
+    format: wgpu::TextureFormat,
     width: u32,
     height: u32,
 }
@@ -152,6 +153,7 @@ impl Texture2d {
         Self {
             width: config.width,
             height: config.height,
+            format: config.format,
             texture,
             texture_view,
             sampler,
@@ -320,6 +322,61 @@ impl Texture2d {
             channels,
             padded_width: padded_width / channels,
         }
+    }
+
+    pub fn read_subregion_texture2d(
+        &self,
+        x: u32,
+        y: u32,
+        width: u32,
+        height: u32,
+        framework: &Framework,
+    ) -> TextureId {
+        let mut encoder =
+            framework
+                .device
+                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("copy texture to buffer"),
+                });
+
+        // Needed because textures in wgpu go from bottom to top, and we
+        // pass coords from top to bottom
+        let real_y = self.convert_region_y_to_wgpu_y(y, height);
+        let oneshot_texture_id = framework.allocate_texture2d(
+            crate::Texture2dConfiguration {
+                debug_name: Some("Tex Subregion".into()),
+                width,
+                height,
+                format: self.format,
+                allow_cpu_write: true,
+                allow_cpu_read: true,
+                allow_use_as_render_target: true,
+            },
+            None,
+        );
+        let oneshot_texture = framework.texture2d(&oneshot_texture_id);
+        encoder.copy_texture_to_texture(
+            wgpu::ImageCopyTexture {
+                texture: &self.texture,
+                mip_level: 0,
+                origin: Origin3d { x, y: real_y, z: 0 },
+                aspect: wgpu::TextureAspect::All,
+            },
+            wgpu::ImageCopyTexture {
+                texture: &oneshot_texture.texture,
+                mip_level: 0,
+                origin: Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
+            },
+            wgpu::Extent3d {
+                width,
+                height,
+                depth_or_array_layers: 1,
+            },
+        );
+        framework.queue.submit(std::iter::once(encoder.finish()));
+
+        oneshot_texture_id
     }
 
     pub fn width(&self) -> u32 {

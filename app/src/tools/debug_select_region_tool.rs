@@ -63,13 +63,18 @@ impl Tool for DebugSelectRegionTool {
                         let region_width = (end.x - begin.x).abs() as u32;
                         let region_height = (end.y - begin.y).abs() as u32;
 
-                        let subregion = bit_texture.read_subregion(
+                        let subregion = bit_texture.read_subregion_texture2d(
                             region_x,
                             region_y,
                             region_width,
                             region_height,
                             context.image_editor.framework(),
                         );
+                        let subregion = context
+                            .image_editor
+                            .framework()
+                            .texture2d(&subregion)
+                            .read_data(context.image_editor.framework());
                         let width = subregion.width;
                         let height = subregion.height;
 
