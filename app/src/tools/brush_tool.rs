@@ -106,8 +106,12 @@ impl<'framework> Tool for BrushTool<'framework> {
         }
     }
 
-    fn on_pointer_release(&mut self, _pointer_release: PointerEvent, _context: &mut EditorContext) {
+    fn on_pointer_release(&mut self, _pointer_release: PointerEvent, context: &mut EditorContext) {
         self.is_active = false;
+        context
+            .image_editor
+            .document()
+            .blend_buffer_onto_current_layer(context.draw_pass);
     }
     fn name(&self) -> &'static str {
         "Brush tool"

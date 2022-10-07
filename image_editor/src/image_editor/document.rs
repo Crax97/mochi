@@ -1,13 +1,13 @@
 use super::layers::{Layer, LayerIndex, RootLayer};
 use crate::{
-    layers::{BitmapLayer, BitmapLayerConfiguration, LayerCreationInfo, LayerTree},
+    layers::{BitmapLayer, BitmapLayerConfiguration, LayerCreationInfo, LayerTree, LayerType},
     LayerConstructionInfo,
 };
-use cgmath::{point2, vec2, Vector2};
-use framework::Framework;
+use cgmath::{point2, point3, vec2, SquareMatrix, Transform, Vector2};
+use framework::{Framework, MeshInstance2D};
 use image::{DynamicImage, ImageBuffer};
 use renderer::render_pass::texture2d_draw_pass::Texture2dDrawPass;
-use scene::Camera2d;
+use scene::{Camera2d, Transform2d};
 
 use std::collections::HashMap;
 
@@ -199,16 +199,24 @@ impl<'l> Document<'l> {
                 -(self.document_size().y as f32 * 0.5),
             ],
         ));
+
+        let mut draw_layer = |index| {
+            let layer = self.layers.get(index).expect("Nonexistent layer");
+            layer.draw(&mut pass, final_texture.texture_view());
+            if index == &self.current_layer_index {
+                self.buffer_layer
+                    .draw(pass, point2(0.0, 0.0), vec2(1.0, 1.0), 0.0, 1.0);
+                pass.finish(final_texture.texture_view(), false);
+            }
+        };
         for layer_node in self.tree_root.0.iter() {
             match layer_node {
                 LayerTree::SingleLayer(index) => {
-                    let layer = self.layers.get(&index).expect("Nonexistent layer");
-                    layer.draw(&mut pass, final_texture.texture_view());
+                    draw_layer(index);
                 }
                 LayerTree::Group(indices) => {
                     for index in indices {
-                        let layer = self.layers.get(index).expect("Nonexistent layer");
-                        layer.draw(&mut pass, final_texture.texture_view());
+                        draw_layer(index);
                     }
                 }
             };
@@ -217,6 +225,10 @@ impl<'l> Document<'l> {
 
     pub fn final_layer(&self) -> &BitmapLayer {
         &self.final_layer
+    }
+
+    pub fn buffer_layer(&self) -> &BitmapLayer {
+        &self.buffer_layer
     }
 
     pub fn document_size(&self) -> Vector2<u32> {
@@ -249,6 +261,51 @@ impl<'l> Document<'l> {
                         let layer = self.get_layer(idx);
                         f(layer, idx);
                     }
+                }
+            }
+        }
+    }
+
+    pub fn blend_buffer_onto_current_layer(&self, pass: &mut Texture2dDrawPass) {
+        match self.current_layer().layer_type {
+            LayerType::Bitmap(ref bm) => {
+                let bm_camera = Camera2d::new(
+                    -0.1,
+                    1000.0,
+                    [
+                        -bm.size().x as f32 * 0.5,
+                        bm.size().x as f32 * 0.5,
+                        bm.size().y as f32 * 0.5,
+                        -bm.size().y as f32 * 0.5,
+                    ],
+                );
+
+                let current_layer_transform = self.current_layer().transform();
+
+                // The buffer_layer is always drawn in front of the camera, so to correctly blend it with
+                // The current layer may be placed away from the camera
+                // To correctly blend the buffer with the current layer, we have to move into the current layer's
+                // coordinate system
+                let inv_layer_matrix = current_layer_transform.matrix().invert();
+                if let Some(inv_layer_matrix) = inv_layer_matrix {
+                    let origin_inv = inv_layer_matrix.transform_point(point3(0.0, 0.0, 0.0));
+                    pass.begin(&bm_camera);
+                    self.buffer_layer.draw(
+                        pass,
+                        point2(origin_inv.x, origin_inv.y),
+                        vec2(1.0, 1.0),
+                        0.0,
+                        1.0,
+                    );
+                    let output_id = bm.texture();
+                    let texture = self.framework.texture2d(output_id);
+                    pass.finish(texture.texture_view(), false);
+
+                    pass.begin(&bm_camera);
+                    let buffer_id = self.buffer_layer.texture();
+                    let texture = self.framework.texture2d(buffer_id);
+                    // Clean the buffer layer
+                    pass.finish(texture.texture_view(), true);
                 }
             }
         }

@@ -1,7 +1,7 @@
 use cgmath::vec2;
 use framework::TypedBufferConfiguration;
 use framework::{Framework, MeshInstance2D, TypedBuffer};
-use image_editor::layers::BitmapLayer;
+use image_editor::layers::{BitmapLayer, LayerType};
 use scene::{Camera2d, Camera2dUniformBlock};
 use wgpu::{BindGroup, RenderPassColorAttachment, RenderPassDescriptor};
 
@@ -140,8 +140,11 @@ impl<'framework> StrokingEngine<'framework> {
 
 impl<'framework> BrushEngine for StrokingEngine<'framework> {
     fn stroke(&mut self, path: StrokePath, context: StrokeContext) {
-        match context.layer.layer_type {
-            image_editor::layers::LayerType::Bitmap(ref bitmap_layer) => {
+        match context.editor.document().current_layer().layer_type {
+            // TODO: Deal with difference between current_layer and buffer_layer size
+            LayerType::Bitmap(_) => {
+                let buffer_layer = context.editor.document().buffer_layer();
+
                 // 1. Update buffer
                 let instances: Vec<MeshInstance2D> = path
                     .points
@@ -155,17 +158,17 @@ impl<'framework> BrushEngine for StrokingEngine<'framework> {
                     -0.1,
                     1000.0,
                     [
-                        -bitmap_layer.size().x as f32 * 0.5,
-                        bitmap_layer.size().x as f32 * 0.5,
-                        bitmap_layer.size().y as f32 * 0.5,
-                        -bitmap_layer.size().y as f32 * 0.5,
+                        -buffer_layer.size().x as f32 * 0.5,
+                        buffer_layer.size().x as f32 * 0.5,
+                        buffer_layer.size().y as f32 * 0.5,
+                        -buffer_layer.size().y as f32 * 0.5,
                     ],
                 );
                 self.camera_buffer
                     .write_sync::<Camera2dUniformBlock>(&vec![(&bm_camera).into()]);
                 self.stamp_pass.update(instances);
                 // 2. Do draw
-                let bitmap_texture = context.editor.framework().texture2d(bitmap_layer.texture());
+                let bitmap_texture = context.editor.framework().texture2d(buffer_layer.texture());
                 let stroking_engine_render_pass = RenderPassDescriptor {
                     label: Some("Stamping Engine render pass"),
                     color_attachments: &[Some(RenderPassColorAttachment {
@@ -185,8 +188,8 @@ impl<'framework> BrushEngine for StrokingEngine<'framework> {
                 render_pass.set_viewport(
                     0.0,
                     0.0,
-                    bitmap_layer.size().x,
-                    bitmap_layer.size().y,
+                    buffer_layer.size().x,
+                    buffer_layer.size().y,
                     0.0,
                     1.0,
                 );
