@@ -86,7 +86,6 @@ impl<'framework> Layer<'framework> {
     }
     pub(crate) fn draw<'library, 'pass, 'l>(
         &'l self,
-        framework: &'framework Framework,
         pass: &mut Texture2dDrawPass<'framework>,
         target: &TextureView,
     ) where
@@ -98,19 +97,12 @@ impl<'framework> Layer<'framework> {
         }
         match &self.layer_type {
             LayerType::Bitmap(ref bm) => {
-                let real_scale = Vector2 {
-                    x: self.scale.x * bm.size().x * 0.5,
-                    y: self.scale.y * bm.size().y * 0.5,
-                };
-                pass.draw_texture(
-                    bm.texture(),
-                    MeshInstance2D::new(
-                        self.position,
-                        real_scale,
-                        self.rotation_radians,
-                        true,
-                        self.settings.opacity,
-                    ),
+                bm.draw(
+                    pass,
+                    self.position,
+                    self.scale,
+                    self.rotation_radians,
+                    self.settings.opacity,
                 );
                 pass.finish(target, false);
             }

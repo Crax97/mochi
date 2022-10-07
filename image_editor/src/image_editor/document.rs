@@ -5,7 +5,7 @@ use crate::{
 };
 use cgmath::{point2, vec2, Vector2};
 use framework::Framework;
-use image::{DynamicImage, GenericImage, ImageBuffer};
+use image::{DynamicImage, ImageBuffer};
 use renderer::render_pass::texture2d_draw_pass::Texture2dDrawPass;
 use scene::Camera2d;
 
@@ -18,7 +18,9 @@ pub struct Document<'framework> {
     document_size: Vector2<u32>,
     layers: HashMap<LayerIndex, Layer<'framework>>,
     tree_root: RootLayer,
+
     final_layer: BitmapLayer,
+    buffer_layer: BitmapLayer,
 
     current_layer_index: LayerIndex,
 }
@@ -40,6 +42,15 @@ impl<'l> Document<'l> {
                 initial_background_color: [0.5, 0.5, 0.5, 1.0],
             },
         );
+        let buffer_layer = BitmapLayer::new(
+            framework,
+            BitmapLayerConfiguration {
+                label: "Buffer Layer".to_owned(),
+                width: config.width,
+                height: config.height,
+                initial_background_color: [0.0; 4],
+            },
+        );
 
         let first_layer_index = LayerIndex(1);
 
@@ -48,7 +59,10 @@ impl<'l> Document<'l> {
             layers_created: 0,
             document_size: vec2(config.width, config.height),
             current_layer_index: first_layer_index,
+
             final_layer,
+            buffer_layer,
+
             layers: HashMap::new(),
             tree_root: RootLayer(vec![]),
         };
@@ -189,12 +203,12 @@ impl<'l> Document<'l> {
             match layer_node {
                 LayerTree::SingleLayer(index) => {
                     let layer = self.layers.get(&index).expect("Nonexistent layer");
-                    layer.draw(self.framework, &mut pass, final_texture.texture_view());
+                    layer.draw(&mut pass, final_texture.texture_view());
                 }
                 LayerTree::Group(indices) => {
                     for index in indices {
                         let layer = self.layers.get(index).expect("Nonexistent layer");
-                        layer.draw(self.framework, &mut pass, final_texture.texture_view());
+                        layer.draw(&mut pass, final_texture.texture_view());
                     }
                 }
             };
