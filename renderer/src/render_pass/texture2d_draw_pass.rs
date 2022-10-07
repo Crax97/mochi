@@ -16,6 +16,7 @@ struct TextureDrawInfo {
 }
 
 pub struct Texture2dDrawPass<'framework> {
+    framework: &'framework Framework,
     pipeline: RenderPipeline,
     textures: Vec<TextureDrawInfo>,
     clear_color: wgpu::Color,
@@ -139,6 +140,7 @@ impl<'tex, 'framework> Texture2dDrawPass<'framework> {
                     },
                 });
         Self {
+            framework,
             pipeline: simple_diffuse_pipeline,
             textures: vec![],
             clear_color: wgpu::Color::BLACK,
@@ -165,7 +167,7 @@ impl<'tex, 'framework> Texture2dDrawPass<'framework> {
         self.camera_buffer
             .write_sync::<Camera2dUniformBlock>(&vec![(&self.camera).into()]);
     }
-    pub fn execute(&mut self, framework: &Framework, output_texture: &TextureView, clear: bool) {
+    pub fn finish(&mut self, output_texture: &TextureView, clear: bool) {
         let render_pass_description = RenderPassDescriptor {
             label: Some("Texture2D Render Pass"),
             color_attachments: &[Some(RenderPassColorAttachment {
@@ -185,7 +187,7 @@ impl<'tex, 'framework> Texture2dDrawPass<'framework> {
 
         if clear {
             let mut encoder =
-                framework
+                self.framework
                     .device
                     .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                         label: Some("Texture2D Render Pass Clear"),
@@ -193,28 +195,32 @@ impl<'tex, 'framework> Texture2dDrawPass<'framework> {
             {
                 let _ = encoder.begin_render_pass(&render_pass_description);
             }
-            framework.queue.submit(std::iter::once(encoder.finish()));
+            self.framework
+                .queue
+                .submit(std::iter::once(encoder.finish()));
         }
 
         {
-            let quad_mesh = framework.asset_library.mesh(mesh_names::QUAD);
+            let quad_mesh = self.framework.asset_library.mesh(mesh_names::QUAD);
             for texture in self.textures.iter() {
                 let mut encoder =
-                    framework
+                    self.framework
                         .device
                         .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                             label: Some("Texture2D Render Pass Encoder"),
                         });
-                let instance_buffer = framework.allocate_typed_buffer(TypedBufferConfiguration {
-                    initial_setup: framework::typed_buffer::BufferInitialSetup::Data(&vec![
-                        texture.instance_data,
-                    ]),
-                    buffer_type: framework::BufferType::Vertex,
-                    allow_write: false,
-                    allow_read: false,
-                });
+                let instance_buffer =
+                    self.framework
+                        .allocate_typed_buffer(TypedBufferConfiguration {
+                            initial_setup: framework::typed_buffer::BufferInitialSetup::Data(
+                                &vec![texture.instance_data],
+                            ),
+                            buffer_type: framework::BufferType::Vertex,
+                            allow_write: false,
+                            allow_read: false,
+                        });
                 {
-                    let framework_texture = framework.texture2d(&texture.texture);
+                    let framework_texture = self.framework.texture2d(&texture.texture);
                     let mut pass = encoder.begin_render_pass(&render_pass_description);
                     pass.set_pipeline(&self.pipeline);
                     pass.set_bind_group(0, framework_texture.bind_group(), &[]);
@@ -223,7 +229,9 @@ impl<'tex, 'framework> Texture2dDrawPass<'framework> {
 
                     quad_mesh.draw(&mut pass, 1);
                 }
-                framework.queue.submit(std::iter::once(encoder.finish()));
+                self.framework
+                    .queue
+                    .submit(std::iter::once(encoder.finish()));
             }
         }
         self.textures.clear();

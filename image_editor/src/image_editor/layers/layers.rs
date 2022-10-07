@@ -112,7 +112,7 @@ impl<'framework> Layer<'framework> {
                         self.settings.opacity,
                     ),
                 );
-                pass.execute(framework, target, false);
+                pass.finish(target, false);
             }
         }
     }

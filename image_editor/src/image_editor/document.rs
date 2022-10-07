@@ -173,7 +173,7 @@ impl<'l> Document<'l> {
         let final_layer = self.final_layer.texture();
         let final_texture = self.framework.texture2d(&final_layer);
 
-        pass.execute(self.framework, final_texture.texture_view(), true);
+        pass.finish(final_texture.texture_view(), true);
 
         pass.begin(&Camera2d::new(
             -0.1,

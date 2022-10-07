@@ -109,7 +109,7 @@ impl<'framework> ImageEditor<'framework> {
                 1.0,
             ),
         );
-        pass.execute(&self.framework, &output_canvas, true);
+        pass.finish(&output_canvas, true);
     }
 
     pub fn get_full_image_texture(&self) -> &BitmapLayer {
