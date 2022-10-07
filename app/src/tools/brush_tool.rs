@@ -9,7 +9,7 @@ use crate::{
     StrokeContext, StrokePoint,
 };
 
-use super::{BrushEngine, StrokePath, Tool};
+use super::{BrushEngine, EditorCommand, StrokePath, Tool};
 
 pub struct BrushTool<'framework> {
     engine: Rc<RefCell<dyn BrushEngine + 'framework>>,
@@ -43,7 +43,11 @@ impl<'framework> BrushTool<'framework> {
 }
 
 impl<'framework> Tool for BrushTool<'framework> {
-    fn on_pointer_click(&mut self, pointer_click: PointerEvent, context: &mut EditorContext) {
+    fn on_pointer_click(
+        &mut self,
+        pointer_click: PointerEvent,
+        context: &mut EditorContext,
+    ) -> Option<Box<dyn EditorCommand>> {
         self.is_active = true;
         let pt = BrushTool::reposition_point_for_draw(
             &context.image_editor,
@@ -53,11 +57,16 @@ impl<'framework> Tool for BrushTool<'framework> {
             self.last_mouse_position = pos;
             self.last_pressure = pointer_click.pressure;
         }
+        None
     }
 
-    fn on_pointer_move(&mut self, pointer_motion: PointerEvent, context: &mut EditorContext) {
+    fn on_pointer_move(
+        &mut self,
+        pointer_motion: PointerEvent,
+        context: &mut EditorContext,
+    ) -> Option<Box<dyn EditorCommand>> {
         if !self.is_active {
-            return;
+            return None;
         }
 
         let new_pointer_position = BrushTool::reposition_point_for_draw(
@@ -67,7 +76,7 @@ impl<'framework> Tool for BrushTool<'framework> {
         if let Some(new_pointer_position) = new_pointer_position {
             let distance_from_last_point = self.last_mouse_position.distance(new_pointer_position);
             if distance_from_last_point < self.step {
-                return;
+                return None;
             }
 
             let size_delta = self.max_size - self.min_size;
@@ -104,14 +113,20 @@ impl<'framework> Tool for BrushTool<'framework> {
                 self.last_pressure = pointer_motion.pressure;
             }
         }
+        None
     }
 
-    fn on_pointer_release(&mut self, _pointer_release: PointerEvent, context: &mut EditorContext) {
+    fn on_pointer_release(
+        &mut self,
+        _pointer_release: PointerEvent,
+        context: &mut EditorContext,
+    ) -> Option<Box<dyn EditorCommand>> {
         self.is_active = false;
         context
             .image_editor
             .document()
             .blend_buffer_onto_current_layer(context.draw_pass);
+        None
     }
     fn name(&self) -> &'static str {
         "Brush tool"

@@ -2,7 +2,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use crate::tools::{EditorContext, PointerEvent};
 
-use super::{brush_engine::stamping_engine::StrokingEngine, tool::Tool};
+use super::{brush_engine::stamping_engine::StrokingEngine, tool::Tool, EditorCommand};
 
 pub struct ColorPicker<'b> {
     is_active: bool,
@@ -19,13 +19,22 @@ impl<'b> ColorPicker<'b> {
 }
 
 impl<'b> Tool for ColorPicker<'b> {
-    fn on_pointer_click(&mut self, _: PointerEvent, _: &mut EditorContext) {
+    fn on_pointer_click(
+        &mut self,
+        _: PointerEvent,
+        _: &mut EditorContext,
+    ) -> Option<Box<dyn EditorCommand>> {
         self.is_active = true;
+        None
     }
 
-    fn on_pointer_move(&mut self, pointer_motion: PointerEvent, context: &mut EditorContext) {
+    fn on_pointer_move(
+        &mut self,
+        pointer_motion: PointerEvent,
+        context: &mut EditorContext,
+    ) -> Option<Box<dyn EditorCommand>> {
         if !self.is_active {
-            return;
+            return None;
         }
         let position_into_canvas = context
             .image_editor
@@ -40,7 +49,7 @@ impl<'b> Tool for ColorPicker<'b> {
             if valid_position.x >= context.image_editor.document().document_size().x
                 || valid_position.y >= context.image_editor.document().document_size().y
             {
-                return;
+                return None;
             }
 
             //TODO, FIXME: Final layer should not be flipped.
@@ -62,10 +71,16 @@ impl<'b> Tool for ColorPicker<'b> {
             settings.opacity = (pixel.a * 255.0) as u8;
             engine.set_new_settings(settings);
         }
+        None
     }
 
-    fn on_pointer_release(&mut self, _pointer_release: PointerEvent, _context: &mut EditorContext) {
+    fn on_pointer_release(
+        &mut self,
+        _pointer_release: PointerEvent,
+        _context: &mut EditorContext,
+    ) -> Option<Box<dyn EditorCommand>> {
         self.is_active = false;
+        None
     }
     fn name(&self) -> &'static str {
         "Color picker"

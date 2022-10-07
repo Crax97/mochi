@@ -1,7 +1,7 @@
 use crate::tools::EditorContext;
 use cgmath::{num_traits::clamp, point2, InnerSpace, Point2};
 
-use super::{tool::Tool, PointerEvent};
+use super::{tool::Tool, EditorCommand, PointerEvent};
 
 pub struct TransformLayerTool {
     is_active: bool,
@@ -18,18 +18,23 @@ impl TransformLayerTool {
 }
 
 impl Tool for TransformLayerTool {
-    fn on_pointer_click(&mut self, event: PointerEvent, _: &mut EditorContext) {
+    fn on_pointer_click(
+        &mut self,
+        event: PointerEvent,
+        _: &mut EditorContext,
+    ) -> Option<Box<dyn EditorCommand>> {
         self.is_active = true;
         self.last_frame_position = event.new_pointer_location;
+        None
     }
 
     fn on_pointer_move(
         &mut self,
         pointer_motion: super::tool::PointerEvent,
         context: &mut EditorContext,
-    ) {
+    ) -> Option<Box<dyn EditorCommand>> {
         if !self.is_active {
-            return;
+            return None;
         }
         let mult = clamp(
             1.0 / context.image_editor.camera().current_scale() * 0.5,
@@ -47,10 +52,16 @@ impl Tool for TransformLayerTool {
             });
         }
         self.last_frame_position = new_position;
+        None
     }
 
-    fn on_pointer_release(&mut self, _pointer_release: PointerEvent, _context: &mut EditorContext) {
+    fn on_pointer_release(
+        &mut self,
+        _pointer_release: PointerEvent,
+        _context: &mut EditorContext,
+    ) -> Option<Box<dyn EditorCommand>> {
         self.is_active = false;
+        None
     }
     fn name(&self) -> &'static str {
         "Move tool"

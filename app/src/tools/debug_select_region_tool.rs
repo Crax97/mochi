@@ -2,7 +2,7 @@ use crate::tools::{EditorContext, PointerEvent};
 use cgmath::{num_traits::clamp, point2, ElementWise, InnerSpace, Point2, Vector2};
 use image::{DynamicImage, ImageBuffer, RgbaImage};
 
-use super::tool::Tool;
+use super::{tool::Tool, EditorCommand};
 
 pub struct DebugSelectRegionTool {
     is_active: bool,
@@ -19,14 +19,23 @@ impl DebugSelectRegionTool {
 }
 
 impl Tool for DebugSelectRegionTool {
-    fn on_pointer_click(&mut self, event: PointerEvent, context: &mut EditorContext) {
+    fn on_pointer_click(
+        &mut self,
+        event: PointerEvent,
+        context: &mut EditorContext,
+    ) -> Option<Box<dyn EditorCommand>> {
         self.is_active = true;
         self.begin_position = context
             .image_editor
             .transform_point_into_pixel_position(event.new_pointer_location_normalized);
+        None
     }
 
-    fn on_pointer_release(&mut self, pointer_event: PointerEvent, context: &mut EditorContext) {
+    fn on_pointer_release(
+        &mut self,
+        pointer_event: PointerEvent,
+        context: &mut EditorContext,
+    ) -> Option<Box<dyn EditorCommand>> {
         self.is_active = false;
 
         let new_position = pointer_event.new_pointer_location_normalized;
@@ -76,6 +85,7 @@ impl Tool for DebugSelectRegionTool {
             }
             _ => {}
         }
+        None
     }
     fn name(&self) -> &'static str {
         "Region test tool"
