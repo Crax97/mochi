@@ -43,7 +43,7 @@ impl<'framework> BrushTool<'framework> {
 }
 
 impl<'framework> Tool for BrushTool<'framework> {
-    fn on_pointer_click(&mut self, pointer_click: PointerEvent, context: EditorContext) {
+    fn on_pointer_click(&mut self, pointer_click: PointerEvent, context: &mut EditorContext) {
         self.is_active = true;
         let pt = BrushTool::reposition_point_for_draw(
             &context.image_editor,
@@ -55,7 +55,7 @@ impl<'framework> Tool for BrushTool<'framework> {
         }
     }
 
-    fn on_pointer_move(&mut self, pointer_motion: PointerEvent, context: EditorContext) {
+    fn on_pointer_move(&mut self, pointer_motion: PointerEvent, context: &mut EditorContext) {
         if !self.is_active {
             return;
         }
@@ -106,7 +106,7 @@ impl<'framework> Tool for BrushTool<'framework> {
         }
     }
 
-    fn on_pointer_release(&mut self, _pointer_release: PointerEvent, _context: EditorContext) {
+    fn on_pointer_release(&mut self, _pointer_release: PointerEvent, _context: &mut EditorContext) {
         self.is_active = false;
     }
     fn name(&self) -> &'static str {

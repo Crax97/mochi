@@ -13,7 +13,9 @@ use winit::window::Window;
 use crate::input_state::InputState;
 use crate::toolbox::Toolbox;
 use crate::tools::brush_engine::stamping_engine::StrokingEngine;
-use crate::tools::{BrushTool, ColorPicker, DebugSelectRegionTool, HandTool, TransformLayerTool};
+use crate::tools::{
+    BrushTool, ColorPicker, DebugSelectRegionTool, EditorContext, HandTool, TransformLayerTool,
+};
 use crate::ui::{self, Ui, UiContext};
 
 pub struct ImageApplication<'framework> {
@@ -128,8 +130,12 @@ impl<'framework> ImageApplication<'framework> {
     pub(crate) fn on_event(&mut self, event: &winit::event::Event<()>) -> ControlFlow {
         self.input_state.update(&event);
         self.ui.on_new_winit_event(&event);
-        self.toolbox
-            .update(&self.input_state, &mut self.image_editor);
+
+        let context = EditorContext {
+            image_editor: &mut self.image_editor,
+        };
+
+        self.toolbox.update(&self.input_state, context);
 
         match event {
             winit::event::Event::WindowEvent { event, .. } => {

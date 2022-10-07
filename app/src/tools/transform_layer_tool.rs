@@ -18,7 +18,7 @@ impl TransformLayerTool {
 }
 
 impl Tool for TransformLayerTool {
-    fn on_pointer_click(&mut self, event: PointerEvent, _: EditorContext) {
+    fn on_pointer_click(&mut self, event: PointerEvent, _: &mut EditorContext) {
         self.is_active = true;
         self.last_frame_position = event.new_pointer_location;
     }
@@ -26,7 +26,7 @@ impl Tool for TransformLayerTool {
     fn on_pointer_move(
         &mut self,
         pointer_motion: super::tool::PointerEvent,
-        context: EditorContext,
+        context: &mut EditorContext,
     ) {
         if !self.is_active {
             return;
@@ -49,7 +49,7 @@ impl Tool for TransformLayerTool {
         self.last_frame_position = new_position;
     }
 
-    fn on_pointer_release(&mut self, _pointer_release: PointerEvent, _context: EditorContext) {
+    fn on_pointer_release(&mut self, _pointer_release: PointerEvent, _context: &mut EditorContext) {
         self.is_active = false;
     }
     fn name(&self) -> &'static str {

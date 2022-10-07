@@ -83,7 +83,7 @@ impl<'framework> Toolbox<'framework> {
         }
     }
 
-    pub fn update(&mut self, input_state: &InputState, mut image_editor: &mut ImageEditor) {
+    pub fn update(&mut self, input_state: &InputState, mut context: EditorContext) {
         let event = PointerEvent {
             new_pointer_location_normalized: input_state.normalized_mouse_position(),
             new_pointer_location: input_state.mouse_position(),
@@ -91,54 +91,30 @@ impl<'framework> Toolbox<'framework> {
             window_width: input_state.window_size(),
         };
         if input_state.is_mouse_button_just_pressed(MouseButton::Left) {
-            self.primary_tool().on_pointer_click(
-                event,
-                EditorContext {
-                    image_editor: &mut image_editor,
-                },
-            );
+            self.primary_tool().on_pointer_click(event, &mut context);
         } else if input_state.is_mouse_button_just_released(MouseButton::Left) {
-            self.primary_tool().on_pointer_release(
-                event,
-                EditorContext {
-                    image_editor: &mut image_editor,
-                },
-            );
+            self.primary_tool().on_pointer_release(event, &mut context);
         } else {
-            self.primary_tool().on_pointer_move(
-                event,
-                EditorContext {
-                    image_editor: &mut image_editor,
-                },
-            );
+            self.primary_tool().on_pointer_move(event, &mut context);
         }
         if input_state.is_mouse_button_just_pressed(MouseButton::Right) {
-            self.secondary_tool().on_pointer_click(
-                event,
-                EditorContext {
-                    image_editor: &mut image_editor,
-                },
-            );
+            self.secondary_tool().on_pointer_click(event, &mut context);
         } else if input_state.is_mouse_button_just_released(MouseButton::Right) {
-            self.secondary_tool().on_pointer_release(
-                event,
-                EditorContext {
-                    image_editor: &mut image_editor,
-                },
-            );
+            self.secondary_tool()
+                .on_pointer_release(event, &mut context);
         } else {
-            self.secondary_tool().on_pointer_move(
-                event,
-                EditorContext {
-                    image_editor: &mut image_editor,
-                },
-            );
+            self.secondary_tool().on_pointer_move(event, &mut context);
         }
         if input_state.is_mouse_button_just_pressed(MouseButton::Middle) {
-            image_editor.camera_mut().set_position(point2(0.0, 0.0));
+            context
+                .image_editor
+                .camera_mut()
+                .set_position(point2(0.0, 0.0));
         }
         if input_state.mouse_wheel_delta().abs() > 0.0 {
-            image_editor.scale_view(input_state.mouse_wheel_delta());
+            context
+                .image_editor
+                .scale_view(input_state.mouse_wheel_delta());
         }
     }
 

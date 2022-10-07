@@ -18,11 +18,11 @@ impl HandTool {
 }
 
 impl Tool for HandTool {
-    fn on_pointer_click(&mut self, _: PointerEvent, _: EditorContext) {
+    fn on_pointer_click(&mut self, _: PointerEvent, _: &mut EditorContext) {
         self.is_active = true;
     }
 
-    fn on_pointer_move(&mut self, pointer_motion: PointerEvent, context: EditorContext) {
+    fn on_pointer_move(&mut self, pointer_motion: PointerEvent, context: &mut EditorContext) {
         if !self.is_active {
             return;
         }
@@ -40,7 +40,7 @@ impl Tool for HandTool {
         self.last_frame_position = new_position;
     }
 
-    fn on_pointer_release(&mut self, _pointer_release: PointerEvent, _context: EditorContext) {
+    fn on_pointer_release(&mut self, _pointer_release: PointerEvent, _context: &mut EditorContext) {
         self.is_active = false;
     }
     fn name(&self) -> &'static str {
