@@ -133,6 +133,7 @@ impl<'framework> ImageApplication<'framework> {
 
         let context = EditorContext {
             image_editor: &mut self.image_editor,
+            draw_pass: &mut self.render_pass,
         };
 
         self.toolbox.update(&self.input_state, context);

@@ -5,6 +5,7 @@ use renderer::render_pass::texture2d_draw_pass::Texture2dDrawPass;
 
 pub struct EditorContext<'editor, 'framework> {
     pub image_editor: &'editor mut ImageEditor<'framework>,
+    pub draw_pass: &'editor mut Texture2dDrawPass<'framework>,
 }
 
 #[derive(Debug, Clone, Copy)]
