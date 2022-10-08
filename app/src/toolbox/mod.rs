@@ -98,7 +98,7 @@ impl<'framework> Toolbox<'framework> {
             self.primary_tool().on_pointer_move(event, &mut context)
         };
         if let Some(cmd) = cmd {
-            cmd.execute(&mut context);
+            // cmd.undo(&mut context);
         }
         if input_state.is_mouse_button_just_pressed(MouseButton::Right) {
             self.secondary_tool().on_pointer_click(event, &mut context);

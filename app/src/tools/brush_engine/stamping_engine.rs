@@ -90,9 +90,7 @@ impl LayerReplaceCommand {
 }
 
 impl EditorCommand for LayerReplaceCommand {
-    fn execute(&self, _editor_context: &mut EditorContext) {}
-
-    fn undo(&self) -> Box<dyn EditorCommand> {
+    fn undo(&self, context: &mut EditorContext) -> Box<dyn EditorCommand> {
         todo!()
     }
 }
