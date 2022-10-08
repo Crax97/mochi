@@ -6,6 +6,8 @@ use wgpu::CommandEncoder;
 
 use image_editor::{layers::Layer, ImageEditor};
 
+use super::{EditorCommand, EditorContext};
+
 #[derive(Debug)]
 pub struct StrokePoint {
     pub position: Point2<f32>,
@@ -39,6 +41,7 @@ pub struct StrokeContext<'editor, 'stroke> {
 
 pub trait BrushEngine {
     fn stroke(&mut self, path: StrokePath, context: StrokeContext);
+    fn end_stroking(&mut self, context: &mut EditorContext) -> Option<Box<dyn EditorCommand>>;
 }
 impl StrokePath {
     pub(crate) fn linear_start_to_end(start: StrokePoint, end: StrokePoint, step: f32) -> Self {

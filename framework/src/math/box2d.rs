@@ -1,11 +1,11 @@
 use cgmath::{
-    num_traits::{Num, NumCast},
+    num_traits::{clamp_min, Num, NumCast},
     Point2, Vector2,
 };
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Box2d<T: Num + Copy + NumCast + Ord> {
+pub struct Box2d<T: Num + Copy + NumCast + PartialOrd> {
     pub origin: Point2<T>,
     pub size: Vector2<T>,
 }
@@ -15,7 +15,7 @@ impl<T: Num + Copy + NumCast + Ord> Default for Box2d<T> {
         Self::origin()
     }
 }
-impl<T: Num + Copy + NumCast + Ord> Box2d<T> {
+impl<T: Num + Copy + NumCast + PartialOrd> Box2d<T> {
     pub fn many_union<I: Iterator<Item = Box2d<T>>>(mut boxes: I) -> Box2d<T> {
         let first = boxes.next();
         if let Some(first) = first {
@@ -26,7 +26,7 @@ impl<T: Num + Copy + NumCast + Ord> Box2d<T> {
     }
 }
 
-impl<T: Num + Copy + NumCast + Ord> Box2d<T> {
+impl<T: Num + Copy + NumCast + PartialOrd> Box2d<T> {
     pub fn origin() -> Self {
         Self {
             origin: Point2 {
@@ -45,6 +45,13 @@ impl<T: Num + Copy + NumCast + Ord> Box2d<T> {
             origin: self.origin.cast::<U>()?,
             size: self.size.cast::<U>()?,
         })
+    }
+
+    pub fn center(&self) -> Point2<T> {
+        Point2 {
+            x: (self.right() - self.left()) / T::from(2).unwrap(),
+            y: (self.top() - self.bottom()) / T::from(2).unwrap(),
+        }
     }
 
     pub fn left(&self) -> T {
@@ -97,7 +104,7 @@ impl<T: Num + Copy + NumCast + Ord> Box2d<T> {
     }
     pub fn union(&self, other: &Box2d<T>) -> Self
     where
-        T: Ord,
+        T: PartialOrd,
     {
         if self.contains(other) {
             return *self;
@@ -106,10 +113,10 @@ impl<T: Num + Copy + NumCast + Ord> Box2d<T> {
             return *other;
         }
 
-        let x = self.left().min(other.left());
-        let y = self.top().min(other.top());
-        let width = self.right().max(other.right()) - x;
-        let height = self.bottom().max(other.bottom()) - y;
+        let x = clamp_min(self.left(), other.left());
+        let y = clamp_min(self.top(), other.top());
+        let width = clamp_min(self.right(), other.right()) - x;
+        let height = clamp_min(self.bottom(), other.bottom()) - y;
 
         return Self {
             origin: Point2 { x, y },

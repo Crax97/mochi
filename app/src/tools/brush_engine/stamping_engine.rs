@@ -1,14 +1,122 @@
-use cgmath::vec2;
-use framework::TypedBufferConfiguration;
+use cgmath::{point2, point3, vec2, SquareMatrix, Transform, Vector2};
+use framework::framework::TextureId;
+use framework::{Box2d, TypedBufferConfiguration};
 use framework::{Framework, MeshInstance2D, TypedBuffer};
-use image_editor::layers::{BitmapLayer, LayerType};
+use image_editor::layers::{BitmapLayer, LayerIndex, LayerType};
+use image_editor::ImageEditor;
 use scene::{Camera2d, Camera2dUniformBlock};
 use wgpu::{BindGroup, RenderPassColorAttachment, RenderPassDescriptor};
 
+use crate::tools::{EditorCommand, EditorContext};
 use crate::{StrokeContext, StrokePath};
 
 use super::stamping_engine_pass::StampingEngineRenderPass;
 use super::BrushEngine;
+
+struct BrushApplyCommand {
+    modified_layer: LayerIndex,
+    modified_region: Box2d<u32>,
+    modified_region_old_texture_id: TextureId,
+}
+
+impl BrushApplyCommand {
+    pub fn new(
+        editor: &ImageEditor,
+        modified_layer: LayerIndex,
+        modified_region: Box2d<u32>,
+    ) -> Self {
+        let edited_layer = editor.document().get_layer(&modified_layer);
+        let modified_region_old_texture_id = match edited_layer.layer_type {
+            image_editor::layers::LayerType::Bitmap(ref bm) => {
+                let edited_texture = bm.texture();
+                let edited_texture = editor.framework().texture2d(edited_texture);
+                edited_texture.read_subregion_texture2d(
+                    modified_region.origin.x,
+                    modified_region.origin.y,
+                    modified_region.size.x,
+                    modified_region.size.y,
+                    editor.framework(),
+                )
+            }
+        };
+
+        Self {
+            modified_layer,
+            modified_region,
+            modified_region_old_texture_id,
+        }
+    }
+}
+
+impl EditorCommand for BrushApplyCommand {
+    fn execute(&self, editor_context: &mut EditorContext) {
+        let framework = editor_context.image_editor.framework();
+        let layer = editor_context
+            .image_editor
+            .document()
+            .get_layer(&self.modified_layer);
+        match layer.layer_type {
+            LayerType::Bitmap(ref bm) => {
+                let bm_camera = Camera2d::new(
+                    -0.1,
+                    1000.0,
+                    [
+                        -bm.size().x as f32 * 0.5,
+                        bm.size().x as f32 * 0.5,
+                        bm.size().y as f32 * 0.5,
+                        -bm.size().y as f32 * 0.5,
+                    ],
+                );
+                let output_id = bm.texture();
+                let texture = framework.texture2d(output_id);
+
+                let current_layer_transform = layer.transform();
+
+                // The buffer_layer is always drawn in front of the camera, so to correctly blend it with
+                // The current layer may be placed away from the camera
+                // To correctly blend the buffer with the current layer, we have to move into the current layer's
+                // coordinate system
+                let inv_layer_matrix = current_layer_transform.matrix().invert();
+                if let Some(inv_layer_matrix) = inv_layer_matrix {
+                    let region_center = self.modified_region.center().cast::<f32>().unwrap();
+                    let origin_inv = inv_layer_matrix.transform_point(point3(
+                        region_center.x,
+                        region_center.y,
+                        0.0,
+                    ));
+                    editor_context.draw_pass.begin(&bm_camera);
+                    let modified_region_texture =
+                        framework.texture2d(&self.modified_region_old_texture_id);
+
+                    let real_scale = Vector2 {
+                        x: modified_region_texture.width() as f32 * 0.5,
+                        y: modified_region_texture.height() as f32 * 0.5,
+                    };
+
+                    editor_context.draw_pass.draw_texture(
+                        &self.modified_region_old_texture_id,
+                        MeshInstance2D::new(
+                            point2(origin_inv.x, origin_inv.y),
+                            real_scale,
+                            0.0,
+                            false,
+                            1.0,
+                        ),
+                    );
+                    editor_context
+                        .draw_pass
+                        .finish(texture.texture_view(), false);
+
+                    editor_context.draw_pass.begin(&bm_camera);
+                }
+            }
+        }
+    }
+
+    fn undo(&self) -> Box<dyn EditorCommand> {
+        todo!()
+    }
+}
 
 pub struct Stamp {
     pub(crate) brush_texture: BitmapLayer,
@@ -203,5 +311,16 @@ impl<'framework> BrushEngine for StrokingEngine<'framework> {
                 );
             }
         }
+    }
+
+    fn end_stroking(
+        &mut self,
+        context: &mut crate::tools::EditorContext,
+    ) -> Option<Box<dyn EditorCommand>> {
+        context
+            .image_editor
+            .document()
+            .blend_buffer_onto_current_layer(context.draw_pass);
+        None
     }
 }

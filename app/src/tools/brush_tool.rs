@@ -122,11 +122,7 @@ impl<'framework> Tool for BrushTool<'framework> {
         context: &mut EditorContext,
     ) -> Option<Box<dyn EditorCommand>> {
         self.is_active = false;
-        context
-            .image_editor
-            .document()
-            .blend_buffer_onto_current_layer(context.draw_pass);
-        None
+        self.engine.borrow_mut().end_stroking(context)
     }
     fn name(&self) -> &'static str {
         "Brush tool"
