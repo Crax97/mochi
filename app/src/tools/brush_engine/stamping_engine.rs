@@ -5,7 +5,7 @@ use framework::{Framework, MeshInstance2D, TypedBuffer};
 use image_editor::layers::{BitmapLayer, LayerIndex, LayerType};
 use image_editor::ImageEditor;
 use scene::{Camera2d, Camera2dUniformBlock};
-use wgpu::{BindGroup, RenderPassColorAttachment, RenderPassDescriptor};
+use wgpu::{BindGroup, RenderPassColorAttachment, RenderPassDescriptor, Texture};
 
 use crate::tools::{EditorCommand, EditorContext};
 use crate::{StrokeContext, StrokePath};
@@ -18,64 +18,19 @@ struct LayerReplaceCommand {
     modified_layer: LayerIndex,
 }
 impl LayerReplaceCommand {
-    pub fn new(context: &mut EditorContext, modified_layer: LayerIndex) -> Self {
-        let (old_layer_texture_id, new_texture_id) = {
-            let layer = context.image_editor.document().get_layer(&modified_layer);
-            let (old_layer_texture_id, size, layer_tex) = match layer.layer_type {
-                LayerType::Bitmap(ref bm) => (bm.texture(), bm.size(), bm),
-            };
-            let old_layer_texture = context
-                .image_editor
-                .framework()
-                .texture2d(old_layer_texture_id);
-            let new_texture_id = context.image_editor.framework().allocate_texture2d(
-                framework::Texture2dConfiguration {
-                    debug_name: Some("Layer".to_owned()),
-                    width: old_layer_texture.width(),
-                    height: old_layer_texture.height(),
-                    format: old_layer_texture.format(),
-                    allow_cpu_write: true,
-                    allow_cpu_read: true,
-                    allow_use_as_render_target: true,
-                },
-                None,
-            );
-            let new_texture = context.image_editor.framework().texture2d(&new_texture_id);
-
-            let bm_camera = Camera2d::new(
-                -0.1,
-                1000.0,
-                [-size.x * 0.5, size.x * 0.5, size.y * 0.5, -size.y * 0.5],
-            );
-
-            let current_layer_transform = layer.transform();
-            // The buffer_layer is always drawn in front of the camera, so to correctly blend it with
-            // The current layer may be placed away from the camera
-            // To correctly blend the buffer with the current layer, we have to move into the current layer's
-            // coordinate system
-            let inv_layer_matrix = current_layer_transform.matrix().invert();
-            if let Some(inv_layer_matrix) = inv_layer_matrix {
-                let origin_inv = inv_layer_matrix.transform_point(point3(0.0, 0.0, 0.0));
-                context.draw_pass.begin(&bm_camera);
-                layer_tex.draw(
-                    context.draw_pass,
-                    point2(0.0, 0.0),
-                    vec2(1.0, 1.0),
-                    0.0,
-                    1.0,
-                );
-                context.image_editor.document().buffer_layer().draw(
-                    context.draw_pass,
-                    point2(origin_inv.x, origin_inv.y),
-                    vec2(1.0, 1.0),
-                    0.0,
-                    1.0,
-                );
-                context.draw_pass.finish(new_texture.texture_view(), false);
-            }
-            (old_layer_texture_id.clone(), new_texture_id)
+    pub fn new(
+        context: &mut EditorContext,
+        modified_layer: LayerIndex,
+        new_texture_id: TextureId,
+    ) -> Self {
+        let old_layer_texture_id = match context
+            .image_editor
+            .document()
+            .get_layer(&modified_layer)
+            .layer_type
+        {
+            LayerType::Bitmap(ref bm) => bm.texture().clone(),
         };
-
         context.image_editor.mutate_document(|doc| {
             doc.mutate_layer(&modified_layer, |lay| match &mut lay.layer_type {
                 LayerType::Bitmap(bm) => bm.replace_texture(new_texture_id.clone()),
@@ -91,7 +46,11 @@ impl LayerReplaceCommand {
 
 impl EditorCommand for LayerReplaceCommand {
     fn undo(&self, context: &mut EditorContext) -> Box<dyn EditorCommand> {
-        todo!()
+        Box::new(LayerReplaceCommand::new(
+            context,
+            self.modified_layer,
+            self.old_layer_texture_id.clone(),
+        ))
     }
 }
 
@@ -294,9 +253,67 @@ impl<'framework> BrushEngine for StrokingEngine<'framework> {
         &mut self,
         context: &mut crate::tools::EditorContext,
     ) -> Option<Box<dyn EditorCommand>> {
+        let (old_layer_texture_id, new_texture_id) = {
+            let modified_layer = context.image_editor.document().current_layer_index();
+            let layer = context.image_editor.document().get_layer(&modified_layer);
+            let (old_layer_texture_id, size, layer_tex) = match layer.layer_type {
+                LayerType::Bitmap(ref bm) => (bm.texture(), bm.size(), bm),
+            };
+            let old_layer_texture = context
+                .image_editor
+                .framework()
+                .texture2d(old_layer_texture_id);
+            let new_texture_id = context.image_editor.framework().allocate_texture2d(
+                framework::Texture2dConfiguration {
+                    debug_name: Some("Layer".to_owned()),
+                    width: old_layer_texture.width(),
+                    height: old_layer_texture.height(),
+                    format: old_layer_texture.format(),
+                    allow_cpu_write: true,
+                    allow_cpu_read: true,
+                    allow_use_as_render_target: true,
+                },
+                None,
+            );
+            let new_texture = context.image_editor.framework().texture2d(&new_texture_id);
+
+            let bm_camera = Camera2d::new(
+                -0.1,
+                1000.0,
+                [-size.x * 0.5, size.x * 0.5, size.y * 0.5, -size.y * 0.5],
+            );
+
+            let current_layer_transform = layer.transform();
+            // The buffer_layer is always drawn in front of the camera, so to correctly blend it with
+            // The current layer may be placed away from the camera
+            // To correctly blend the buffer with the current layer, we have to move into the current layer's
+            // coordinate system
+            let inv_layer_matrix = current_layer_transform.matrix().invert();
+            if let Some(inv_layer_matrix) = inv_layer_matrix {
+                let origin_inv = inv_layer_matrix.transform_point(point3(0.0, 0.0, 0.0));
+                context.draw_pass.begin(&bm_camera);
+                layer_tex.draw(
+                    context.draw_pass,
+                    point2(0.0, 0.0),
+                    vec2(1.0, 1.0),
+                    0.0,
+                    1.0,
+                );
+                context.image_editor.document().buffer_layer().draw(
+                    context.draw_pass,
+                    point2(origin_inv.x, origin_inv.y),
+                    vec2(1.0, 1.0),
+                    0.0,
+                    1.0,
+                );
+                context.draw_pass.finish(new_texture.texture_view(), false);
+            }
+            (old_layer_texture_id.clone(), new_texture_id)
+        };
         let cmd = LayerReplaceCommand::new(
             context,
             context.image_editor.document().current_layer_index(),
+            new_texture_id,
         );
 
         context
