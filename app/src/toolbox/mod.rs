@@ -90,12 +90,15 @@ impl<'framework> Toolbox<'framework> {
             pressure: input_state.current_pointer_pressure(),
             window_width: input_state.window_size(),
         };
-        if input_state.is_mouse_button_just_pressed(MouseButton::Left) {
-            self.primary_tool().on_pointer_click(event, &mut context);
+        let cmd = if input_state.is_mouse_button_just_pressed(MouseButton::Left) {
+            self.primary_tool().on_pointer_click(event, &mut context)
         } else if input_state.is_mouse_button_just_released(MouseButton::Left) {
-            self.primary_tool().on_pointer_release(event, &mut context);
+            self.primary_tool().on_pointer_release(event, &mut context)
         } else {
-            self.primary_tool().on_pointer_move(event, &mut context);
+            self.primary_tool().on_pointer_move(event, &mut context)
+        };
+        if let Some(cmd) = cmd {
+            cmd.execute(&mut context);
         }
         if input_state.is_mouse_button_just_pressed(MouseButton::Right) {
             self.secondary_tool().on_pointer_click(event, &mut context);

@@ -65,7 +65,11 @@ impl BitmapLayer {
         }
     }
 
-    pub(crate) fn draw(
+    pub fn replace_texture(&mut self, new_texture: TextureId) {
+        self.texture = new_texture
+    }
+
+    pub fn draw(
         &self,
         pass: &mut renderer::render_pass::texture2d_draw_pass::Texture2dDrawPass,
         position: cgmath::Point2<f32>,

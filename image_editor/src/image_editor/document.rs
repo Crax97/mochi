@@ -280,33 +280,11 @@ impl<'l> Document<'l> {
                     ],
                 );
 
-                let current_layer_transform = self.current_layer().transform();
-
-                // The buffer_layer is always drawn in front of the camera, so to correctly blend it with
-                // The current layer may be placed away from the camera
-                // To correctly blend the buffer with the current layer, we have to move into the current layer's
-                // coordinate system
-                let inv_layer_matrix = current_layer_transform.matrix().invert();
-                if let Some(inv_layer_matrix) = inv_layer_matrix {
-                    let origin_inv = inv_layer_matrix.transform_point(point3(0.0, 0.0, 0.0));
-                    pass.begin(&bm_camera);
-                    self.buffer_layer.draw(
-                        pass,
-                        point2(origin_inv.x, origin_inv.y),
-                        vec2(1.0, 1.0),
-                        0.0,
-                        1.0,
-                    );
-                    let output_id = bm.texture();
-                    let texture = self.framework.texture2d(output_id);
-                    pass.finish(texture.texture_view(), false);
-
-                    pass.begin(&bm_camera);
-                    let buffer_id = self.buffer_layer.texture();
-                    let texture = self.framework.texture2d(buffer_id);
-                    // Clean the buffer layer
-                    pass.finish(texture.texture_view(), true);
-                }
+                pass.begin(&bm_camera);
+                let buffer_id = self.buffer_layer.texture();
+                let texture = self.framework.texture2d(buffer_id);
+                // Clean the buffer layer
+                pass.finish(texture.texture_view(), true);
             }
         }
     }
