@@ -15,26 +15,22 @@ use super::BrushEngine;
 
 struct BrushApplyCommand {
     modified_layer: LayerIndex,
-    modified_region: Box2d<u32>,
+    modified_region: Box2d,
     modified_region_old_texture_id: TextureId,
 }
 
 impl BrushApplyCommand {
-    pub fn new(
-        editor: &ImageEditor,
-        modified_layer: LayerIndex,
-        modified_region: Box2d<u32>,
-    ) -> Self {
+    pub fn new(editor: &ImageEditor, modified_layer: LayerIndex, modified_region: Box2d) -> Self {
         let edited_layer = editor.document().get_layer(&modified_layer);
         let modified_region_old_texture_id = match edited_layer.layer_type {
             image_editor::layers::LayerType::Bitmap(ref bm) => {
                 let edited_texture = bm.texture();
                 let edited_texture = editor.framework().texture2d(edited_texture);
                 edited_texture.read_subregion_texture2d(
-                    modified_region.origin.x,
-                    modified_region.origin.y,
-                    modified_region.size.x,
-                    modified_region.size.y,
+                    modified_region.origin.x as u32,
+                    modified_region.origin.y as u32,
+                    modified_region.extents.x as u32,
+                    modified_region.extents.y as u32,
                     editor.framework(),
                 )
             }
