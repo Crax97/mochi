@@ -2,10 +2,12 @@ use std::{cell::RefCell, rc::Rc};
 
 use framework::Framework;
 use image_editor::ImageEditor;
+use renderer::render_pass::texture2d_draw_pass::Texture2dDrawPass;
 use wgpu::{CommandBuffer, SurfaceConfiguration, TextureView};
 use winit::window::Window;
 
 use crate::{
+    app_state::UndoStack,
     input_state::InputState,
     toolbox::Toolbox,
     tools::{brush_engine::stamping_engine::StrokingEngine, BrushTool},
@@ -17,6 +19,8 @@ pub struct UiContext<'app, 'framework> {
     pub image_editor: &'app mut ImageEditor<'framework>,
     pub toolbox: &'app mut Toolbox<'framework>,
     pub input_state: &'app InputState,
+    pub draw_pass: &'app mut Texture2dDrawPass<'framework>,
+    pub undo_stack: &'app mut UndoStack,
 
     pub stamping_engine: Rc<RefCell<StrokingEngine<'framework>>>,
     pub brush_tool: Rc<RefCell<BrushTool<'framework>>>,

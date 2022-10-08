@@ -14,9 +14,43 @@ use crate::input_state::InputState;
 use crate::toolbox::Toolbox;
 use crate::tools::brush_engine::stamping_engine::StrokingEngine;
 use crate::tools::{
-    BrushTool, ColorPicker, DebugSelectRegionTool, EditorContext, HandTool, TransformLayerTool,
+    BrushTool, ColorPicker, DebugSelectRegionTool, EditorCommand, EditorContext, HandTool,
+    TransformLayerTool,
 };
 use crate::ui::{self, Ui, UiContext};
+
+#[derive(Default)]
+pub struct UndoStack {
+    undo: Vec<Box<dyn EditorCommand>>,
+    redo: Vec<Box<dyn EditorCommand>>,
+}
+
+impl UndoStack {
+    pub fn push(&mut self, command: Box<dyn EditorCommand>) {
+        self.redo.clear();
+        self.undo.push(command);
+    }
+
+    pub fn do_undo(&mut self, context: &mut EditorContext) {
+        let command = self.undo.pop().expect("Empty undo stack!");
+        let redo_command = command.undo(context);
+        self.redo.push(redo_command);
+    }
+
+    pub fn do_redo(&mut self, context: &mut EditorContext) {
+        let command = self.redo.pop().expect("Empty redo stack!");
+        let undo_command = command.undo(context);
+        self.undo.push(undo_command);
+    }
+
+    pub fn has_undo(&self) -> bool {
+        !self.undo.is_empty()
+    }
+
+    pub fn has_redo(&self) -> bool {
+        !self.redo.is_empty()
+    }
+}
 
 pub struct ImageApplication<'framework> {
     pub(crate) framework: &'framework Framework,
@@ -32,6 +66,7 @@ pub struct ImageApplication<'framework> {
     stamping_engine: Rc<RefCell<StrokingEngine<'framework>>>,
     brush_tool: Rc<RefCell<BrushTool<'framework>>>,
     hand_tool: Rc<RefCell<HandTool>>,
+    undo_stack: UndoStack,
 }
 impl<'framework> ImageApplication<'framework> {
     pub(crate) fn new(window: Window, framework: &'framework Framework) -> Self {
@@ -93,6 +128,7 @@ impl<'framework> ImageApplication<'framework> {
             stamping_engine,
             brush_tool,
             hand_tool,
+            undo_stack: UndoStack::default(),
         }
     }
 
@@ -136,7 +172,8 @@ impl<'framework> ImageApplication<'framework> {
             draw_pass: &mut self.render_pass,
         };
 
-        self.toolbox.update(&self.input_state, context);
+        self.toolbox
+            .update(&self.input_state, &mut self.undo_stack, context);
 
         match event {
             winit::event::Event::WindowEvent { event, .. } => {
@@ -163,6 +200,8 @@ impl<'framework> ImageApplication<'framework> {
                     input_state: &self.input_state,
                     stamping_engine: self.stamping_engine.clone(),
                     brush_tool: self.brush_tool.clone(),
+                    draw_pass: &mut self.render_pass,
+                    undo_stack: &mut self.undo_stack,
                 };
                 let ui_handled_event = self.ui.do_ui(ui_ctx);
 

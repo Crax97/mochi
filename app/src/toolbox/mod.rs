@@ -4,7 +4,7 @@ use std::{
     rc::Rc,
 };
 
-use crate::stamping_engine::Stamp;
+use crate::{app_state::UndoStack, stamping_engine::Stamp};
 use crate::{
     input_state::InputState,
     tools::{EditorContext, PointerEvent, Tool},
@@ -83,7 +83,12 @@ impl<'framework> Toolbox<'framework> {
         }
     }
 
-    pub fn update(&mut self, input_state: &InputState, mut context: EditorContext) {
+    pub fn update(
+        &mut self,
+        input_state: &InputState,
+        undo_stack: &mut UndoStack,
+        mut context: EditorContext,
+    ) {
         let event = PointerEvent {
             new_pointer_location_normalized: input_state.normalized_mouse_position(),
             new_pointer_location: input_state.mouse_position(),
@@ -98,11 +103,14 @@ impl<'framework> Toolbox<'framework> {
             self.primary_tool().on_pointer_move(event, &mut context)
         };
         if let Some(cmd) = cmd {
-            println!("TODO Change here: undoing a command");
-            cmd.undo(&mut context);
+            undo_stack.push(cmd);
         }
         if input_state.is_mouse_button_just_pressed(MouseButton::Right) {
-            self.secondary_tool().on_pointer_click(event, &mut context);
+            println!("YOU FUCKER FIX THE 'UI LETTING EVENTS PASS THROUGH' THING!");
+            if undo_stack.has_undo() {
+                undo_stack.do_undo(&mut context);
+            }
+            // self.secondary_tool().on_pointer_click(event, &mut context);
         } else if input_state.is_mouse_button_just_released(MouseButton::Right) {
             self.secondary_tool()
                 .on_pointer_release(event, &mut context);

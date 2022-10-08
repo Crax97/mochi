@@ -11,7 +11,7 @@ use log::warn;
 use wgpu::{CommandBuffer, SurfaceConfiguration, TextureView};
 use winit::window::Window;
 
-use crate::toolbox::ToolId;
+use crate::{toolbox::ToolId, tools::EditorContext};
 
 use super::{Ui, UiContext};
 use rfd::FileDialog;
@@ -255,7 +255,20 @@ impl Ui for EguiUI {
                         if ui.add(button).clicked() {
                             layer_action = LayerAction::SelectNewTool(id.clone());
                         }
-                    })
+                    });
+
+                    ui.separator();
+
+                    let undo = egui::Button::new("Undo");
+                    if ui
+                        .add_enabled(app_ctx.undo_stack.has_undo(), undo)
+                        .clicked()
+                    {
+                        app_ctx.undo_stack.do_undo(&mut EditorContext {
+                            image_editor: app_ctx.image_editor,
+                            draw_pass: app_ctx.draw_pass,
+                        })
+                    }
                 });
             });
         };
