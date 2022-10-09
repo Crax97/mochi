@@ -22,6 +22,7 @@ pub struct ToolId(usize);
 
 pub struct Toolbox<'framework> {
     tools: HashMap<ToolId, Rc<RefCell<dyn Tool + 'framework>>>,
+    primary_tool_id: ToolId,
     primary_tool: Rc<RefCell<dyn Tool + 'framework>>,
     secondary_tool: Rc<RefCell<dyn Tool + 'framework>>,
     blocked: bool,
@@ -37,9 +38,11 @@ impl<'framework> Toolbox<'framework> {
             primary_tool: primary_tool.clone(),
             secondary_tool: secondary_tool.clone(),
             blocked: false,
+            primary_tool_id: ToolId(0),
         };
         let primary_id = new_toolbox.add_tool(primary_tool);
         let secondary_id = new_toolbox.add_tool(secondary_tool);
+        new_toolbox.primary_tool_id = primary_id.clone();
         (new_toolbox, primary_id, secondary_id)
     }
 
@@ -73,6 +76,9 @@ impl<'framework> Toolbox<'framework> {
 
     pub fn primary_tool(&self) -> RefMut<dyn Tool + 'framework> {
         self.primary_tool.borrow_mut()
+    }
+    pub fn primary_tool_id(&self) -> &ToolId {
+        &self.primary_tool_id
     }
 
     pub fn secondary_tool(&self) -> RefMut<dyn Tool + 'framework> {
@@ -136,6 +142,7 @@ impl<'framework> Toolbox<'framework> {
     }
 
     pub(crate) fn set_primary_tool(&mut self, new_tool_id: &ToolId) {
+        self.primary_tool_id = new_tool_id.clone();
         self.primary_tool = self
             .tools
             .get(new_tool_id)

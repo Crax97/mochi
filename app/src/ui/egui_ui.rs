@@ -75,7 +75,10 @@ impl EguiUI {
                         ui.horizontal(|ui| {
                             app_ctx.toolbox.for_each_tool(|id, tool| {
                                 let button = egui::Button::new(tool.name());
-                                if ui.add(button).clicked() {
+                                if ui
+                                    .add_enabled(id != app_ctx.toolbox.primary_tool_id(), button)
+                                    .clicked()
+                                {
                                     layer_action = LayerAction::SelectNewTool(id.clone());
                                 }
                             });
