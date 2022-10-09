@@ -1,5 +1,14 @@
 use std::{cell::RefCell, rc::Rc};
 
+use crate::input_state::{ActionMap, InputState};
+use crate::toolbox::{ToolId, Toolbox};
+use crate::tools::brush_engine::stamping_engine::StrokingEngine;
+use crate::tools::{
+    BrushTool, ColorPicker, DebugSelectRegionTool, EditorCommand, EditorContext, HandTool,
+    TransformLayerTool,
+};
+use crate::ui::{self, Ui, UiContext};
+use crate::{ActionState, Key, KeyBinding, ModifierSet};
 use framework::Framework;
 use image_editor::ImageEditor;
 use log::info;
@@ -9,15 +18,6 @@ use winit::dpi::LogicalSize;
 use winit::event::WindowEvent;
 use winit::event_loop::ControlFlow;
 use winit::window::Window;
-
-use crate::input_state::InputState;
-use crate::toolbox::Toolbox;
-use crate::tools::brush_engine::stamping_engine::StrokingEngine;
-use crate::tools::{
-    BrushTool, ColorPicker, DebugSelectRegionTool, EditorCommand, EditorContext, HandTool,
-    TransformLayerTool,
-};
-use crate::ui::{self, Ui, UiContext};
 
 #[derive(Default)]
 pub struct UndoStack {
@@ -50,6 +50,18 @@ impl UndoStack {
     pub fn has_redo(&self) -> bool {
         !self.redo.is_empty()
     }
+
+    fn try_undo(&mut self, context: &mut EditorContext) {
+        if self.has_undo() {
+            self.do_undo(context)
+        }
+    }
+
+    fn try_redo(&mut self, context: &mut EditorContext) {
+        if self.has_redo() {
+            self.do_redo(context)
+        }
+    }
 }
 
 pub struct ImageApplication<'framework> {
@@ -67,6 +79,11 @@ pub struct ImageApplication<'framework> {
     brush_tool: Rc<RefCell<BrushTool<'framework>>>,
     hand_tool: Rc<RefCell<HandTool>>,
     undo_stack: UndoStack,
+    action_map: ActionMap<String>,
+
+    brush_id: ToolId,
+    move_tool_id: ToolId,
+    color_picker_id: ToolId,
 }
 impl<'framework> ImageApplication<'framework> {
     pub(crate) fn new(window: Window, framework: &'framework Framework) -> Self {
@@ -109,9 +126,13 @@ impl<'framework> ImageApplication<'framework> {
         let test_tool = Rc::new(RefCell::new(DebugSelectRegionTool::new()));
 
         let (mut toolbox, brush_id, hand_id) = Toolbox::new(brush_tool.clone(), hand_tool.clone());
-        toolbox.add_tool(color_picker.clone());
-        toolbox.add_tool(move_tool);
+        let color_picker_id = toolbox.add_tool(color_picker.clone());
+        let move_tool_id = toolbox.add_tool(move_tool);
         toolbox.add_tool(test_tool);
+
+        let mut action_map = ActionMap::default();
+
+        ImageApplication::read_action_bindings(&mut action_map);
 
         let ui = ui::create_ui(&framework, &final_surface_configuration, &window);
         Self {
@@ -129,6 +150,11 @@ impl<'framework> ImageApplication<'framework> {
             brush_tool,
             hand_tool,
             undo_stack: UndoStack::default(),
+            action_map,
+
+            brush_id,
+            color_picker_id,
+            move_tool_id,
         }
     }
 
@@ -165,13 +191,14 @@ impl<'framework> ImageApplication<'framework> {
 
     pub(crate) fn on_event(&mut self, event: &winit::event::Event<()>) -> ControlFlow {
         self.input_state.update(&event);
+        let actions = self.action_map.update(&self.input_state);
         self.ui.on_new_winit_event(&event);
 
+        self.dispatch_actions(actions);
         let context = EditorContext {
             image_editor: &mut self.image_editor,
             draw_pass: &mut self.render_pass,
         };
-
         self.toolbox
             .update(&self.input_state, &mut self.undo_stack, context);
 
@@ -247,5 +274,56 @@ impl<'framework> ImageApplication<'framework> {
 
         self.window.request_redraw();
         ControlFlow::Wait
+    }
+
+    fn read_action_bindings(action_map: &mut ActionMap<String>) {
+        action_map.add_action_binding(
+            KeyBinding {
+                key: (Key::S, ActionState::Pressed),
+                modifiers: ModifierSet::new(false, false, true, false),
+            },
+            "save",
+        );
+        action_map.add_action_binding(
+            KeyBinding {
+                key: (Key::Z, ActionState::Pressed),
+                modifiers: ModifierSet::new(false, false, true, false),
+            },
+            "undo",
+        );
+        action_map.add_action_binding(
+            KeyBinding {
+                key: (Key::Z, ActionState::Pressed),
+                modifiers: ModifierSet::new(true, false, true, false),
+            },
+            "redo",
+        );
+        action_map.add_action_binding((Key::B, ActionState::Pressed), "pick_brush");
+        action_map.add_action_binding((Key::M, ActionState::Pressed), "pick_move");
+    }
+
+    fn dispatch_actions(&mut self, actions: Vec<String>) {
+        for action in actions {
+            match action.as_str() {
+                "save" => {
+                    self.image_editor.export_current_image();
+                }
+                "undo" => {
+                    self.undo_stack.try_undo(&mut EditorContext {
+                        image_editor: &mut self.image_editor,
+                        draw_pass: &mut self.render_pass,
+                    });
+                }
+                "redo" => {
+                    self.undo_stack.try_redo(&mut EditorContext {
+                        image_editor: &mut self.image_editor,
+                        draw_pass: &mut self.render_pass,
+                    });
+                }
+                "pick_brush" => self.toolbox.set_primary_tool(&self.brush_id),
+                "pick_move" => self.toolbox.set_primary_tool(&self.move_tool_id),
+                _ => {}
+            }
+        }
     }
 }

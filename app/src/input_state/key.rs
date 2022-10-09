@@ -2,7 +2,7 @@ use strum::EnumCount;
 use strum_macros::EnumCount;
 use winit::event::ModifiersState;
 
-#[derive(Clone, Copy, Eq, PartialEq, PartialOrd, EnumCount)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, EnumCount, Hash)]
 pub enum Key {
     Key1,
     Key2,
@@ -350,7 +350,7 @@ impl From<winit::event::VirtualKeyCode> for Key {
     }
 }
 
-#[derive(Clone, Copy, Eq, PartialEq, PartialOrd, EnumCount)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, EnumCount, Hash)]
 pub enum Modifier {
     // Support for right modifiers will be added when winit does so
     LeftShift,
@@ -360,7 +360,7 @@ pub enum Modifier {
     Meta,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Default, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Default, Debug, Hash)]
 pub struct ModifierSet {
     modifiers: [bool; Modifier::COUNT],
 }

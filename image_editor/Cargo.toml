@@ -14,6 +14,7 @@ log = "0.4"
 wgpu = "0.13"
 bytemuck = {version = "1.12.1", features = [ "derive" ] }
 cgmath="0.18.0"
+rfd = "0.10.0"
 
 
 framework={path="../framework"}

@@ -1,4 +1,8 @@
-mod key;
+pub mod action_map;
+pub mod key;
+
+pub use action_map::*;
+pub use key::*;
 
 use std::collections::HashMap;
 

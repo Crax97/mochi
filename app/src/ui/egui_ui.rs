@@ -178,18 +178,7 @@ impl EguiUI {
         });
 
         if ui.button("Save").clicked() {
-            let file_path = rfd::FileDialog::new()
-                .add_filter("PNG Image", &["png"])
-                .add_filter("JPG Image", &["jpg", "jpeg"])
-                .add_filter("Bitmap", &["bmp"])
-                .set_title("Save image")
-                .save_file();
-            if let Some(file_path) = file_path {
-                let image = app_ctx.image_editor.get_full_image_bytes();
-                if let Err(e) = image.save(file_path) {
-                    log::error!("While saving image: {e}");
-                };
-            }
+            app_ctx.image_editor.export_current_image();
         }
 
         event_handled

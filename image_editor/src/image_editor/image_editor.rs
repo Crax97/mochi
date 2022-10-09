@@ -66,6 +66,21 @@ impl<'framework> ImageEditor<'framework> {
         &self.document
     }
 
+    pub fn export_current_image(&mut self) {
+        let file_path = rfd::FileDialog::new()
+            .add_filter("PNG Image", &["png"])
+            .add_filter("JPG Image", &["jpg", "jpeg"])
+            .add_filter("Bitmap", &["bmp"])
+            .set_title("Save image")
+            .save_file();
+        if let Some(file_path) = file_path {
+            let image = self.get_full_image_bytes();
+            if let Err(e) = image.save(file_path) {
+                log::error!("While saving image: {e}");
+            };
+        }
+    }
+
     pub fn mutate_document<F: FnMut(&mut Document)>(&mut self, mut mutate_fn: F) {
         mutate_fn(&mut self.document);
     }

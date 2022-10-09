@@ -1,11 +1,13 @@
 mod app_state;
-mod input_state;
+pub mod input_state;
 mod toolbox;
 pub mod tools;
 mod ui;
 
 use app_state::ImageApplication;
 use framework::Framework;
+pub use input_state::key::*;
+pub use input_state::*;
 use lazy_static::lazy_static;
 use tools::*;
 
