@@ -1,5 +1,5 @@
 use bytemuck::Zeroable;
-use egui::{Align2, Color32, FontDefinitions, Label, Pos2, RichText, Sense, Vec2};
+use egui::{color::Hsva, Align2, Color32, FontDefinitions, Label, Pos2, RichText, Sense, Vec2};
 use egui_wgpu_backend::{RenderPass, ScreenDescriptor};
 use egui_winit_platform::PlatformDescriptor;
 use framework::Framework;
@@ -92,6 +92,16 @@ impl EguiUI {
                                     draw_pass: app_ctx.draw_pass,
                                 })
                             }
+                            let redo = egui::Button::new("Redo");
+                            if ui
+                                .add_enabled(app_ctx.undo_stack.has_redo(), redo)
+                                .clicked()
+                            {
+                                app_ctx.undo_stack.do_redo(&mut EditorContext {
+                                    image_editor: app_ctx.image_editor,
+                                    draw_pass: app_ctx.draw_pass,
+                                })
+                            }
                         });
                     })
                     .unwrap(),
@@ -117,7 +127,16 @@ impl EguiUI {
 
         ui.horizontal(|ui| {
             ui.label("Brush color");
-            ui.color_edit_button_srgb(&mut new_config.color_srgb);
+            use egui::color_picker::{color_picker_hsva_2d, Alpha};
+            let mut hsva = Hsva::from_srgba_premultiplied([
+                new_config.color_srgb[0],
+                new_config.color_srgb[1],
+                new_config.color_srgb[2],
+                new_config.opacity,
+            ]);
+            if color_picker_hsva_2d(ui, &mut hsva, Alpha::Opaque) {
+                new_config.color_srgb = hsva.to_srgb();
+            }
         });
         ui.horizontal(|ui| {
             ui.label("Brush opacity");
