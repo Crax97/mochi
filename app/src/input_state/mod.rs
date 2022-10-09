@@ -6,10 +6,10 @@ use cgmath::{Point2, Vector2};
 use strum::EnumCount;
 use winit::{
     dpi::{PhysicalPosition, PhysicalSize},
-    event::{ElementState, KeyboardInput, MouseButton, MouseScrollDelta},
+    event::{ElementState, KeyboardInput, ModifiersState, MouseButton, MouseScrollDelta},
 };
 
-use self::key::Key;
+use self::key::{Key, ModifierSet};
 
 #[derive(Debug)]
 pub struct InputState {
@@ -23,6 +23,9 @@ pub struct InputState {
     last_button_state: HashMap<MouseButton, ElementState>,
     key_states: [bool; Key::COUNT],
     last_key_states: [bool; Key::COUNT],
+
+    current_modifiers: ModifierSet,
+    last_modifiers: ModifierSet,
 }
 
 impl Default for InputState {
@@ -37,6 +40,8 @@ impl Default for InputState {
             last_button_state: Default::default(),
             key_states: [false; Key::COUNT],
             last_key_states: [false; Key::COUNT],
+            current_modifiers: ModifierSet::default(),
+            last_modifiers: ModifierSet::default(),
         }
     }
 }
@@ -45,6 +50,7 @@ impl InputState {
     pub(crate) fn update(&mut self, event: &winit::event::Event<()>) {
         self.last_button_state = self.pointer_button_state.clone();
         self.last_key_states = self.key_states.clone();
+        self.last_modifiers = self.current_modifiers.clone();
         self.current_wheel_delta = 0.0;
         match event {
             winit::event::Event::WindowEvent { event, .. } => match event {
@@ -58,7 +64,9 @@ impl InputState {
                 winit::event::WindowEvent::KeyboardInput { input, .. } => {
                     self.update_keyboard_state(input);
                 }
-                winit::event::WindowEvent::ModifiersChanged(_) => {}
+                winit::event::WindowEvent::ModifiersChanged(modifiers) => {
+                    self.update_modifiers_state(modifiers);
+                }
                 winit::event::WindowEvent::CursorMoved { position, .. } => {
                     self.last_update_cursor_position = self.current_cursor_position;
                     let mouse_position = position.cast::<f32>();
@@ -227,6 +235,10 @@ impl InputState {
         !self.is_key_pressed(key)
     }
 
+    pub(crate) fn current_modifiers(&self) -> &ModifierSet {
+        &self.current_modifiers
+    }
+
     fn update_keyboard_state(&mut self, input: &KeyboardInput) {
         if let Some(virtual_key) = input.virtual_keycode {
             let key: Key = virtual_key.into();
@@ -235,6 +247,10 @@ impl InputState {
                 ElementState::Released => false,
             }
         }
+    }
+
+    fn update_modifiers_state(&mut self, modifiers: &ModifiersState) {
+        self.current_modifiers = modifiers.bits().into();
     }
 }
 
@@ -247,43 +263,74 @@ mod tests {
     pub fn test_key_events() {
         let mut input_state = InputState::default();
 
-        unsafe {
-            input_state.update(&Event::WindowEvent {
-                window_id: winit::window::WindowId::dummy(),
-                event: WindowEvent::KeyboardInput {
-                    device_id: DeviceId::dummy(),
-                    input: KeyboardInput {
-                        scancode: 0,
-                        state: ElementState::Pressed,
-                        virtual_keycode: Some(VirtualKeyCode::W),
-                        modifiers: ModifiersState::empty(),
-                    },
-                    is_synthetic: false,
+        input_state.update(&Event::WindowEvent {
+            window_id: unsafe { winit::window::WindowId::dummy() },
+            event: WindowEvent::KeyboardInput {
+                device_id: unsafe { DeviceId::dummy() },
+                input: KeyboardInput {
+                    scancode: 0,
+                    state: ElementState::Pressed,
+                    virtual_keycode: Some(VirtualKeyCode::W),
+                    modifiers: ModifiersState::empty(),
                 },
-            })
-        }
+                is_synthetic: false,
+            },
+        });
 
         assert!(input_state.is_key_just_pressed(Key::W));
         assert!(input_state.is_key_pressed(Key::W));
         assert!(input_state.is_key_released(Key::A));
 
-        unsafe {
-            input_state.update(&Event::WindowEvent {
-                window_id: winit::window::WindowId::dummy(),
-                event: WindowEvent::KeyboardInput {
-                    device_id: DeviceId::dummy(),
-                    input: KeyboardInput {
-                        scancode: 0,
-                        state: ElementState::Released,
-                        virtual_keycode: Some(VirtualKeyCode::W),
-                        modifiers: ModifiersState::empty(),
-                    },
-                    is_synthetic: false,
+        input_state.update(&Event::WindowEvent {
+            window_id: unsafe { winit::window::WindowId::dummy() },
+            event: WindowEvent::KeyboardInput {
+                device_id: unsafe { DeviceId::dummy() },
+                input: KeyboardInput {
+                    scancode: 0,
+                    state: ElementState::Released,
+                    virtual_keycode: Some(VirtualKeyCode::W),
+                    modifiers: ModifiersState::empty(),
                 },
-            })
-        }
+                is_synthetic: false,
+            },
+        });
         assert!(input_state.is_key_just_released(Key::W));
         assert!(input_state.is_key_released(Key::W));
         assert!(input_state.is_key_released(Key::A));
+    }
+
+    #[test]
+    pub fn test_modifiers() {
+        let mut input_state = InputState::default();
+
+        input_state.update(&Event::WindowEvent {
+            window_id: unsafe { winit::window::WindowId::dummy() },
+            event: WindowEvent::ModifiersChanged(ModifiersState::from_bits_truncate(
+                ModifiersState::SHIFT.bits() | ModifiersState::CTRL.bits(),
+            )),
+        });
+
+        assert_eq!(
+            input_state.current_modifiers(),
+            &ModifierSet::new(true, false, true, false)
+        );
+        assert_ne!(
+            input_state.current_modifiers(),
+            &ModifierSet::new(true, true, true, false)
+        );
+
+        input_state.update(&Event::WindowEvent {
+            window_id: unsafe { winit::window::WindowId::dummy() },
+            event: WindowEvent::ModifiersChanged(ModifiersState::empty()),
+        });
+
+        assert_eq!(
+            input_state.current_modifiers(),
+            &ModifierSet::new(false, false, false, false)
+        );
+        assert_ne!(
+            input_state.current_modifiers(),
+            &ModifierSet::new(true, false, false, false)
+        );
     }
 }

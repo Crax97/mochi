@@ -1,5 +1,6 @@
+use strum::EnumCount;
 use strum_macros::EnumCount;
-
+use winit::event::ModifiersState;
 
 #[derive(Clone, Copy, Eq, PartialEq, PartialOrd, EnumCount)]
 pub enum Key {
@@ -346,5 +347,64 @@ impl From<winit::event::VirtualKeyCode> for Key {
             winit::event::VirtualKeyCode::Paste => Key::Paste,
             winit::event::VirtualKeyCode::Cut => Key::Cut,
         }
+    }
+}
+
+#[derive(Clone, Copy, Eq, PartialEq, PartialOrd, EnumCount)]
+pub enum Modifier {
+    // Support for right modifiers will be added when winit does so
+    LeftShift,
+    LeftCtrl,
+    LeftAlt,
+
+    Meta,
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, Default, Debug)]
+pub struct ModifierSet {
+    modifiers: [bool; Modifier::COUNT],
+}
+
+impl ModifierSet {
+    pub fn new(left_shift: bool, left_alt: bool, left_ctrl: bool, meta: bool) -> Self {
+        let mut set = ModifierSet::default();
+        set.modifiers[Modifier::LeftShift as usize] = left_shift;
+        set.modifiers[Modifier::LeftAlt as usize] = left_alt;
+        set.modifiers[Modifier::LeftCtrl as usize] = left_ctrl;
+        set.modifiers[Modifier::Meta as usize] = meta;
+        set
+    }
+
+    pub fn left_ctrl(&self) -> bool {
+        self.modifiers[Modifier::LeftCtrl as usize]
+    }
+    pub fn left_alt(&self) -> bool {
+        self.modifiers[Modifier::LeftAlt as usize]
+    }
+    pub fn left_shift(&self) -> bool {
+        self.modifiers[Modifier::LeftShift as usize]
+    }
+    pub fn meta(&self) -> bool {
+        self.modifiers[Modifier::Meta as usize]
+    }
+}
+
+impl From<u32> for ModifierSet {
+    fn from(bitmask: u32) -> Self {
+        let mut set = ModifierSet::default();
+        if bitmask & ModifiersState::SHIFT.bits() != 0 {
+            set.modifiers[Modifier::LeftShift as usize] = true;
+        }
+        if bitmask & ModifiersState::ALT.bits() != 0 {
+            set.modifiers[Modifier::LeftAlt as usize] = true;
+        }
+        if bitmask & ModifiersState::CTRL.bits() != 0 {
+            set.modifiers[Modifier::LeftCtrl as usize] = true;
+        }
+        if bitmask & ModifiersState::LOGO.bits() != 0 {
+            set.modifiers[Modifier::Meta as usize] = true;
+        }
+
+        set
     }
 }
