@@ -55,17 +55,20 @@ impl Tool for DebugSelectRegionTool {
                         }
                         .cast::<f32>()
                         .unwrap();
+                        // COPY THIS WHEN IMPROVING BRUSH UNDO REDO COMMAND
                         let begin = begin.add_element_wise(half_dims);
                         let end = end.add_element_wise(half_dims);
 
-                        let region_x = begin.x.min(end.x) as u32;
-                        let region_y = begin.y.min(end.y) as u32;
-                        let region_width = (end.x - begin.x).abs() as u32;
-                        let region_height = (end.y - begin.y).abs() as u32;
+                        let begin_x = begin.x.min(end.x) as u32;
+                        let begin_y = begin.y.min(end.y) as u32;
+                        let end_x = begin.x.max(end.x) as u32;
+                        let end_y = begin.y.max(end.y) as u32;
+                        let region_width = end_x - begin_x;
+                        let region_height = end_y - begin_y;
 
                         let subregion = bit_texture.read_subregion_texture2d(
-                            region_x,
-                            region_y,
+                            begin_x,
+                            begin_y,
                             region_width,
                             region_height,
                             context.image_editor.framework(),
