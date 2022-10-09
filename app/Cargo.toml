@@ -17,6 +17,8 @@ cgmath="0.18.0"
 rand="0.8.5"
 bytemuck="1.12.1"
 rfd = "0.10.0"
+strum = "0.24.1"
+strum_macros = "0.24.1"
 
 framework = { path = "../framework" }
 renderer = { path = "../renderer" }
