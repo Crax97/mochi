@@ -203,8 +203,8 @@ impl<'framework> ImageApplication<'framework> {
                     draw_pass: &mut self.render_pass,
                     undo_stack: &mut self.undo_stack,
                 };
-                let ui_handled_event = self.ui.do_ui(ui_ctx);
-
+                let block_editor = self.ui.do_ui(ui_ctx);
+                self.toolbox.set_is_blocked(block_editor);
                 self.image_editor.update_layers();
 
                 let current_texture = match self.final_surface.get_current_texture() {

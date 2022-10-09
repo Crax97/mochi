@@ -1,5 +1,5 @@
 use bytemuck::Zeroable;
-use egui::{Align2, Color32, FontDefinitions, Label, RichText, Sense, Vec2};
+use egui::{Align2, Color32, FontDefinitions, Label, Pos2, RichText, Sense, Vec2};
 use egui_wgpu_backend::{RenderPass, ScreenDescriptor};
 use egui_winit_platform::PlatformDescriptor;
 use framework::Framework;
@@ -49,6 +49,60 @@ impl EguiUI {
             }),
             backend_pass: RenderPass::new(&framework.device, surface_configuration.format, 1),
             new_layer_in_creation: None,
+        }
+    }
+
+    fn do_ui_impl(&mut self, mut app_ctx: &mut UiContext) -> (bool, LayerAction) {
+        if self.new_layer_in_creation.is_some() {
+            self.new_layer_dialog(&mut app_ctx)
+        } else {
+            let mut layer_action = LayerAction::None;
+            let ctx = self.platform.context();
+            let mut windows = vec![];
+            windows.push(
+                egui::Window::new("")
+                    .anchor(Align2::LEFT_CENTER, Vec2::zeroed())
+                    .show(&ctx, |ui| {
+                        self.brush_settings(&mut app_ctx, ui);
+                        let (_, action) = self.layer_settings(&mut app_ctx, ui);
+                        layer_action = action;
+                    })
+                    .unwrap(),
+            );
+            windows.push(
+                egui::Window::new("Tools")
+                    .show(&ctx, |ui| {
+                        ui.horizontal(|ui| {
+                            app_ctx.toolbox.for_each_tool(|id, tool| {
+                                let button = egui::Button::new(tool.name());
+                                if ui.add(button).clicked() {
+                                    layer_action = LayerAction::SelectNewTool(id.clone());
+                                }
+                            });
+
+                            ui.separator();
+
+                            let undo = egui::Button::new("Undo");
+                            if ui
+                                .add_enabled(app_ctx.undo_stack.has_undo(), undo)
+                                .clicked()
+                            {
+                                app_ctx.undo_stack.do_undo(&mut EditorContext {
+                                    image_editor: app_ctx.image_editor,
+                                    draw_pass: app_ctx.draw_pass,
+                                })
+                            }
+                        });
+                    })
+                    .unwrap(),
+            );
+            let window_hovered = windows.iter().any(|win| {
+                win.response.rect.contains(Pos2 {
+                    x: app_ctx.input_state.mouse_position().x,
+                    y: app_ctx.input_state.mouse_position().y,
+                })
+            });
+            (window_hovered, layer_action)
         }
     }
 }
@@ -191,10 +245,10 @@ impl EguiUI {
         (false, action)
     }
 
-    fn new_layer_dialog(&mut self, _: &mut UiContext) -> LayerAction {
+    fn new_layer_dialog(&mut self, app_ctx: &mut UiContext) -> (bool, LayerAction) {
         let ctx = self.platform.context();
         let mut action = LayerAction::None;
-        egui::Window::new("Create new layer")
+        let window = egui::Window::new("Create new layer")
             .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
             .show(&ctx, |ui| {
                 let layer_settings = self.new_layer_in_creation.as_mut().unwrap();
@@ -223,8 +277,9 @@ impl EguiUI {
                 } else {
                     action = LayerAction::None
                 }
-            });
-        return action;
+            })
+            .unwrap();
+        return (true, action);
     }
 }
 
@@ -236,42 +291,7 @@ impl Ui for EguiUI {
         self.platform.handle_event(&event);
     }
     fn do_ui(&mut self, mut app_ctx: UiContext) -> bool {
-        let mut layer_action = LayerAction::None;
-        if self.new_layer_in_creation.is_some() {
-            layer_action = self.new_layer_dialog(&mut app_ctx);
-        } else {
-            let ctx = self.platform.context();
-            egui::Window::new("")
-                .anchor(Align2::LEFT_CENTER, Vec2::zeroed())
-                .show(&ctx, |ui| {
-                    self.brush_settings(&mut app_ctx, ui);
-                    let (_, action) = self.layer_settings(&mut app_ctx, ui);
-                    layer_action = action;
-                });
-            egui::Window::new("Tools").show(&ctx, |ui| {
-                ui.horizontal(|ui| {
-                    app_ctx.toolbox.for_each_tool(|id, tool| {
-                        let button = egui::Button::new(tool.name());
-                        if ui.add(button).clicked() {
-                            layer_action = LayerAction::SelectNewTool(id.clone());
-                        }
-                    });
-
-                    ui.separator();
-
-                    let undo = egui::Button::new("Undo");
-                    if ui
-                        .add_enabled(app_ctx.undo_stack.has_undo(), undo)
-                        .clicked()
-                    {
-                        app_ctx.undo_stack.do_undo(&mut EditorContext {
-                            image_editor: app_ctx.image_editor,
-                            draw_pass: app_ctx.draw_pass,
-                        })
-                    }
-                });
-            });
-        };
+        let (block_editor, layer_action) = self.do_ui_impl(&mut app_ctx);
         match layer_action {
             LayerAction::NewLayerRequest => {
                 self.new_layer_in_creation = Some(LayerConstructionInfo {
@@ -301,7 +321,7 @@ impl Ui for EguiUI {
             }
             LayerAction::None => {}
         };
-        false
+        block_editor
     }
     fn present(
         &mut self,

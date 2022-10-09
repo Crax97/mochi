@@ -24,6 +24,7 @@ pub struct Toolbox<'framework> {
     tools: HashMap<ToolId, Rc<RefCell<dyn Tool + 'framework>>>,
     primary_tool: Rc<RefCell<dyn Tool + 'framework>>,
     secondary_tool: Rc<RefCell<dyn Tool + 'framework>>,
+    blocked: bool,
 }
 
 impl<'framework> Toolbox<'framework> {
@@ -35,6 +36,7 @@ impl<'framework> Toolbox<'framework> {
             tools: HashMap::new(),
             primary_tool: primary_tool.clone(),
             secondary_tool: secondary_tool.clone(),
+            blocked: false,
         };
         let primary_id = new_toolbox.add_tool(primary_tool);
         let secondary_id = new_toolbox.add_tool(secondary_tool);
@@ -83,12 +85,19 @@ impl<'framework> Toolbox<'framework> {
         }
     }
 
+    pub fn set_is_blocked(&mut self, blocked: bool) {
+        self.blocked = blocked;
+    }
+
     pub fn update(
         &mut self,
         input_state: &InputState,
         undo_stack: &mut UndoStack,
         mut context: EditorContext,
     ) {
+        if self.blocked {
+            return;
+        }
         let event = PointerEvent {
             new_pointer_location_normalized: input_state.normalized_mouse_position(),
             new_pointer_location: input_state.mouse_position(),
@@ -106,11 +115,7 @@ impl<'framework> Toolbox<'framework> {
             undo_stack.push(cmd);
         }
         if input_state.is_mouse_button_just_pressed(MouseButton::Right) {
-            println!("YOU FUCKER FIX THE 'UI LETTING EVENTS PASS THROUGH' THING!");
-            if undo_stack.has_undo() {
-                undo_stack.do_undo(&mut context);
-            }
-            // self.secondary_tool().on_pointer_click(event, &mut context);
+            self.secondary_tool().on_pointer_click(event, &mut context);
         } else if input_state.is_mouse_button_just_released(MouseButton::Right) {
             self.secondary_tool()
                 .on_pointer_release(event, &mut context);
