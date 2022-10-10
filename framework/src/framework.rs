@@ -10,8 +10,8 @@ use uuid::Uuid;
 use wgpu::*;
 
 use crate::{
-    asset_library, AllocatedAsset, AssetId, AssetMap, AssetsLibrary, Mesh, MeshConstructionDetails,
-    Texture2d, Texture2dConfiguration, Vertex,
+    asset_library, AllocatedAsset, Asset, AssetId, AssetMap, AssetsLibrary, Mesh,
+    MeshConstructionDetails, Texture2d, Texture2dConfiguration, Vertex,
 };
 
 use super::typed_buffer::{TypedBuffer, TypedBufferConfiguration};
@@ -118,10 +118,7 @@ impl<'a> Framework {
         if let Some(data) = initial_data {
             tex.write_data(data, &self);
         }
-        let alloc_texture = AllocatedTexture {
-            asset: Arc::new(tex),
-            refcount: 1,
-        };
+        let alloc_texture = AllocatedTexture::new(tex);
         let tex_id = TextureId::new(self.allocated_textures.clone());
         self.allocated_textures
             .lock()
@@ -130,7 +127,7 @@ impl<'a> Framework {
         tex_id
     }
 
-    pub fn texture2d(&self, id: &TextureId) -> Arc<Texture2d> {
+    pub fn texture2d(&self, id: &TextureId) -> Asset<Texture2d> {
         self.allocated_textures
             .lock()
             .unwrap()

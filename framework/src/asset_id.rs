@@ -1,13 +1,45 @@
 use std::{
     collections::HashMap,
+    ops::{Deref, DerefMut},
     sync::{Arc, Mutex},
 };
 
 use uuid::Uuid;
 
+pub struct Asset<T>(Arc<T>);
+
+impl<T> Clone for Asset<T> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
+impl<T> Deref for Asset<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        self.0.as_ref()
+    }
+}
+
+impl<T> DerefMut for Asset<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        Arc::get_mut(&mut self.0).expect("This arc is not unique!")
+    }
+}
+
 pub(crate) struct AllocatedAsset<T> {
-    pub(crate) asset: Arc<T>,
+    pub(crate) asset: Asset<T>,
     pub(crate) refcount: u32,
+}
+
+impl<T> AllocatedAsset<T> {
+    pub(crate) fn new(raw_asset: T) -> Self {
+        Self {
+            asset: Asset(Arc::new(raw_asset)),
+            refcount: 1,
+        }
+    }
 }
 
 pub(crate) type AssetMap<T> = Arc<Mutex<HashMap<Uuid, AllocatedAsset<T>>>>;
