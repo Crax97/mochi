@@ -1,6 +1,11 @@
 use wgpu::{util::DeviceExt, BufferSlice, BufferUsages};
 
+use crate::{AssetId, AssetMap};
+
 use super::framework::Framework;
+
+pub(crate) type BufferMap<'f> = AssetMap<TypedBuffer<'f>>;
+pub type BufferId<'f> = AssetId<TypedBuffer<'f>>;
 
 #[derive(Copy, Clone, Debug)]
 pub enum BufferType {
@@ -104,7 +109,7 @@ where
 }
 
 impl<'framework> TypedBuffer<'framework> {
-    pub fn new<T>(
+    pub(crate) fn new<T>(
         framework: &'framework Framework,
         initial_configuration: TypedBufferConfiguration<T>,
     ) -> Self

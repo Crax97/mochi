@@ -18,15 +18,13 @@ pub struct StampingEngineRenderPass<'framework> {
 }
 impl<'framework> StampingEngineRenderPass<'framework> {
     pub fn new(framework: &'framework Framework) -> Self {
-        let instance_buffer = TypedBuffer::new(
-            framework,
-            TypedBufferConfiguration::<MeshInstance2D> {
+        let instance_buffer =
+            framework.allocate_typed_buffer(TypedBufferConfiguration::<MeshInstance2D> {
                 initial_setup: framework::typed_buffer::BufferInitialSetup::Data(&vec![]),
                 buffer_type: framework::BufferType::Vertex,
                 allow_write: true,
                 allow_read: false,
-            },
-        );
+            });
         let initial_setup = StampConfiguration {
             color_srgb: [0, 0, 0],
             opacity: 255,
@@ -173,17 +171,15 @@ impl<'framework> StampingEngineRenderPass<'framework> {
         };
         let stamp_pipeline = make_pipeline(false);
         let eraser_pipeline = make_pipeline(true);
-        let stamp_uniform_buffer = TypedBuffer::new(
-            framework,
-            TypedBufferConfiguration::<StampUniformData> {
+        let stamp_uniform_buffer =
+            framework.allocate_typed_buffer(TypedBufferConfiguration::<StampUniformData> {
                 initial_setup: framework::typed_buffer::BufferInitialSetup::Data(&vec![
                     initial_setup.into(),
                 ]),
                 buffer_type: framework::BufferType::Uniform,
                 allow_write: true,
                 allow_read: false,
-            },
-        );
+            });
         let texture_bind_layout =
             framework
                 .device
