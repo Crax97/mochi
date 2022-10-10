@@ -1,5 +1,5 @@
 use cgmath::{Point2, Point3, Vector2, Vector3};
-use framework::{Framework, MeshInstance2D, TypedBuffer, TypedBufferConfiguration};
+use framework::{Buffer, BufferConfiguration, Framework, MeshInstance2D};
 use renderer::render_pass::texture2d_draw_pass::Texture2dDrawPass;
 use scene::{Camera2d, Transform2d};
 use wgpu::TextureView;
@@ -25,7 +25,7 @@ pub struct Layer<'framework> {
     pub position: Point2<f32>,
     pub scale: Vector2<f32>,
     pub rotation_radians: f32,
-    pub instance_buffer: TypedBuffer<'framework>,
+    pub instance_buffer: Buffer<'framework>,
 }
 
 pub struct LayerCreationInfo {
@@ -45,7 +45,7 @@ impl<'framework> Layer<'framework> {
         creation_info: LayerCreationInfo,
         framework: &'framework Framework,
     ) -> Self {
-        let instance_buffer = framework.allocate_typed_buffer(TypedBufferConfiguration {
+        let instance_buffer = framework.allocate_typed_buffer(BufferConfiguration {
             initial_setup: framework::typed_buffer::BufferInitialSetup::Data(
                 &Vec::<MeshInstance2D>::new(),
             ),

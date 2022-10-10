@@ -4,8 +4,8 @@ use crate::{AssetId, AssetMap};
 
 use super::framework::Framework;
 
-pub(crate) type BufferMap<'f> = AssetMap<TypedBuffer<'f>>;
-pub type BufferId<'f> = AssetId<TypedBuffer<'f>>;
+pub(crate) type BufferMap<'f> = AssetMap<Buffer<'f>>;
+pub type BufferId<'f> = AssetId<Buffer<'f>>;
 
 #[derive(Copy, Clone, Debug)]
 pub enum BufferType {
@@ -29,7 +29,7 @@ pub struct InnerBufferConfiguration {
     pub allow_write: bool,
     pub allow_read: bool,
 }
-pub struct TypedBuffer<'framework> {
+pub struct Buffer<'framework> {
     buffer: BufferInfo,
     config: InnerBufferConfiguration,
     owner_framework: &'framework Framework,
@@ -54,7 +54,7 @@ where
     Size(u64),
 }
 
-pub struct TypedBufferConfiguration<'create, T>
+pub struct BufferConfiguration<'create, T>
 where
     T: bytemuck::Pod + bytemuck::Zeroable,
 {
@@ -108,10 +108,10 @@ where
     BufferInfo { buffer, num_items }
 }
 
-impl<'framework> TypedBuffer<'framework> {
+impl<'framework> Buffer<'framework> {
     pub(crate) fn new<T>(
         framework: &'framework Framework,
-        initial_configuration: TypedBufferConfiguration<T>,
+        initial_configuration: BufferConfiguration<T>,
     ) -> Self
     where
         T: bytemuck::Pod + bytemuck::Zeroable,
@@ -126,7 +126,7 @@ impl<'framework> TypedBuffer<'framework> {
             &configuration,
             framework,
         );
-        TypedBuffer {
+        Buffer {
             buffer: buffer,
             config: configuration,
             owner_framework: framework,

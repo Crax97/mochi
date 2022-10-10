@@ -1,6 +1,6 @@
 use framework::{
-    asset_library::mesh_names, AssetsLibrary, Framework, Mesh, MeshInstance2D, Texture2d,
-    TypedBuffer, TypedBufferConfiguration,
+    asset_library::mesh_names, AssetsLibrary, Buffer, BufferConfiguration, Framework, Mesh,
+    MeshInstance2D, Texture2d,
 };
 use wgpu::{
     BindGroup, BlendComponent, ColorTargetState, FragmentState, RenderPipeline, VertexState,
@@ -9,17 +9,17 @@ use wgpu::{
 use crate::stamping_engine::{StampConfiguration, StampUniformData};
 
 pub struct StampingEngineRenderPass<'framework> {
-    instance_buffer: TypedBuffer<'framework>,
+    instance_buffer: Buffer<'framework>,
     stamp_pipeline: RenderPipeline,
     eraser_pipeline: RenderPipeline,
-    stamp_data_buffer: TypedBuffer<'framework>,
+    stamp_data_buffer: Buffer<'framework>,
     brush_bind_group: BindGroup,
     stamp_settings: StampConfiguration,
 }
 impl<'framework> StampingEngineRenderPass<'framework> {
     pub fn new(framework: &'framework Framework) -> Self {
         let instance_buffer =
-            framework.allocate_typed_buffer(TypedBufferConfiguration::<MeshInstance2D> {
+            framework.allocate_typed_buffer(BufferConfiguration::<MeshInstance2D> {
                 initial_setup: framework::typed_buffer::BufferInitialSetup::Data(&vec![]),
                 buffer_type: framework::BufferType::Vertex,
                 allow_write: true,
@@ -172,7 +172,7 @@ impl<'framework> StampingEngineRenderPass<'framework> {
         let stamp_pipeline = make_pipeline(false);
         let eraser_pipeline = make_pipeline(true);
         let stamp_uniform_buffer =
-            framework.allocate_typed_buffer(TypedBufferConfiguration::<StampUniformData> {
+            framework.allocate_typed_buffer(BufferConfiguration::<StampUniformData> {
                 initial_setup: framework::typed_buffer::BufferInitialSetup::Data(&vec![
                     initial_setup.into(),
                 ]),

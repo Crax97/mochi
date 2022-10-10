@@ -20,4 +20,4 @@ pub use mesh::Vertex;
 pub use mesh::Vertices;
 pub use texture2d::Texture2d;
 pub use texture2d::Texture2dConfiguration;
-pub use typed_buffer::{BufferType, TypedBuffer, TypedBufferConfiguration};
+pub use typed_buffer::{Buffer, BufferConfiguration, BufferType};

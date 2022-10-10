@@ -1,7 +1,7 @@
 use cgmath::{point2, point3, vec2, SquareMatrix, Transform, Vector2};
 use framework::framework::TextureId;
-use framework::{Box2d, TypedBufferConfiguration};
-use framework::{Framework, MeshInstance2D, TypedBuffer};
+use framework::{Box2d, BufferConfiguration};
+use framework::{Buffer, Framework, MeshInstance2D};
 use image_editor::layers::{BitmapLayer, LayerIndex, LayerType};
 use image_editor::ImageEditor;
 use scene::{Camera2d, Camera2dUniformBlock};
@@ -59,7 +59,7 @@ pub struct Stamp {
 }
 
 pub struct StampCreationInfo<'framework> {
-    pub camera_buffer: &'framework TypedBuffer<'framework>,
+    pub camera_buffer: &'framework Buffer<'framework>,
 }
 
 impl Stamp {
@@ -108,7 +108,7 @@ pub struct StrokingEngine<'framework> {
     current_stamp: usize,
     stamps: Vec<Stamp>,
     stamp_pass: StampingEngineRenderPass<'framework>,
-    camera_buffer: TypedBuffer<'framework>,
+    camera_buffer: Buffer<'framework>,
     camera_bind_group: BindGroup,
 }
 
@@ -117,7 +117,7 @@ impl<'framework> StrokingEngine<'framework> {
         let stamp_pass = StampingEngineRenderPass::new(framework);
 
         let camera_buffer =
-            framework.allocate_typed_buffer(TypedBufferConfiguration::<Camera2dUniformBlock> {
+            framework.allocate_typed_buffer(BufferConfiguration::<Camera2dUniformBlock> {
                 initial_setup: framework::typed_buffer::BufferInitialSetup::Size(
                     std::mem::size_of::<Camera2dUniformBlock>() as u64,
                 ),

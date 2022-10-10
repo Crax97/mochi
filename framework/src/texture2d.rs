@@ -174,15 +174,14 @@ impl Texture2d {
             origin: wgpu::Origin3d { x, y, z: 0 },
             aspect: wgpu::TextureAspect::All,
         };
-        let oneshot_buffer =
-            framework.allocate_typed_buffer(crate::TypedBufferConfiguration::<u8> {
-                initial_setup: crate::typed_buffer::BufferInitialSetup::Size(
-                    wgpu::COPY_BYTES_PER_ROW_ALIGNMENT as u64,
-                ),
-                buffer_type: crate::BufferType::Oneshot,
-                allow_write: true,
-                allow_read: true,
-            });
+        let oneshot_buffer = framework.allocate_typed_buffer(crate::BufferConfiguration::<u8> {
+            initial_setup: crate::typed_buffer::BufferInitialSetup::Size(
+                wgpu::COPY_BYTES_PER_ROW_ALIGNMENT as u64,
+            ),
+            buffer_type: crate::BufferType::Oneshot,
+            allow_write: true,
+            allow_read: true,
+        });
         let mut encoder =
             framework
                 .device
@@ -283,7 +282,7 @@ impl Texture2d {
             - (unpadded_width % wgpu::COPY_BYTES_PER_ROW_ALIGNMENT))
             % wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
         let padded_width = unpadded_width + pad_bytes;
-        let oneshot_buffer = framework.allocate_typed_buffer(crate::TypedBufferConfiguration {
+        let oneshot_buffer = framework.allocate_typed_buffer(crate::BufferConfiguration {
             initial_setup: crate::typed_buffer::BufferInitialSetup::Size::<u8>(
                 (padded_width * height) as u64,
             ),

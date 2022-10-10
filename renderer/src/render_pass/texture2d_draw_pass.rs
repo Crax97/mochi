@@ -1,5 +1,5 @@
 use cgmath::point2;
-use framework::{TypedBuffer, TypedBufferConfiguration};
+use framework::{Buffer, BufferConfiguration};
 use wgpu::{
     BindGroup, ColorTargetState, FragmentState, RenderPassColorAttachment, RenderPassDescriptor,
     RenderPipeline, TextureView, VertexState,
@@ -21,7 +21,7 @@ pub struct Texture2dDrawPass<'framework> {
     textures: Vec<TextureDrawInfo>,
     clear_color: wgpu::Color,
     camera: Camera2d,
-    camera_buffer: TypedBuffer<'framework>,
+    camera_buffer: Buffer<'framework>,
     camera_bind_group: BindGroup,
 }
 
@@ -32,7 +32,7 @@ impl<'tex, 'framework> Texture2dDrawPass<'framework> {
             .create_shader_module(wgpu::include_wgsl!("../shaders/draw_texture2d.wgsl"));
 
         let camera_buffer =
-            framework.allocate_typed_buffer(TypedBufferConfiguration::<Camera2dUniformBlock> {
+            framework.allocate_typed_buffer(BufferConfiguration::<Camera2dUniformBlock> {
                 initial_setup: framework::typed_buffer::BufferInitialSetup::Size(
                     std::mem::size_of::<Camera2dUniformBlock>() as u64,
                 ),
@@ -209,16 +209,14 @@ impl<'tex, 'framework> Texture2dDrawPass<'framework> {
                         .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                             label: Some("Texture2D Render Pass Encoder"),
                         });
-                let instance_buffer =
-                    self.framework
-                        .allocate_typed_buffer(TypedBufferConfiguration {
-                            initial_setup: framework::typed_buffer::BufferInitialSetup::Data(
-                                &vec![texture.instance_data],
-                            ),
-                            buffer_type: framework::BufferType::Vertex,
-                            allow_write: false,
-                            allow_read: false,
-                        });
+                let instance_buffer = self.framework.allocate_typed_buffer(BufferConfiguration {
+                    initial_setup: framework::typed_buffer::BufferInitialSetup::Data(&vec![
+                        texture.instance_data,
+                    ]),
+                    buffer_type: framework::BufferType::Vertex,
+                    allow_write: false,
+                    allow_read: false,
+                });
                 {
                     let framework_texture = self.framework.texture2d(&texture.texture);
                     let mut pass = encoder.begin_render_pass(&render_pass_description);

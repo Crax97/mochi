@@ -14,7 +14,7 @@ use crate::{
     MeshConstructionDetails, Texture2d, Texture2dConfiguration, Vertex,
 };
 
-use super::typed_buffer::{TypedBuffer, TypedBufferConfiguration};
+use super::typed_buffer::{Buffer, BufferConfiguration};
 
 pub type TextureId = AssetId<Texture2d>;
 type TextureMap = AssetMap<Texture2d>;
@@ -104,9 +104,9 @@ impl<'a> Framework {
 
     pub fn allocate_typed_buffer<BufferType: bytemuck::Pod + bytemuck::Zeroable>(
         &'a self,
-        configuration: TypedBufferConfiguration<BufferType>,
-    ) -> TypedBuffer {
-        TypedBuffer::new(self, configuration)
+        configuration: BufferConfiguration<BufferType>,
+    ) -> Buffer {
+        Buffer::new(self, configuration)
     }
 
     pub fn allocate_texture2d(
