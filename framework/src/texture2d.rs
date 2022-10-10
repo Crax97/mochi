@@ -175,7 +175,7 @@ impl Texture2d {
             aspect: wgpu::TextureAspect::All,
         };
         let oneshot_buffer = framework.allocate_typed_buffer(crate::BufferConfiguration::<u8> {
-            initial_setup: crate::typed_buffer::BufferInitialSetup::Size(
+            initial_setup: crate::buffer::BufferInitialSetup::Size(
                 wgpu::COPY_BYTES_PER_ROW_ALIGNMENT as u64,
             ),
             buffer_type: crate::BufferType::Oneshot,
@@ -205,7 +205,7 @@ impl Texture2d {
             },
         );
         framework.queue.submit(std::iter::once(encoder.finish()));
-        let color_bytes = oneshot_buffer.read_region((0, 4));
+        let color_bytes = oneshot_buffer.read_region(framework, (0, 4));
         Color {
             r: (color_bytes[0] as f64) / 255.0,
             g: (color_bytes[1] as f64) / 255.0,
@@ -283,7 +283,7 @@ impl Texture2d {
             % wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
         let padded_width = unpadded_width + pad_bytes;
         let oneshot_buffer = framework.allocate_typed_buffer(crate::BufferConfiguration {
-            initial_setup: crate::typed_buffer::BufferInitialSetup::Size::<u8>(
+            initial_setup: crate::buffer::BufferInitialSetup::Size::<u8>(
                 (padded_width * height) as u64,
             ),
             buffer_type: crate::BufferType::Oneshot,
@@ -313,7 +313,7 @@ impl Texture2d {
         );
         framework.queue.submit(std::iter::once(encoder.finish()));
 
-        let bytes = oneshot_buffer.read_all_sync();
+        let bytes = oneshot_buffer.read_all_sync(framework);
         GpuImageData {
             data: bytes,
             width,

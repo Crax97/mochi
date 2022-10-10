@@ -22,7 +22,7 @@ pub struct UiContext<'app, 'framework> {
     pub draw_pass: &'app mut Texture2dDrawPass<'framework>,
     pub undo_stack: &'app mut UndoStack,
 
-    pub stamping_engine: Rc<RefCell<StrokingEngine<'framework>>>,
+    pub stamping_engine: Rc<RefCell<StrokingEngine>>,
     pub brush_tool: Rc<RefCell<BrushTool<'framework>>>,
 }
 

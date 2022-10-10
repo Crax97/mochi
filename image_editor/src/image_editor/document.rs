@@ -174,7 +174,7 @@ impl<'l> Document<'l> {
 
     pub(crate) fn update_layers(&mut self) {
         for (_, layer) in self.layers.iter_mut() {
-            layer.update();
+            layer.update(self.framework);
         }
     }
 
@@ -189,16 +189,19 @@ impl<'l> Document<'l> {
 
         pass.finish(final_texture.texture_view(), true);
 
-        pass.begin(&Camera2d::new(
-            -0.1,
-            1000.0,
-            [
-                -(self.document_size().x as f32 * 0.5),
-                self.document_size().x as f32 * 0.5,
-                self.document_size().y as f32 * 0.5,
-                -(self.document_size().y as f32 * 0.5),
-            ],
-        ));
+        pass.begin(
+            self.framework,
+            &Camera2d::new(
+                -0.1,
+                1000.0,
+                [
+                    -(self.document_size().x as f32 * 0.5),
+                    self.document_size().x as f32 * 0.5,
+                    self.document_size().y as f32 * 0.5,
+                    -(self.document_size().y as f32 * 0.5),
+                ],
+            ),
+        );
 
         let mut draw_layer = |index| {
             let layer = self.layers.get(index).expect("Nonexistent layer");
@@ -280,7 +283,7 @@ impl<'l> Document<'l> {
                     ],
                 );
 
-                pass.begin(&bm_camera);
+                pass.begin(self.framework, &bm_camera);
                 let buffer_id = self.buffer_layer.texture();
                 let texture = self.framework.texture2d(buffer_id);
                 // Clean the buffer layer

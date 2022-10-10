@@ -21,7 +21,7 @@ pub struct Texture2dDrawPass<'framework> {
     textures: Vec<TextureDrawInfo>,
     clear_color: wgpu::Color,
     camera: Camera2d,
-    camera_buffer: Buffer<'framework>,
+    camera_buffer: Buffer,
     camera_bind_group: BindGroup,
 }
 
@@ -31,15 +31,16 @@ impl<'tex, 'framework> Texture2dDrawPass<'framework> {
             .device
             .create_shader_module(wgpu::include_wgsl!("../shaders/draw_texture2d.wgsl"));
 
-        let camera_buffer =
-            framework.allocate_typed_buffer(BufferConfiguration::<Camera2dUniformBlock> {
-                initial_setup: framework::typed_buffer::BufferInitialSetup::Size(
-                    std::mem::size_of::<Camera2dUniformBlock>() as u64,
-                ),
-                buffer_type: framework::BufferType::Uniform,
-                allow_write: true,
-                allow_read: false,
-            });
+        let camera_buffer = framework.allocate_typed_buffer(BufferConfiguration::<
+            Camera2dUniformBlock,
+        > {
+            initial_setup: framework::buffer::BufferInitialSetup::Size(std::mem::size_of::<
+                Camera2dUniformBlock,
+            >() as u64),
+            buffer_type: framework::BufferType::Uniform,
+            allow_write: true,
+            allow_read: false,
+        });
         let bind_group_layout =
             framework
                 .device
@@ -160,12 +161,12 @@ impl<'tex, 'framework> Texture2dDrawPass<'framework> {
         self.clear_color = color;
     }
 
-    pub fn begin(&mut self, camera: &Camera2d) {
+    pub fn begin(&mut self, framework: &Framework, camera: &Camera2d) {
         let mut new_camera = camera.clone();
         new_camera.set_position(point2(camera.position().x, -camera.position().y));
         self.camera = new_camera;
         self.camera_buffer
-            .write_sync::<Camera2dUniformBlock>(&vec![(&self.camera).into()]);
+            .write_sync::<Camera2dUniformBlock>(framework, &vec![(&self.camera).into()]);
     }
     pub fn finish(&mut self, output_texture: &TextureView, clear: bool) {
         let render_pass_description = RenderPassDescriptor {
@@ -210,7 +211,7 @@ impl<'tex, 'framework> Texture2dDrawPass<'framework> {
                             label: Some("Texture2D Render Pass Encoder"),
                         });
                 let instance_buffer = self.framework.allocate_typed_buffer(BufferConfiguration {
-                    initial_setup: framework::typed_buffer::BufferInitialSetup::Data(&vec![
+                    initial_setup: framework::buffer::BufferInitialSetup::Data(&vec![
                         texture.instance_data,
                     ]),
                     buffer_type: framework::BufferType::Vertex,

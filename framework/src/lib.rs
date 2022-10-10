@@ -1,13 +1,14 @@
 pub mod asset_id;
 pub mod asset_library;
+pub mod buffer;
 pub mod framework;
 pub mod math;
 pub mod mesh;
 pub mod texture2d;
-pub mod typed_buffer;
 
 pub use asset_id::*;
 pub use asset_library::AssetsLibrary;
+pub use buffer::{Buffer, BufferConfiguration, BufferType};
 pub use framework::AdapterCreationError;
 pub use framework::Framework;
 pub use math::*;
@@ -20,4 +21,3 @@ pub use mesh::Vertex;
 pub use mesh::Vertices;
 pub use texture2d::Texture2d;
 pub use texture2d::Texture2dConfiguration;
-pub use typed_buffer::{Buffer, BufferConfiguration, BufferType};

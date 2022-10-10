@@ -75,7 +75,7 @@ pub struct ImageApplication<'framework> {
     ui: Box<dyn Ui>,
     render_pass: Texture2dDrawPass<'framework>,
     final_present_pass: Texture2dDrawPass<'framework>,
-    stamping_engine: Rc<RefCell<StrokingEngine<'framework>>>,
+    stamping_engine: Rc<RefCell<StrokingEngine>>,
     brush_tool: Rc<RefCell<BrushTool<'framework>>>,
     hand_tool: Rc<RefCell<HandTool>>,
     undo_stack: UndoStack,

@@ -14,7 +14,7 @@ use crate::{
     MeshConstructionDetails, Texture2d, Texture2dConfiguration, Vertex,
 };
 
-use super::typed_buffer::{Buffer, BufferConfiguration};
+use super::buffer::{Buffer, BufferConfiguration};
 
 pub type TextureId = AssetId<Texture2d>;
 type TextureMap = AssetMap<Texture2d>;

@@ -8,19 +8,19 @@ use wgpu::{
 
 use crate::stamping_engine::{StampConfiguration, StampUniformData};
 
-pub struct StampingEngineRenderPass<'framework> {
-    instance_buffer: Buffer<'framework>,
+pub struct StampingEngineRenderPass {
+    instance_buffer: Buffer,
     stamp_pipeline: RenderPipeline,
     eraser_pipeline: RenderPipeline,
-    stamp_data_buffer: Buffer<'framework>,
+    stamp_data_buffer: Buffer,
     brush_bind_group: BindGroup,
     stamp_settings: StampConfiguration,
 }
-impl<'framework> StampingEngineRenderPass<'framework> {
-    pub fn new(framework: &'framework Framework) -> Self {
+impl StampingEngineRenderPass {
+    pub fn new(framework: &Framework) -> Self {
         let instance_buffer =
             framework.allocate_typed_buffer(BufferConfiguration::<MeshInstance2D> {
-                initial_setup: framework::typed_buffer::BufferInitialSetup::Data(&vec![]),
+                initial_setup: framework::buffer::BufferInitialSetup::Data(&vec![]),
                 buffer_type: framework::BufferType::Vertex,
                 allow_write: true,
                 allow_read: false,
@@ -171,15 +171,14 @@ impl<'framework> StampingEngineRenderPass<'framework> {
         };
         let stamp_pipeline = make_pipeline(false);
         let eraser_pipeline = make_pipeline(true);
-        let stamp_uniform_buffer =
-            framework.allocate_typed_buffer(BufferConfiguration::<StampUniformData> {
-                initial_setup: framework::typed_buffer::BufferInitialSetup::Data(&vec![
-                    initial_setup.into(),
-                ]),
-                buffer_type: framework::BufferType::Uniform,
-                allow_write: true,
-                allow_read: false,
-            });
+        let stamp_uniform_buffer = framework.allocate_typed_buffer(BufferConfiguration::<
+            StampUniformData,
+        > {
+            initial_setup: framework::buffer::BufferInitialSetup::Data(&vec![initial_setup.into()]),
+            buffer_type: framework::BufferType::Uniform,
+            allow_write: true,
+            allow_read: false,
+        });
         let texture_bind_layout =
             framework
                 .device
@@ -219,13 +218,18 @@ impl<'framework> StampingEngineRenderPass<'framework> {
         }
     }
 
-    pub(crate) fn update(&mut self, instances: Vec<MeshInstance2D>) {
-        self.instance_buffer.write_sync(&instances);
+    pub(crate) fn update(&mut self, framework: &Framework, instances: Vec<MeshInstance2D>) {
+        self.instance_buffer.write_sync(framework, &instances);
     }
 
-    pub(crate) fn set_stamp_settings(&mut self, settings: StampConfiguration) {
+    pub(crate) fn set_stamp_settings(
+        &mut self,
+        framework: &Framework,
+        settings: StampConfiguration,
+    ) {
         let unif_data: StampUniformData = settings.into();
-        self.stamp_data_buffer.write_sync(&vec![unif_data]);
+        self.stamp_data_buffer
+            .write_sync(framework, &vec![unif_data]);
         self.stamp_settings = settings;
     }
 

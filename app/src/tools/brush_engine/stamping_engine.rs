@@ -59,7 +59,7 @@ pub struct Stamp {
 }
 
 pub struct StampCreationInfo<'framework> {
-    pub camera_buffer: &'framework Buffer<'framework>,
+    pub camera_buffer: &'framework Buffer,
 }
 
 impl Stamp {
@@ -104,27 +104,28 @@ impl From<StampConfiguration> for StampUniformData {
     }
 }
 
-pub struct StrokingEngine<'framework> {
+pub struct StrokingEngine {
     current_stamp: usize,
     stamps: Vec<Stamp>,
-    stamp_pass: StampingEngineRenderPass<'framework>,
-    camera_buffer: Buffer<'framework>,
+    stamp_pass: StampingEngineRenderPass,
+    camera_buffer: Buffer,
     camera_bind_group: BindGroup,
 }
 
-impl<'framework> StrokingEngine<'framework> {
-    pub fn new(initial_stamp: Stamp, framework: &'framework Framework) -> Self {
+impl StrokingEngine {
+    pub fn new(initial_stamp: Stamp, framework: &Framework) -> Self {
         let stamp_pass = StampingEngineRenderPass::new(framework);
 
-        let camera_buffer =
-            framework.allocate_typed_buffer(BufferConfiguration::<Camera2dUniformBlock> {
-                initial_setup: framework::typed_buffer::BufferInitialSetup::Size(
-                    std::mem::size_of::<Camera2dUniformBlock>() as u64,
-                ),
-                buffer_type: framework::BufferType::Uniform,
-                allow_write: true,
-                allow_read: false,
-            });
+        let camera_buffer = framework.allocate_typed_buffer(BufferConfiguration::<
+            Camera2dUniformBlock,
+        > {
+            initial_setup: framework::buffer::BufferInitialSetup::Size(std::mem::size_of::<
+                Camera2dUniformBlock,
+            >() as u64),
+            buffer_type: framework::BufferType::Uniform,
+            allow_write: true,
+            allow_read: false,
+        });
         let camera_bind_group_layout =
             framework
                 .device
@@ -171,8 +172,8 @@ impl<'framework> StrokingEngine<'framework> {
         self.stamp_pass.get_stamp_settings()
     }
 
-    pub fn set_new_settings(&mut self, settings: StampConfiguration) {
-        self.stamp_pass.set_stamp_settings(settings);
+    pub fn set_new_settings(&mut self, framework: &Framework, settings: StampConfiguration) {
+        self.stamp_pass.set_stamp_settings(framework, settings);
     }
 
     fn current_stamp(&self) -> &Stamp {
@@ -182,7 +183,7 @@ impl<'framework> StrokingEngine<'framework> {
     }
 }
 
-impl<'framework> BrushEngine for StrokingEngine<'framework> {
+impl BrushEngine for StrokingEngine {
     fn stroke(&mut self, path: StrokePath, context: StrokeContext) {
         match context.editor.document().current_layer().layer_type {
             // TODO: Deal with difference between current_layer and buffer_layer size
@@ -208,9 +209,12 @@ impl<'framework> BrushEngine for StrokingEngine<'framework> {
                         -buffer_layer.size().y as f32 * 0.5,
                     ],
                 );
-                self.camera_buffer
-                    .write_sync::<Camera2dUniformBlock>(&vec![(&bm_camera).into()]);
-                self.stamp_pass.update(instances);
+                self.camera_buffer.write_sync::<Camera2dUniformBlock>(
+                    context.editor.framework(),
+                    &vec![(&bm_camera).into()],
+                );
+                self.stamp_pass
+                    .update(context.editor.framework(), instances);
                 // 2. Do draw
                 let bitmap_texture = context.editor.framework().texture2d(buffer_layer.texture());
                 let stroking_engine_render_pass = RenderPassDescriptor {
@@ -291,7 +295,9 @@ impl<'framework> BrushEngine for StrokingEngine<'framework> {
             let inv_layer_matrix = current_layer_transform.matrix().invert();
             if let Some(inv_layer_matrix) = inv_layer_matrix {
                 let origin_inv = inv_layer_matrix.transform_point(point3(0.0, 0.0, 0.0));
-                context.draw_pass.begin(&bm_camera);
+                context
+                    .draw_pass
+                    .begin(context.image_editor.framework(), &bm_camera);
                 layer_tex.draw(
                     context.draw_pass,
                     point2(0.0, 0.0),

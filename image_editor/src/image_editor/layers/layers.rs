@@ -20,12 +20,13 @@ pub struct ShaderLayerSettings {
 }
 
 pub struct Layer<'framework> {
+    framework: &'framework Framework,
     pub settings: LayerSettings,
     pub layer_type: LayerType,
     pub position: Point2<f32>,
     pub scale: Vector2<f32>,
     pub rotation_radians: f32,
-    pub instance_buffer: Buffer<'framework>,
+    pub instance_buffer: Buffer,
 }
 
 pub struct LayerCreationInfo {
@@ -46,7 +47,7 @@ impl<'framework> Layer<'framework> {
         framework: &'framework Framework,
     ) -> Self {
         let instance_buffer = framework.allocate_typed_buffer(BufferConfiguration {
-            initial_setup: framework::typed_buffer::BufferInitialSetup::Data(
+            initial_setup: framework::buffer::BufferInitialSetup::Data(
                 &Vec::<MeshInstance2D>::new(),
             ),
             buffer_type: framework::BufferType::Vertex,
@@ -55,6 +56,7 @@ impl<'framework> Layer<'framework> {
         });
 
         Self {
+            framework,
             settings: LayerSettings {
                 name: creation_info.name,
                 is_enabled: true,
@@ -67,20 +69,23 @@ impl<'framework> Layer<'framework> {
             instance_buffer,
         }
     }
-    pub(crate) fn update(&mut self) {
+    pub(crate) fn update(&mut self, framework: &Framework) {
         match &self.layer_type {
             LayerType::Bitmap(bitmap_layer) => {
                 let real_scale = Vector2 {
                     x: self.scale.x * bitmap_layer.size().x * 0.5,
                     y: self.scale.y * bitmap_layer.size().y * 0.5,
                 };
-                self.instance_buffer.write_sync(&vec![MeshInstance2D::new(
-                    self.position.clone(),
-                    real_scale,
-                    self.rotation_radians,
-                    true,
-                    self.settings.opacity,
-                )]);
+                self.instance_buffer.write_sync(
+                    framework,
+                    &vec![MeshInstance2D::new(
+                        self.position.clone(),
+                        real_scale,
+                        self.rotation_radians,
+                        true,
+                        self.settings.opacity,
+                    )],
+                );
             }
         }
     }
@@ -115,13 +120,16 @@ impl<'framework> Layer<'framework> {
 
     pub fn set_settings(&mut self, new_settings: LayerSettings) {
         self.settings = new_settings;
-        self.instance_buffer.write_sync(&vec![MeshInstance2D::new(
-            self.position,
-            self.scale,
-            self.rotation_radians,
-            true,
-            self.settings.opacity,
-        )])
+        self.instance_buffer.write_sync(
+            self.framework,
+            &vec![MeshInstance2D::new(
+                self.position,
+                self.scale,
+                self.rotation_radians,
+                true,
+                self.settings.opacity,
+            )],
+        )
     }
 
     pub fn transform(&self) -> Transform2d {

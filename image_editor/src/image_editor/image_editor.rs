@@ -113,7 +113,7 @@ impl<'framework> ImageEditor<'framework> {
     }
 
     pub fn render_canvas(&mut self, output_canvas: &TextureView, pass: &mut Texture2dDrawPass) {
-        pass.begin(&self.camera());
+        pass.begin(self.framework, &self.camera());
         pass.draw_texture(
             self.document.final_layer().texture(),
             MeshInstance2D::new(
