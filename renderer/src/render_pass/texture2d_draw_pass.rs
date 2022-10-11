@@ -193,10 +193,13 @@ impl<'tex, 'framework> Texture2dDrawPass<'framework> {
                     allow_read: false,
                 });
                 {
-                    let framework_texture = self.framework.texture2d(&texture.texture);
                     let mut pass = encoder.begin_render_pass(&render_pass_description);
                     pass.set_pipeline(&self.pipeline);
-                    pass.set_bind_group(0, framework_texture.bind_group(), &[]);
+                    pass.set_bind_group(
+                        0,
+                        self.framework.texture2d_bind_group(&texture.texture),
+                        &[],
+                    );
                     pass.set_bind_group(
                         1,
                         self.framework.buffer_bind_group(&self.camera_buffer_id),

@@ -11,8 +11,8 @@ use uuid::Uuid;
 use wgpu::*;
 
 use crate::{
-    asset_library, AssetId, AssetMap, AssetRef, AssetRefMut, AssetsLibrary, Mesh,
-    MeshConstructionDetails, Texture2d, Texture2dConfiguration, Vertex,
+    asset_library, texture2d::GpuImageData, AssetId, AssetMap, AssetRef, AssetRefMut,
+    AssetsLibrary, Mesh, MeshConstructionDetails, Texture2d, Texture2dConfiguration, Vertex,
 };
 
 use super::buffer::{Buffer, BufferConfiguration};
@@ -172,7 +172,7 @@ impl<'a> Framework {
         tex_id
     }
 
-    pub fn texture2d<'r>(&'r self, id: &TextureId) -> AssetRef<'r, Texture2d> {
+    pub(crate) fn texture2d<'r>(&'r self, id: &TextureId) -> AssetRef<'r, Texture2d> {
         AssetRef {
             in_ref: self.allocated_textures.try_read().unwrap(),
             id: id.clone(),
@@ -195,5 +195,46 @@ impl<'a> Framework {
             device_info.name
         );
         info!("\tUsing backend {}", backend_string);
+    }
+}
+
+// Texture2D
+impl<'a> Framework {
+    pub fn texture2d_bind_group(&self, id: &TextureId) -> &BindGroup {
+        todo!()
+    }
+
+    pub fn texture2d_dimensions(&self, id: &TextureId) -> (u32, u32) {
+        (self.texture2d_width(id), self.texture2d_height(id))
+    }
+
+    pub fn texture2d_width(&self, id: &TextureId) -> u32 {
+        todo!()
+    }
+    pub fn texture2d_height(&self, id: &TextureId) -> u32 {
+        todo!()
+    }
+    pub fn texture2d_format(&self, id: &TextureId) -> TextureFormat {
+        todo!()
+    }
+
+    pub fn texture2d_sample_pixel(&self, id: &TextureId, x: u32, y: u32) -> wgpu::Color {
+        todo!()
+    }
+    pub fn texture2d_texture_view(&self, id: &TextureId) -> &TextureView {
+        todo!()
+    }
+    pub fn texture2d_read_data(&self, id: &TextureId) -> GpuImageData {
+        todo!()
+    }
+    pub fn texture2d_read_subregion(
+        &self,
+        id: &TextureId,
+        x: u32,
+        y: u32,
+        width: u32,
+        height: u32,
+    ) -> TextureId {
+        todo!()
     }
 }

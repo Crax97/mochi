@@ -1,11 +1,9 @@
 use cgmath::{point2, point3, vec2, SquareMatrix, Transform, Vector2};
 use framework::framework::{BufferId, TextureId};
-use framework::{Box2d, BufferConfiguration};
+use framework::BufferConfiguration;
 use framework::{Buffer, Framework, MeshInstance2D};
 use image_editor::layers::{BitmapLayer, LayerIndex, LayerType};
-use image_editor::ImageEditor;
 use scene::{Camera2d, Camera2dUniformBlock};
-use wgpu::{BindGroup, RenderPassColorAttachment, RenderPassDescriptor, Texture};
 
 use crate::tools::{EditorCommand, EditorContext};
 use crate::{StrokeContext, StrokePath};
@@ -188,14 +186,12 @@ impl BrushEngine for StrokingEngine {
                     vec![(&bm_camera).into()],
                 );
                 // 2. Do draw
-                let bitmap_texture = context.editor.framework().texture2d(buffer_layer.texture());
 
                 let stamp = self.current_stamp().brush_texture.texture();
-                let stamp = context.editor.framework().texture2d(stamp);
                 self.stamp_pass.execute(
                     context.editor.framework(),
-                    &bitmap_texture,
-                    &stamp,
+                    buffer_layer.texture().clone(),
+                    stamp.clone(),
                     &framework.buffer_bind_group(&self.camera_buffer_id),
                 );
             }
@@ -206,6 +202,7 @@ impl BrushEngine for StrokingEngine {
         &mut self,
         context: &mut crate::tools::EditorContext,
     ) -> Option<Box<dyn EditorCommand>> {
+        let framework = context.image_editor.framework();
         let (old_layer_texture_id, new_texture_id) = {
             let modified_layer = context.image_editor.document().current_layer_index();
             let layer = context.image_editor.document().get_layer(&modified_layer);
@@ -213,15 +210,15 @@ impl BrushEngine for StrokingEngine {
                 LayerType::Bitmap(ref bm) => (bm.texture(), bm.size(), bm),
             };
             let (width, height, format) = {
-                let old_layer_texture = context
+                let (width, height) = context
                     .image_editor
                     .framework()
-                    .texture2d(old_layer_texture_id);
-                (
-                    old_layer_texture.width(),
-                    old_layer_texture.height(),
-                    old_layer_texture.format(),
-                )
+                    .texture2d_dimensions(old_layer_texture_id);
+                let format = context
+                    .image_editor
+                    .framework()
+                    .texture2d_format(old_layer_texture_id);
+                (width, height, format)
             };
             let new_texture_id = context.image_editor.framework().allocate_texture2d(
                 framework::Texture2dConfiguration {
@@ -235,7 +232,6 @@ impl BrushEngine for StrokingEngine {
                 },
                 None,
             );
-            let new_texture = context.image_editor.framework().texture2d(&new_texture_id);
 
             let bm_camera = Camera2d::new(
                 -0.1,
@@ -268,7 +264,9 @@ impl BrushEngine for StrokingEngine {
                     0.0,
                     1.0,
                 );
-                context.draw_pass.finish(new_texture.texture_view(), false);
+                context
+                    .draw_pass
+                    .finish(framework.texture2d_texture_view(&new_texture_id), false);
             }
             (old_layer_texture_id.clone(), new_texture_id)
         };

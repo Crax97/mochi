@@ -37,13 +37,13 @@ impl GpuImageData {
 }
 
 pub struct Texture2d {
-    texture: wgpu::Texture,
-    texture_view: wgpu::TextureView,
-    sampler: wgpu::Sampler,
-    bind_group: wgpu::BindGroup,
-    format: wgpu::TextureFormat,
-    width: u32,
-    height: u32,
+    pub(crate) texture: wgpu::Texture,
+    pub(crate) texture_view: wgpu::TextureView,
+    pub(crate) sampler: wgpu::Sampler,
+    pub(crate) bind_group: wgpu::BindGroup,
+    pub(crate) format: wgpu::TextureFormat,
+    pub(crate) width: u32,
+    pub(crate) height: u32,
 }
 
 pub struct Texture2dConfiguration {
@@ -167,7 +167,7 @@ impl Texture2d {
         self.height - y - region_height
     }
 
-    pub fn sample_pixel(&self, x: u32, y: u32, framework: &Framework) -> wgpu::Color {
+    pub(crate) fn sample_pixel(&self, x: u32, y: u32, framework: &Framework) -> wgpu::Color {
         let texture_region = wgpu::ImageCopyTexture {
             texture: &self.texture,
             mip_level: 0,
@@ -215,11 +215,11 @@ impl Texture2d {
         }
     }
 
-    pub fn write_data(&self, bytes: &[u8], framework: &Framework) {
+    pub(crate) fn write_data(&self, bytes: &[u8], framework: &Framework) {
         self.write_region(bytes, (0, 0, self.width, self.height), framework);
     }
 
-    pub fn write_region(
+    pub(crate) fn write_region(
         &self,
         region_bytes: &[u8],
         region_rect: (u32, u32, u32, u32),
@@ -253,11 +253,11 @@ impl Texture2d {
         )
     }
 
-    pub fn read_data(&self, framework: &Framework) -> GpuImageData {
+    pub(crate) fn read_data(&self, framework: &Framework) -> GpuImageData {
         self.read_subregion(0, 0, self.width, self.height, framework)
     }
 
-    pub fn read_subregion(
+    pub(crate) fn read_subregion(
         &self,
         x: u32,
         y: u32,
@@ -325,7 +325,7 @@ impl Texture2d {
         }
     }
 
-    pub fn read_subregion_texture2d(
+    pub(crate) fn read_subregion_texture2d(
         &self,
         x: u32,
         y: u32,
@@ -378,29 +378,5 @@ impl Texture2d {
         framework.queue.submit(std::iter::once(encoder.finish()));
 
         oneshot_texture_id
-    }
-
-    pub fn width(&self) -> u32 {
-        self.width
-    }
-
-    pub fn height(&self) -> u32 {
-        self.height
-    }
-
-    pub fn format(&self) -> TextureFormat {
-        self.format
-    }
-
-    pub fn texture_view(&self) -> &wgpu::TextureView {
-        &self.texture_view
-    }
-
-    pub fn sampler(&self) -> &wgpu::Sampler {
-        &self.sampler
-    }
-
-    pub fn bind_group(&self) -> &BindGroup {
-        &self.bind_group
     }
 }

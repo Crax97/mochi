@@ -47,11 +47,11 @@ impl Tool for DebugSelectRegionTool {
                 let layer = context.image_editor.document().current_layer();
                 match layer.layer_type {
                     image_editor::layers::LayerType::Bitmap(ref bm) => {
-                        let bit_texture = bm.texture();
-                        let bit_texture = context.image_editor.framework().texture2d(bit_texture);
+                        let framework = context.image_editor.framework();
+                        let (width, height) = framework.texture2d_dimensions(bm.texture());
                         let half_dims = Point2 {
-                            x: bit_texture.width() / 2,
-                            y: bit_texture.height() / 2,
+                            x: width / 2,
+                            y: height / 2,
                         }
                         .cast::<f32>()
                         .unwrap();
@@ -66,18 +66,14 @@ impl Tool for DebugSelectRegionTool {
                         let region_width = end_x - begin_x;
                         let region_height = end_y - begin_y;
 
-                        let subregion = bit_texture.read_subregion_texture2d(
+                        let new_subregion_texture = framework.texture2d_read_subregion(
+                            bm.texture(),
                             begin_x,
                             begin_y,
                             region_width,
                             region_height,
-                            context.image_editor.framework(),
                         );
-                        let subregion = context
-                            .image_editor
-                            .framework()
-                            .texture2d(&subregion)
-                            .read_data(context.image_editor.framework());
+                        let subregion = framework.texture2d_read_data(&new_subregion_texture);
                         let width = subregion.width;
                         let height = subregion.height;
 

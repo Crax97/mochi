@@ -1,7 +1,8 @@
 use cgmath::Vector2;
 use framework::{
-    asset_library::mesh_names, framework::BufferId, AssetsLibrary, Buffer, BufferConfiguration,
-    Framework, Mesh, MeshInstance2D, Texture2d,
+    asset_library::mesh_names,
+    framework::{BufferId, TextureId},
+    AssetsLibrary, Buffer, BufferConfiguration, Framework, Mesh, MeshInstance2D,
 };
 use wgpu::{
     BindGroup, BlendComponent, ColorTargetState, FragmentState, RenderPipeline, VertexState,
@@ -225,8 +226,8 @@ impl StampingEngineRenderPass {
     pub fn execute<'s, 'pass>(
         &'s self,
         framework: &'pass Framework,
-        bitmap_target: &Texture2d,
-        stamp: &'pass Texture2d,
+        bitmap_target: TextureId,
+        stamp: TextureId,
         camera_bind_group: &'pass BindGroup,
     ) where
         's: 'pass,
@@ -241,7 +242,7 @@ impl StampingEngineRenderPass {
             let stroking_engine_render_pass = wgpu::RenderPassDescriptor {
                 label: Some("Stamping Engine render pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: bitmap_target.texture_view(),
+                    view: framework.texture2d_texture_view(&bitmap_target),
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Load,
@@ -252,21 +253,14 @@ impl StampingEngineRenderPass {
             };
 
             let mut pass = command_encoder.begin_render_pass(&stroking_engine_render_pass);
-
-            pass.set_viewport(
-                0.0,
-                0.0,
-                bitmap_target.width() as f32,
-                bitmap_target.height() as f32,
-                0.0,
-                1.0,
-            );
+            let (width, height) = framework.texture2d_dimensions(&bitmap_target);
+            pass.set_viewport(0.0, 0.0, width as f32, height as f32, 0.0, 1.0);
             if self.stamp_settings.is_eraser {
                 pass.set_pipeline(&self.eraser_pipeline);
             } else {
                 pass.set_pipeline(&self.stamp_pipeline);
             }
-            pass.set_bind_group(0, stamp.bind_group(), &[]);
+            pass.set_bind_group(0, framework.texture2d_bind_group(&stamp), &[]);
             pass.set_bind_group(
                 1,
                 framework.buffer_bind_group(&self.stamp_uniform_buffer_id),

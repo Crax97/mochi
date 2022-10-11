@@ -185,9 +185,12 @@ impl<'l> Document<'l> {
         'l: 'tex,
     {
         let final_layer = self.final_layer.texture();
-        let final_texture = self.framework.texture2d(&final_layer);
 
-        pass.finish(final_texture.texture_view(), true);
+        pass.finish(
+            self.framework
+                .texture2d_texture_view(self.final_layer.texture()),
+            true,
+        );
 
         pass.begin(
             self.framework,
@@ -205,11 +208,19 @@ impl<'l> Document<'l> {
 
         let mut draw_layer = |index| {
             let layer = self.layers.get(index).expect("Nonexistent layer");
-            layer.draw(&mut pass, final_texture.texture_view());
+            layer.draw(
+                &mut pass,
+                self.framework
+                    .texture2d_texture_view(self.final_layer.texture()),
+            );
             if index == &self.current_layer_index {
                 self.buffer_layer
                     .draw(pass, point2(0.0, 0.0), vec2(1.0, 1.0), 0.0, 1.0);
-                pass.finish(final_texture.texture_view(), false);
+                pass.finish(
+                    self.framework
+                        .texture2d_texture_view(self.final_layer.texture()),
+                    false,
+                );
             }
         };
         for layer_node in self.tree_root.0.iter() {
@@ -243,8 +254,9 @@ impl<'l> Document<'l> {
     }
 
     pub fn final_image_bytes(&self) -> DynamicImage {
-        let final_layer_texture = self.framework.texture2d(self.final_layer.texture());
-        let bytes = final_layer_texture.read_data(&self.framework);
+        let bytes = self
+            .framework
+            .texture2d_read_data(self.final_layer.texture());
         let width = bytes.width;
         let height = bytes.height;
         let data = bytes.to_bytes(true);
@@ -285,9 +297,11 @@ impl<'l> Document<'l> {
 
                 pass.begin(self.framework, &bm_camera);
                 let buffer_id = self.buffer_layer.texture();
-                let texture = self.framework.texture2d(buffer_id);
+                let texture_view = self
+                    .framework
+                    .texture2d_texture_view(self.final_layer.texture());
                 // Clean the buffer layer
-                pass.finish(texture.texture_view(), true);
+                pass.finish(texture_view, true);
             }
         }
     }
