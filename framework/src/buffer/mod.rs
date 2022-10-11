@@ -1,4 +1,4 @@
-use wgpu::{util::DeviceExt, BufferSlice, BufferUsages};
+use wgpu::{util::DeviceExt, BindGroup, BindGroupLayout, BufferSlice, BufferUsages};
 
 use crate::{AssetId, AssetMap};
 
@@ -6,7 +6,7 @@ use super::framework::Framework;
 
 pub(crate) type BufferMap = AssetMap<Buffer>;
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum BufferType {
     // A buffer meant to be used as an input for the Vertex Shader
     Vertex,
@@ -18,7 +18,7 @@ pub enum BufferType {
     Oneshot,
 }
 
-struct BufferInfo {
+pub(crate) struct BufferInfo {
     pub buffer: wgpu::Buffer,
     pub num_items: usize,
 }
@@ -29,8 +29,29 @@ pub struct InnerBufferConfiguration {
     pub allow_read: bool,
 }
 pub struct Buffer {
-    buffer: BufferInfo,
-    config: InnerBufferConfiguration,
+    pub(crate) buffer: BufferInfo,
+    pub(crate) bind_group: Option<BindGroup>,
+    pub(crate) config: InnerBufferConfiguration,
+}
+
+impl Buffer {
+    pub fn bind_group_layout(framework: &Framework) -> BindGroupLayout {
+        framework
+            .device
+            .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some("Buffer BindGroup Layour"),
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }],
+            })
+    }
 }
 
 impl From<BufferType> for BufferUsages {
@@ -124,17 +145,35 @@ impl Buffer {
             &configuration,
             framework,
         );
+        let bind_group = if configuration.buffer_type == BufferType::Uniform {
+            let bind_group = framework
+                .device
+                .create_bind_group(&wgpu::BindGroupDescriptor {
+                    label: Some("Buffer BindGroup"),
+                    layout: &Buffer::bind_group_layout(framework),
+                    entries: &[wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: wgpu::BindingResource::Buffer(
+                            buffer.buffer.as_entire_buffer_binding(),
+                        ),
+                    }],
+                });
+            Some(bind_group)
+        } else {
+            None
+        };
         Buffer {
             buffer: buffer,
             config: configuration,
+            bind_group,
         }
     }
 
-    pub fn inner_buffer(&self) -> &wgpu::Buffer {
+    pub(crate) fn inner_buffer(&self) -> &wgpu::Buffer {
         &self.buffer.buffer
     }
 
-    pub fn read_all_sync(&self, framework: &'_ Framework) -> Vec<u8> {
+    pub(crate) fn read_all_sync(&self, framework: &'_ Framework) -> Vec<u8> {
         let device = &framework.device;
         let out_slice = self.buffer.buffer.slice(..);
         let (tx, rx) = futures_intrusive::channel::shared::oneshot_channel();
@@ -148,7 +187,7 @@ impl Buffer {
         data.iter().map(|b| *b).collect()
     }
 
-    pub fn write_sync<T: bytemuck::Pod + bytemuck::Zeroable>(
+    pub(crate) fn write_sync<T: bytemuck::Pod + bytemuck::Zeroable>(
         &mut self,
         framework: &'_ Framework,
         data: &Vec<T>,
@@ -165,16 +204,20 @@ impl Buffer {
         queue.write_buffer(&buffer, 0, &bytemuck::cast_slice(&data.as_slice()));
     }
 
-    pub fn binding_resource(&self) -> wgpu::BufferBinding {
+    pub(crate) fn binding_resource(&self) -> wgpu::BufferBinding {
         let buffer = &self.buffer.buffer;
         buffer.as_entire_buffer_binding()
     }
 
-    pub fn elem_count(&self) -> usize {
+    pub(crate) fn elem_count(&self) -> usize {
         self.buffer.num_items
     }
 
-    pub fn read_region(&self, framework: &'_ Framework, begin_and_size: (u64, u64)) -> Vec<u8> {
+    pub(crate) fn read_region(
+        &self,
+        framework: &'_ Framework,
+        begin_and_size: (u64, u64),
+    ) -> Vec<u8> {
         let (begin, size) = begin_and_size;
         let (tx, rx) = std::sync::mpsc::channel();
         let buffer_slice = self.inner_buffer().slice(begin..begin + size);
@@ -191,7 +234,7 @@ impl Buffer {
         self.inner_buffer().unmap();
         data
     }
-    pub fn entire_slice(&self) -> BufferSlice {
+    pub(crate) fn entire_slice(&self) -> BufferSlice {
         self.buffer.buffer.slice(..)
     }
 }

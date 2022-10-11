@@ -109,7 +109,6 @@ pub struct StrokingEngine {
     stamps: Vec<Stamp>,
     stamp_pass: StampingEngineRenderPass,
     camera_buffer_id: BufferId,
-    camera_bind_group: BindGroup,
 }
 
 impl StrokingEngine {
@@ -126,42 +125,12 @@ impl StrokingEngine {
             allow_write: true,
             allow_read: false,
         });
-        let camera_buffer = framework.buffer(&camera_buffer_id);
-        let camera_bind_group_layout =
-            framework
-                .device
-                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    label: Some("Texture2D Camera Layout"),
-                    entries: &[wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Uniform,
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
-                    }],
-                });
-        let camera_bind_group = framework
-            .device
-            .create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("Texture2D Camera"),
-                layout: &camera_bind_group_layout,
-                entries: &[wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::Buffer(
-                        camera_buffer.inner_buffer().as_entire_buffer_binding(),
-                    ),
-                }],
-            });
 
         Self {
             stamps: vec![initial_stamp],
             current_stamp: 0,
             stamp_pass,
             camera_buffer_id,
-            camera_bind_group,
         }
     }
 
@@ -213,16 +182,11 @@ impl BrushEngine for StrokingEngine {
                 self.stamp_pass
                     .update(context.editor.framework(), instances);
 
-                {
-                    let mut camera_buffer = context
-                        .editor
-                        .framework()
-                        .buffer_mut(&self.camera_buffer_id);
-                    camera_buffer.write_sync::<Camera2dUniformBlock>(
-                        context.editor.framework(),
-                        &vec![(&bm_camera).into()],
-                    );
-                }
+                let framework = context.editor.framework();
+                framework.buffer_write_sync::<Camera2dUniformBlock>(
+                    &self.camera_buffer_id,
+                    vec![(&bm_camera).into()],
+                );
                 // 2. Do draw
                 let bitmap_texture = context.editor.framework().texture2d(buffer_layer.texture());
 
@@ -232,7 +196,7 @@ impl BrushEngine for StrokingEngine {
                     context.editor.framework(),
                     &bitmap_texture,
                     &stamp,
-                    &self.camera_bind_group,
+                    &framework.buffer_bind_group(&self.camera_buffer_id),
                 );
             }
         }

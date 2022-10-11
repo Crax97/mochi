@@ -22,7 +22,6 @@ pub struct Texture2dDrawPass<'framework> {
     clear_color: wgpu::Color,
     camera: Camera2d,
     camera_buffer_id: BufferId,
-    camera_bind_group: BindGroup,
 }
 
 impl<'tex, 'framework> Texture2dDrawPass<'framework> {
@@ -41,7 +40,6 @@ impl<'tex, 'framework> Texture2dDrawPass<'framework> {
             allow_write: true,
             allow_read: false,
         });
-        let camera_buffer = framework.buffer(&camera_buffer_id);
         let bind_group_layout =
             framework
                 .device
@@ -66,41 +64,15 @@ impl<'tex, 'framework> Texture2dDrawPass<'framework> {
                         },
                     ],
                 });
-        let camera_bind_group_layout =
-            framework
-                .device
-                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    label: Some("Texture2D Camera Layout"),
-                    entries: &[wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Uniform,
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
-                    }],
-                });
-        let camera_bind_group = framework
-            .device
-            .create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("Texture2D Camera"),
-                layout: &camera_bind_group_layout,
-                entries: &[wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::Buffer(
-                        camera_buffer.inner_buffer().as_entire_buffer_binding(),
-                    ),
-                }],
-            });
-
         let render_pipeline_layout =
             framework
                 .device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("Texture2D Pipeline Layout"),
-                    bind_group_layouts: &[&bind_group_layout, &camera_bind_group_layout],
+                    bind_group_layouts: &[
+                        &bind_group_layout,
+                        &Buffer::bind_group_layout(framework),
+                    ],
                     push_constant_ranges: &[],
                 });
 
@@ -147,7 +119,6 @@ impl<'tex, 'framework> Texture2dDrawPass<'framework> {
             textures: vec![],
             clear_color: wgpu::Color::BLACK,
             camera_buffer_id,
-            camera_bind_group,
             camera: Camera2d::new(0.01, 1000.0, [-1.0, 1.0, 1.0, -1.0]),
         }
     }
@@ -166,8 +137,10 @@ impl<'tex, 'framework> Texture2dDrawPass<'framework> {
         let mut new_camera = camera.clone();
         new_camera.set_position(point2(camera.position().x, -camera.position().y));
         self.camera = new_camera;
-        let mut camera_buffer = framework.buffer_mut(&self.camera_buffer_id);
-        camera_buffer.write_sync::<Camera2dUniformBlock>(framework, &vec![(&self.camera).into()]);
+        framework.buffer_write_sync::<Camera2dUniformBlock>(
+            &self.camera_buffer_id,
+            vec![(&self.camera).into()],
+        );
     }
     pub fn finish(&mut self, output_texture: &TextureView, clear: bool) {
         let render_pass_description = RenderPassDescriptor {
@@ -219,14 +192,20 @@ impl<'tex, 'framework> Texture2dDrawPass<'framework> {
                     allow_write: false,
                     allow_read: false,
                 });
-                let instance_buffer = self.framework.buffer(&instance_buffer);
                 {
                     let framework_texture = self.framework.texture2d(&texture.texture);
                     let mut pass = encoder.begin_render_pass(&render_pass_description);
                     pass.set_pipeline(&self.pipeline);
                     pass.set_bind_group(0, framework_texture.bind_group(), &[]);
-                    pass.set_bind_group(1, &self.camera_bind_group, &[]);
-                    pass.set_vertex_buffer(1, instance_buffer.inner_buffer().slice(..));
+                    pass.set_bind_group(
+                        1,
+                        self.framework.buffer_bind_group(&self.camera_buffer_id),
+                        &[],
+                    );
+                    pass.set_vertex_buffer(
+                        1,
+                        self.framework.buffer_slice(&self.camera_buffer_id, ..),
+                    );
 
                     quad_mesh.draw(&mut pass, 1);
                 }

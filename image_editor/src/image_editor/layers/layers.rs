@@ -76,10 +76,9 @@ impl<'framework> Layer<'framework> {
                     x: self.scale.x * bitmap_layer.size().x * 0.5,
                     y: self.scale.y * bitmap_layer.size().y * 0.5,
                 };
-                let mut instance_buffer = framework.buffer_mut(&self.instance_buffer_id);
-                instance_buffer.write_sync(
-                    framework,
-                    &vec![MeshInstance2D::new(
+                framework.buffer_write_sync(
+                    &self.instance_buffer_id,
+                    vec![MeshInstance2D::new(
                         self.position.clone(),
                         real_scale,
                         self.rotation_radians,
@@ -121,17 +120,17 @@ impl<'framework> Layer<'framework> {
 
     pub fn set_settings(&mut self, new_settings: LayerSettings) {
         self.settings = new_settings;
-        let mut instance_buffer = self.framework.buffer_mut(&self.instance_buffer_id);
-        instance_buffer.write_sync(
-            self.framework,
-            &vec![MeshInstance2D::new(
+
+        self.framework.buffer_write_sync(
+            &self.instance_buffer_id,
+            vec![MeshInstance2D::new(
                 self.position,
                 self.scale,
                 self.rotation_radians,
                 true,
                 self.settings.opacity,
             )],
-        )
+        );
     }
 
     pub fn transform(&self) -> Transform2d {

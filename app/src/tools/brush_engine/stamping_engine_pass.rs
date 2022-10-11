@@ -14,7 +14,6 @@ pub struct StampingEngineRenderPass {
     stamp_pipeline: RenderPipeline,
     eraser_pipeline: RenderPipeline,
     stamp_uniform_buffer_id: BufferId,
-    brush_bind_group: BindGroup,
     stamp_settings: StampConfiguration,
 }
 impl StampingEngineRenderPass {
@@ -180,7 +179,6 @@ impl StampingEngineRenderPass {
             allow_write: true,
             allow_read: false,
         });
-        let stamp_uniform_buffer = framework.buffer(&stamp_uniform_buffer_id.clone());
         let texture_bind_layout =
             framework
                 .device
@@ -197,21 +195,7 @@ impl StampingEngineRenderPass {
                         count: None,
                     }],
                 });
-        let brush_bind_group = framework
-            .device
-            .create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("Stamp data bind group"),
-                layout: &texture_bind_layout,
-                entries: &[wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::Buffer(
-                        stamp_uniform_buffer.binding_resource(),
-                    ),
-                }],
-            });
-
         Self {
-            brush_bind_group,
             stamp_uniform_buffer_id,
             instance_buffer_id,
             stamp_pipeline,
@@ -221,8 +205,7 @@ impl StampingEngineRenderPass {
     }
 
     pub(crate) fn update(&mut self, framework: &Framework, instances: Vec<MeshInstance2D>) {
-        let mut instance_buffer = framework.buffer_mut(&self.instance_buffer_id);
-        instance_buffer.write_sync(framework, &instances);
+        framework.buffer_write_sync(&self.instance_buffer_id, instances);
     }
 
     pub(crate) fn set_stamp_settings(
@@ -231,8 +214,7 @@ impl StampingEngineRenderPass {
         settings: StampConfiguration,
     ) {
         let unif_data: StampUniformData = settings.into();
-        let mut stamp_data_buffer = framework.buffer_mut(&self.stamp_uniform_buffer_id);
-        stamp_data_buffer.write_sync(framework, &vec![unif_data]);
+        framework.buffer_write_sync(&self.stamp_uniform_buffer_id, vec![unif_data]);
         self.stamp_settings = settings;
     }
 
@@ -268,7 +250,6 @@ impl StampingEngineRenderPass {
                 })],
                 depth_stencil_attachment: None,
             };
-            let instance_buffer = framework.buffer(&self.instance_buffer_id.clone());
 
             let mut pass = command_encoder.begin_render_pass(&stroking_engine_render_pass);
 
@@ -286,13 +267,17 @@ impl StampingEngineRenderPass {
                 pass.set_pipeline(&self.stamp_pipeline);
             }
             pass.set_bind_group(0, stamp.bind_group(), &[]);
-            pass.set_bind_group(1, &self.brush_bind_group, &[]);
+            pass.set_bind_group(
+                1,
+                framework.buffer_bind_group(&self.stamp_uniform_buffer_id),
+                &[],
+            );
             pass.set_bind_group(2, &camera_bind_group, &[]);
-            pass.set_vertex_buffer(1, instance_buffer.entire_slice());
-            framework
-                .asset_library
-                .mesh(mesh_names::QUAD)
-                .draw(&mut pass, instance_buffer.elem_count() as u32);
+            pass.set_vertex_buffer(1, framework.buffer_slice(&self.instance_buffer_id, ..));
+            framework.asset_library.mesh(mesh_names::QUAD).draw(
+                &mut pass,
+                framework.buffer_elem_count(&self.instance_buffer_id),
+            );
         }
 
         framework

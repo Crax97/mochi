@@ -1,5 +1,6 @@
 use std::{
     collections::HashMap,
+    ops::RangeFull,
     sync::{Arc, Mutex, RwLock},
 };
 
@@ -123,13 +124,31 @@ impl<'a> Framework {
         buf_id
     }
 
-    pub fn buffer<'r>(&'r self, id: &BufferId) -> AssetRef<'r, Buffer> {
+    pub fn buffer_bind_group(&self, id: &BufferId) -> &BindGroup {
+        todo!()
+    }
+    pub fn buffer_slice<'r>(&'r self, id: &BufferId, range: RangeFull) -> BufferSlice {
+        todo!()
+    }
+    pub fn buffer_elem_count<'r>(&'r self, id: &BufferId) -> u32 {
+        todo!()
+    }
+
+    pub fn buffer_write_sync<T: bytemuck::Pod + bytemuck::Zeroable>(
+        &self,
+        id: &BufferId,
+        data: Vec<T>,
+    ) {
+        todo!()
+    }
+
+    pub(crate) fn buffer<'r>(&'r self, id: &BufferId) -> AssetRef<'r, Buffer> {
         AssetRef {
             in_ref: self.allocated_buffers.try_read().unwrap(),
             id: id.clone(),
         }
     }
-    pub fn buffer_mut<'r>(&'r self, id: &BufferId) -> AssetRefMut<'r, Buffer> {
+    pub(crate) fn buffer_mut<'r>(&'r self, id: &BufferId) -> AssetRefMut<'r, Buffer> {
         AssetRefMut {
             in_ref: self.allocated_buffers.try_write().unwrap(),
             id: id.clone(),
