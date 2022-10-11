@@ -189,7 +189,7 @@ impl<'a> Framework {
         todo!()
     }
     pub fn buffer_elem_count<'r>(&'r self, id: &BufferId) -> u32 {
-        todo!()
+        self.buffer(id).buffer.num_items as u32
     }
 
     pub fn buffer_write_sync<T: bytemuck::Pod + bytemuck::Zeroable>(
@@ -197,13 +197,17 @@ impl<'a> Framework {
         id: &BufferId,
         data: Vec<T>,
     ) {
-        todo!()
+        self.buffer_mut(id).write_sync(self, &data);
     }
 }
 
 // Texture2D
 impl<'a> Framework {
     pub fn texture2d_bind_group(&self, id: &TextureId) -> &BindGroup {
+        todo!()
+    }
+
+    pub fn texture2d_texture_view(&self, id: &TextureId) -> &TextureView {
         todo!()
     }
 
@@ -223,9 +227,6 @@ impl<'a> Framework {
 
     pub fn texture2d_sample_pixel(&self, id: &TextureId, x: u32, y: u32) -> wgpu::Color {
         self.texture2d(id).sample_pixel(x, y, self)
-    }
-    pub fn texture2d_texture_view(&self, id: &TextureId) -> &TextureView {
-        todo!()
     }
     pub fn texture2d_read_data(&self, id: &TextureId) -> GpuImageData {
         self.texture2d(id).read_data(self)
