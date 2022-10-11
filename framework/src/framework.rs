@@ -1,6 +1,8 @@
 use std::{
+    cell::RefCell,
     collections::HashMap,
     ops::RangeFull,
+    rc::Rc,
     sync::{Arc, RwLock},
 };
 
@@ -103,8 +105,8 @@ impl<'a> Framework {
             device,
             queue,
             asset_library,
-            allocated_textures: Arc::new(RwLock::new(HashMap::new())),
-            allocated_buffers: Arc::new(RwLock::new(HashMap::new())),
+            allocated_textures: Rc::new(RefCell::new(HashMap::new())),
+            allocated_buffers: Rc::new(RefCell::new(HashMap::new())),
         };
         Framework::construct_initial_assets(&mut framework);
         Ok(framework)
@@ -118,8 +120,7 @@ impl<'a> Framework {
 
         let buf_id = BufferId::new();
         self.allocated_buffers
-            .try_write()
-            .unwrap()
+            .borrow_mut()
             .insert(buf_id.0.clone(), buffer);
         buf_id
     }
@@ -144,13 +145,13 @@ impl<'a> Framework {
 
     pub(crate) fn buffer<'r>(&'r self, id: &BufferId) -> AssetRef<'r, Buffer> {
         AssetRef {
-            in_ref: self.allocated_buffers.try_read().unwrap(),
+            in_ref: self.allocated_buffers.borrow(),
             id: id.clone(),
         }
     }
     pub(crate) fn buffer_mut<'r>(&'r self, id: &BufferId) -> AssetRefMut<'r, Buffer> {
         AssetRefMut {
-            in_ref: self.allocated_buffers.try_write().unwrap(),
+            in_ref: self.allocated_buffers.borrow_mut(),
             id: id.clone(),
         }
     }
@@ -166,15 +167,14 @@ impl<'a> Framework {
         }
         let tex_id = TextureId::new();
         self.allocated_textures
-            .try_write()
-            .unwrap()
+            .borrow_mut()
             .insert(tex_id.0.clone(), tex);
         tex_id
     }
 
     pub(crate) fn texture2d<'r>(&'r self, id: &TextureId) -> AssetRef<'r, Texture2d> {
         AssetRef {
-            in_ref: self.allocated_textures.try_read().unwrap(),
+            in_ref: self.allocated_textures.borrow(),
             id: id.clone(),
         }
     }

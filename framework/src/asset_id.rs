@@ -1,15 +1,15 @@
 use std::{
-    cell::RefMut,
+    cell::{Ref, RefCell, RefMut},
     collections::HashMap,
     ops::{Deref, DerefMut},
-    sync::{Arc, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard},
+    rc::Rc,
 };
 
 use uuid::Uuid;
 
-pub(crate) type AssetMap<T> = Arc<RwLock<HashMap<Uuid, T>>>;
+pub(crate) type AssetMap<T> = Rc<RefCell<HashMap<Uuid, T>>>;
 pub struct AssetRef<'a, T> {
-    pub(crate) in_ref: RwLockReadGuard<'a, HashMap<Uuid, T>>,
+    pub(crate) in_ref: Ref<'a, HashMap<Uuid, T>>,
     pub(crate) id: AssetId,
 }
 
@@ -22,7 +22,7 @@ impl<'a, T> Deref for AssetRef<'a, T> {
 }
 
 pub struct AssetRefMut<'a, T> {
-    pub(crate) in_ref: RwLockWriteGuard<'a, HashMap<Uuid, T>>,
+    pub(crate) in_ref: RefMut<'a, HashMap<Uuid, T>>,
     pub(crate) id: AssetId,
 }
 
