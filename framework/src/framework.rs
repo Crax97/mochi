@@ -125,24 +125,6 @@ impl<'a> Framework {
         buf_id
     }
 
-    pub fn buffer_bind_group(&self, id: &BufferId) -> &BindGroup {
-        todo!()
-    }
-    pub fn buffer_slice<'r>(&'r self, id: &BufferId, range: RangeFull) -> BufferSlice {
-        todo!()
-    }
-    pub fn buffer_elem_count<'r>(&'r self, id: &BufferId) -> u32 {
-        todo!()
-    }
-
-    pub fn buffer_write_sync<T: bytemuck::Pod + bytemuck::Zeroable>(
-        &self,
-        id: &BufferId,
-        data: Vec<T>,
-    ) {
-        todo!()
-    }
-
     pub(crate) fn buffer<'r>(&'r self, id: &BufferId) -> AssetRef<'r, Buffer> {
         AssetRef {
             in_ref: self.allocated_buffers.borrow(),
@@ -198,6 +180,27 @@ impl<'a> Framework {
     }
 }
 
+// Buffer
+impl<'a> Framework {
+    pub fn buffer_bind_group(&self, id: &BufferId) -> &BindGroup {
+        todo!()
+    }
+    pub fn buffer_slice<'r>(&'r self, id: &BufferId, range: RangeFull) -> BufferSlice {
+        todo!()
+    }
+    pub fn buffer_elem_count<'r>(&'r self, id: &BufferId) -> u32 {
+        todo!()
+    }
+
+    pub fn buffer_write_sync<T: bytemuck::Pod + bytemuck::Zeroable>(
+        &self,
+        id: &BufferId,
+        data: Vec<T>,
+    ) {
+        todo!()
+    }
+}
+
 // Texture2D
 impl<'a> Framework {
     pub fn texture2d_bind_group(&self, id: &TextureId) -> &BindGroup {
@@ -209,23 +212,23 @@ impl<'a> Framework {
     }
 
     pub fn texture2d_width(&self, id: &TextureId) -> u32 {
-        todo!()
+        self.texture2d(id).width
     }
     pub fn texture2d_height(&self, id: &TextureId) -> u32 {
-        todo!()
+        self.texture2d(id).height
     }
     pub fn texture2d_format(&self, id: &TextureId) -> TextureFormat {
-        todo!()
+        self.texture2d(id).format
     }
 
     pub fn texture2d_sample_pixel(&self, id: &TextureId, x: u32, y: u32) -> wgpu::Color {
-        todo!()
+        self.texture2d(id).sample_pixel(x, y, self)
     }
     pub fn texture2d_texture_view(&self, id: &TextureId) -> &TextureView {
         todo!()
     }
     pub fn texture2d_read_data(&self, id: &TextureId) -> GpuImageData {
-        todo!()
+        self.texture2d(id).read_data(self)
     }
     pub fn texture2d_read_subregion(
         &self,
@@ -235,6 +238,7 @@ impl<'a> Framework {
         width: u32,
         height: u32,
     ) -> TextureId {
-        todo!()
+        self.texture2d(id)
+            .read_subregion_texture2d(x, y, width, height, self)
     }
 }
