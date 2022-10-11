@@ -69,6 +69,7 @@ where
 {
     Data(&'create Vec<T>),
     Size(u64),
+    Count(usize),
 }
 
 pub struct BufferConfiguration<'create, T>
@@ -120,6 +121,15 @@ where
                 mapped_at_creation: false,
             }),
             1,
+        ),
+        BufferInitialSetup::Count(nums) => (
+            framework.device.create_buffer(&wgpu::BufferDescriptor {
+                label: None,
+                size: (std::mem::size_of::<T>() * nums) as u64,
+                usage,
+                mapped_at_creation: false,
+            }),
+            *nums,
         ),
     };
     BufferInfo { buffer, num_items }

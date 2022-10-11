@@ -42,7 +42,7 @@ impl<'f> Renderer<'f> {
     pub fn new(framework: &'f Framework) -> Self {
         let camera_buffer_id =
             framework.allocate_typed_buffer(BufferConfiguration::<Camera2dUniformBlock> {
-                initial_setup: BufferInitialSetup::Size(1),
+                initial_setup: BufferInitialSetup::Count(1),
                 buffer_type: BufferType::Uniform,
                 allow_write: true,
                 allow_read: false,
