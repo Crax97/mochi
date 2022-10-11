@@ -1,8 +1,8 @@
 use std::{cell::RefCell, rc::Rc};
 
+use framework::renderer::texture2d_draw_pass::Texture2dDrawPass;
 use framework::Framework;
 use image_editor::ImageEditor;
-use renderer::render_pass::texture2d_draw_pass::Texture2dDrawPass;
 use wgpu::{CommandBuffer, SurfaceConfiguration, TextureView};
 use winit::window::Window;
 

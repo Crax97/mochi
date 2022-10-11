@@ -1,7 +1,7 @@
-use cgmath::{point2, point3, ElementWise, EuclideanSpace, Point2, Transform};
+use cgmath::{point2, ElementWise, Point2};
+use framework::renderer::texture2d_draw_pass::Texture2dDrawPass;
+use framework::scene::Camera2d;
 use framework::{Framework, MeshInstance2D};
-use renderer::render_pass::texture2d_draw_pass::Texture2dDrawPass;
-use scene::Camera2d;
 use wgpu::TextureView;
 
 use crate::document::DocumentCreationInfo;

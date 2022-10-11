@@ -9,10 +9,10 @@ use crate::tools::{
 };
 use crate::ui::{self, Ui, UiContext};
 use crate::{ActionState, Key, KeyBinding, ModifierSet};
+use framework::renderer::texture2d_draw_pass::Texture2dDrawPass;
 use framework::Framework;
 use image_editor::ImageEditor;
 use log::info;
-use renderer::render_pass::texture2d_draw_pass::Texture2dDrawPass;
 use wgpu::{CommandBuffer, Surface, SurfaceConfiguration};
 use winit::dpi::LogicalSize;
 use winit::event::WindowEvent;

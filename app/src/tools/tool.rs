@@ -1,8 +1,8 @@
 use cgmath::{Point2, Vector2};
 
 use crate::EditorCommand;
+use framework::renderer::texture2d_draw_pass::Texture2dDrawPass;
 use image_editor::ImageEditor;
-use renderer::render_pass::texture2d_draw_pass::Texture2dDrawPass;
 
 pub struct EditorContext<'editor, 'framework> {
     pub image_editor: &'editor mut ImageEditor<'framework>,

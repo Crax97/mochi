@@ -4,6 +4,8 @@ pub mod buffer;
 pub mod framework;
 pub mod math;
 pub mod mesh;
+pub mod renderer;
+pub mod scene;
 pub mod texture2d;
 
 pub use asset_id::*;
@@ -19,5 +21,6 @@ pub use mesh::MeshConstructionDetails;
 pub use mesh::MeshInstance2D;
 pub use mesh::Vertex;
 pub use mesh::Vertices;
+pub use scene::*;
 pub use texture2d::Texture2d;
 pub use texture2d::Texture2dConfiguration;

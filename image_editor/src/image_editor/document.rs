@@ -4,10 +4,10 @@ use crate::{
     LayerConstructionInfo,
 };
 use cgmath::{point2, vec2, Vector2};
+use framework::renderer::texture2d_draw_pass::Texture2dDrawPass;
+use framework::scene::Camera2d;
 use framework::Framework;
 use image::{DynamicImage, ImageBuffer};
-use renderer::render_pass::texture2d_draw_pass::Texture2dDrawPass;
-use scene::Camera2d;
 
 use std::collections::HashMap;
 

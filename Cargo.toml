@@ -2,8 +2,6 @@
 resolver = "2"
 members = [
     "framework",
-    "scene",
     "image_editor",
     "app",
-    "renderer"
 ]

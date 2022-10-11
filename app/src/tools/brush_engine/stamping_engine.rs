@@ -1,9 +1,9 @@
 use cgmath::{point2, point3, vec2, SquareMatrix, Transform};
 use framework::framework::{BufferId, TextureId};
+use framework::scene::{Camera2d, Camera2dUniformBlock};
 use framework::BufferConfiguration;
 use framework::{Buffer, Framework, MeshInstance2D};
 use image_editor::layers::{BitmapLayer, LayerIndex, LayerType};
-use scene::{Camera2d, Camera2dUniformBlock};
 
 use crate::tools::{EditorCommand, EditorContext};
 use crate::{StrokeContext, StrokePath};

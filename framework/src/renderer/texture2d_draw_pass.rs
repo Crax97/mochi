@@ -1,14 +1,15 @@
 use cgmath::point2;
-use framework::{Buffer, BufferConfiguration};
 use wgpu::{
     ColorTargetState, FragmentState, RenderPassColorAttachment, RenderPassDescriptor,
     RenderPipeline, TextureView, VertexState,
 };
 
-use framework::asset_library::mesh_names;
-use framework::framework::{BufferId, Framework, TextureId};
-use framework::mesh::{Mesh, MeshInstance2D};
-use scene::{Camera2d, Camera2dUniformBlock};
+use crate::asset_library::mesh_names;
+use crate::buffer::BufferInitialSetup;
+use crate::framework::{BufferId, Framework, TextureId};
+use crate::mesh::{Mesh, MeshInstance2D};
+use crate::scene::{Camera2d, Camera2dUniformBlock};
+use crate::{Buffer, BufferConfiguration, BufferType};
 
 struct TextureDrawInfo {
     texture: TextureId,
@@ -30,16 +31,15 @@ impl<'tex, 'framework> Texture2dDrawPass<'framework> {
             .device
             .create_shader_module(wgpu::include_wgsl!("../shaders/draw_texture2d.wgsl"));
 
-        let camera_buffer_id = framework.allocate_typed_buffer(BufferConfiguration::<
-            Camera2dUniformBlock,
-        > {
-            initial_setup: framework::buffer::BufferInitialSetup::Size(std::mem::size_of::<
-                Camera2dUniformBlock,
-            >() as u64),
-            buffer_type: framework::BufferType::Uniform,
-            allow_write: true,
-            allow_read: false,
-        });
+        let camera_buffer_id =
+            framework.allocate_typed_buffer(BufferConfiguration::<Camera2dUniformBlock> {
+                initial_setup: BufferInitialSetup::Size(
+                    std::mem::size_of::<Camera2dUniformBlock>() as u64,
+                ),
+                buffer_type: BufferType::Uniform,
+                allow_write: true,
+                allow_read: false,
+            });
         let bind_group_layout =
             framework
                 .device
@@ -185,10 +185,8 @@ impl<'tex, 'framework> Texture2dDrawPass<'framework> {
                             label: Some("Texture2D Render Pass Encoder"),
                         });
                 let instance_buffer = self.framework.allocate_typed_buffer(BufferConfiguration {
-                    initial_setup: framework::buffer::BufferInitialSetup::Data(&vec![
-                        texture.instance_data,
-                    ]),
-                    buffer_type: framework::BufferType::Vertex,
+                    initial_setup: BufferInitialSetup::Data(&vec![texture.instance_data]),
+                    buffer_type: BufferType::Vertex,
                     allow_write: false,
                     allow_read: false,
                 });
