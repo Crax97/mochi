@@ -1,13 +1,13 @@
 use std::{
     collections::HashMap,
     ops::RangeFull,
-    sync::{Arc, Mutex, RwLock},
+    sync::{Arc, RwLock},
 };
 
 use anyhow::Result;
 use cgmath::{point2, point3};
 use log::*;
-use uuid::Uuid;
+
 use wgpu::*;
 
 use crate::{

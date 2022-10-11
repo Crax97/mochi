@@ -1,6 +1,6 @@
 use crate::tools::{EditorContext, PointerEvent};
-use cgmath::{num_traits::clamp, point2, ElementWise, InnerSpace, Point2, Vector2};
-use image::{DynamicImage, ImageBuffer, RgbaImage};
+use cgmath::{ElementWise, Point2};
+use image::{DynamicImage, RgbaImage};
 
 use super::{tool::Tool, EditorCommand};
 

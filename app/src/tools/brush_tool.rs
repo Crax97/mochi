@@ -2,7 +2,6 @@ use std::{cell::RefCell, rc::Rc};
 
 use cgmath::{point2, MetricSpace, Point2};
 use image_editor::ImageEditor;
-use wgpu::CommandEncoderDescriptor;
 
 use crate::{
     tools::{EditorContext, PointerEvent},
@@ -93,7 +92,6 @@ impl<'framework> Tool for BrushTool<'framework> {
             };
 
             let path = StrokePath::linear_start_to_end(start, end, self.step);
-            let framework = context.image_editor.framework();
 
             {
                 let context = StrokeContext {

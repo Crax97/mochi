@@ -1,8 +1,5 @@
-use std::{
-    num::{NonZeroU32, NonZeroU8},
-    slice::Chunks,
-};
-use wgpu::{BindGroup, Color, Extent3d, ImageCopyBuffer, ImageDataLayout, Origin3d, TextureFormat};
+use std::num::{NonZeroU32, NonZeroU8};
+use wgpu::{Color, Extent3d, ImageCopyBuffer, ImageDataLayout, Origin3d, TextureFormat};
 
 use crate::{framework::TextureId, Framework};
 

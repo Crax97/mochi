@@ -1,7 +1,7 @@
 use cgmath::point2;
 use framework::{Buffer, BufferConfiguration};
 use wgpu::{
-    BindGroup, ColorTargetState, FragmentState, RenderPassColorAttachment, RenderPassDescriptor,
+    ColorTargetState, FragmentState, RenderPassColorAttachment, RenderPassDescriptor,
     RenderPipeline, TextureView, VertexState,
 };
 
@@ -205,10 +205,7 @@ impl<'tex, 'framework> Texture2dDrawPass<'framework> {
                         self.framework.buffer_bind_group(&self.camera_buffer_id),
                         &[],
                     );
-                    pass.set_vertex_buffer(
-                        1,
-                        self.framework.buffer_slice(&self.camera_buffer_id, ..),
-                    );
+                    pass.set_vertex_buffer(1, self.framework.buffer_slice(&instance_buffer, ..));
 
                     quad_mesh.draw(&mut pass, 1);
                 }

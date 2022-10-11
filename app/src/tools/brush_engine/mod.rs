@@ -2,7 +2,6 @@ pub mod stamping_engine;
 pub mod stamping_engine_pass;
 
 use cgmath::{InnerSpace, Point2};
-use wgpu::CommandEncoder;
 
 use image_editor::{layers::Layer, ImageEditor};
 

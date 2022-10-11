@@ -3,11 +3,11 @@ use crate::{
     layers::{BitmapLayer, BitmapLayerConfiguration, LayerCreationInfo, LayerTree, LayerType},
     LayerConstructionInfo,
 };
-use cgmath::{point2, point3, vec2, SquareMatrix, Transform, Vector2};
-use framework::{Framework, MeshInstance2D};
+use cgmath::{point2, vec2, Vector2};
+use framework::Framework;
 use image::{DynamicImage, ImageBuffer};
 use renderer::render_pass::texture2d_draw_pass::Texture2dDrawPass;
-use scene::{Camera2d, Transform2d};
+use scene::Camera2d;
 
 use std::collections::HashMap;
 
@@ -186,11 +186,7 @@ impl<'l> Document<'l> {
     {
         let final_layer = self.final_layer.texture();
 
-        pass.finish(
-            self.framework
-                .texture2d_texture_view(self.final_layer.texture()),
-            true,
-        );
+        pass.finish(self.framework.texture2d_texture_view(final_layer), true);
 
         pass.begin(
             self.framework,
@@ -296,10 +292,10 @@ impl<'l> Document<'l> {
                 );
 
                 pass.begin(self.framework, &bm_camera);
-                let buffer_id = self.buffer_layer.texture();
+                let buffer_layer_texture_id = self.buffer_layer.texture();
                 let texture_view = self
                     .framework
-                    .texture2d_texture_view(self.final_layer.texture());
+                    .texture2d_texture_view(buffer_layer_texture_id);
                 // Clean the buffer layer
                 pass.finish(texture_view, true);
             }

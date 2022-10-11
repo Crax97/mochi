@@ -1,10 +1,8 @@
 use wgpu::{util::DeviceExt, BindGroup, BindGroupLayout, BufferSlice, BufferUsages};
 
-use crate::{AssetId, AssetMap};
+use crate::AssetMap;
 
 use super::framework::Framework;
-
-pub(crate) type BufferMap = AssetMap<Buffer>;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum BufferType {

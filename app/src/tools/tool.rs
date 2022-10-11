@@ -1,6 +1,6 @@
 use cgmath::{Point2, Vector2};
 
-use crate::{app_state::UndoStack, EditorCommand};
+use crate::EditorCommand;
 use image_editor::ImageEditor;
 use renderer::render_pass::texture2d_draw_pass::Texture2dDrawPass;
 

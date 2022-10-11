@@ -1,8 +1,7 @@
-use cgmath::Vector2;
 use framework::{
     asset_library::mesh_names,
     framework::{BufferId, TextureId},
-    AssetsLibrary, Buffer, BufferConfiguration, Framework, Mesh, MeshInstance2D,
+    BufferConfiguration, Framework, Mesh, MeshInstance2D,
 };
 use wgpu::{
     BindGroup, BlendComponent, ColorTargetState, FragmentState, RenderPipeline, VertexState,
@@ -180,22 +179,6 @@ impl StampingEngineRenderPass {
             allow_write: true,
             allow_read: false,
         });
-        let texture_bind_layout =
-            framework
-                .device
-                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    label: Some("PaintBrush BindGroupLayout"),
-                    entries: &[wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Uniform,
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
-                    }],
-                });
         Self {
             stamp_uniform_buffer_id,
             instance_buffer_id,

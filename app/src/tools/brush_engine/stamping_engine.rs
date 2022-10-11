@@ -1,4 +1,4 @@
-use cgmath::{point2, point3, vec2, SquareMatrix, Transform, Vector2};
+use cgmath::{point2, point3, vec2, SquareMatrix, Transform};
 use framework::framework::{BufferId, TextureId};
 use framework::BufferConfiguration;
 use framework::{Buffer, Framework, MeshInstance2D};
@@ -203,7 +203,7 @@ impl BrushEngine for StrokingEngine {
         context: &mut crate::tools::EditorContext,
     ) -> Option<Box<dyn EditorCommand>> {
         let framework = context.image_editor.framework();
-        let (old_layer_texture_id, new_texture_id) = {
+        let new_texture_id = {
             let modified_layer = context.image_editor.document().current_layer_index();
             let layer = context.image_editor.document().get_layer(&modified_layer);
             let (old_layer_texture_id, size, layer_tex) = match layer.layer_type {
@@ -268,7 +268,7 @@ impl BrushEngine for StrokingEngine {
                     .draw_pass
                     .finish(framework.texture2d_texture_view(&new_texture_id), false);
             }
-            (old_layer_texture_id.clone(), new_texture_id)
+            new_texture_id
         };
         let cmd = LayerReplaceCommand::new(
             context,

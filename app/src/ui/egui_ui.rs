@@ -14,7 +14,6 @@ use winit::window::Window;
 use crate::{toolbox::ToolId, tools::EditorContext};
 
 use super::{Ui, UiContext};
-use rfd::FileDialog;
 enum LayerAction {
     NewLayerRequest,
     CancelNewLayerRequest,
@@ -54,7 +53,7 @@ impl EguiUI {
 
     fn do_ui_impl(&mut self, mut app_ctx: &mut UiContext) -> (bool, LayerAction) {
         if self.new_layer_in_creation.is_some() {
-            self.new_layer_dialog(&mut app_ctx)
+            self.new_layer_dialog()
         } else {
             let mut layer_action = LayerAction::None;
             let ctx = self.platform.context();
@@ -256,10 +255,10 @@ impl EguiUI {
         (false, action)
     }
 
-    fn new_layer_dialog(&mut self, app_ctx: &mut UiContext) -> (bool, LayerAction) {
+    fn new_layer_dialog(&mut self) -> (bool, LayerAction) {
         let ctx = self.platform.context();
         let mut action = LayerAction::None;
-        let window = egui::Window::new("Create new layer")
+        let _ = egui::Window::new("Create new layer")
             .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
             .show(&ctx, |ui| {
                 let layer_settings = self.new_layer_in_creation.as_mut().unwrap();
