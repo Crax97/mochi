@@ -1,8 +1,5 @@
 use cgmath::{num_traits::ToPrimitive, Vector2};
-use framework::{
-    framework::TextureId, renderer::texture2d_draw_pass::Texture2dDrawPass, Framework,
-    MeshInstance2D, Texture2dConfiguration,
-};
+use framework::{framework::TextureId, Framework, MeshInstance2D, Texture2dConfiguration};
 
 pub struct BitmapLayerConfiguration {
     pub label: String,
@@ -74,7 +71,6 @@ impl BitmapLayer {
 
     pub fn draw(
         &self,
-        pass: &mut Texture2dDrawPass,
         position: cgmath::Point2<f32>,
         scale: Vector2<f32>,
         rotation_radians: f32,
@@ -84,10 +80,5 @@ impl BitmapLayer {
             x: scale.x * self.size().x * 0.5,
             y: scale.y * self.size().y * 0.5,
         };
-
-        pass.draw_texture(
-            self.texture(),
-            MeshInstance2D::new(position, real_scale, rotation_radians, true, opacity),
-        );
     }
 }

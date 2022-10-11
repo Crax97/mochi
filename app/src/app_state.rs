@@ -9,7 +9,6 @@ use crate::tools::{
 };
 use crate::ui::{self, Ui, UiContext};
 use crate::{ActionState, Key, KeyBinding, ModifierSet};
-use framework::renderer::texture2d_draw_pass::Texture2dDrawPass;
 use framework::Framework;
 use image_editor::ImageEditor;
 use log::info;
@@ -73,8 +72,6 @@ pub struct ImageApplication<'framework> {
     input_state: InputState,
     toolbox: Toolbox<'framework>,
     ui: Box<dyn Ui>,
-    render_pass: Texture2dDrawPass<'framework>,
-    final_present_pass: Texture2dDrawPass<'framework>,
     stamping_engine: Rc<RefCell<StrokingEngine>>,
     brush_tool: Rc<RefCell<BrushTool<'framework>>>,
     hand_tool: Rc<RefCell<HandTool>>,
@@ -99,23 +96,6 @@ impl<'framework> ImageApplication<'framework> {
         let image_editor = ImageEditor::new(&framework, &[1024.0, 1024.0]);
         final_surface.configure(&framework.device, &final_surface_configuration);
 
-        let mut render_pass =
-            Texture2dDrawPass::new(framework, wgpu::TextureFormat::Rgba8UnormSrgb);
-        render_pass.set_clear_color(wgpu::Color {
-            r: 0.0,
-            g: 0.0,
-            b: 0.0,
-            a: 0.0,
-        });
-        let mut final_present_pass =
-            Texture2dDrawPass::new(framework, wgpu::TextureFormat::Bgra8UnormSrgb);
-
-        final_present_pass.set_clear_color(wgpu::Color {
-            r: 0.1,
-            g: 0.1,
-            b: 0.1,
-            a: 1.0,
-        });
         let test_stamp = Toolbox::create_test_stamp(framework);
         let stamping_engine = StrokingEngine::new(test_stamp, framework);
         let stamping_engine = Rc::new(RefCell::new(stamping_engine));
@@ -144,8 +124,6 @@ impl<'framework> ImageApplication<'framework> {
             input_state: InputState::default(),
             toolbox,
             ui: Box::new(ui),
-            render_pass,
-            final_present_pass,
             stamping_engine,
             brush_tool,
             hand_tool,
@@ -197,7 +175,6 @@ impl<'framework> ImageApplication<'framework> {
         self.dispatch_actions(actions);
         let context = EditorContext {
             image_editor: &mut self.image_editor,
-            draw_pass: &mut self.render_pass,
         };
         self.toolbox
             .update(&self.input_state, &mut self.undo_stack, context);
@@ -227,7 +204,6 @@ impl<'framework> ImageApplication<'framework> {
                     input_state: &self.input_state,
                     stamping_engine: self.stamping_engine.clone(),
                     brush_tool: self.brush_tool.clone(),
-                    draw_pass: &mut self.render_pass,
                     undo_stack: &mut self.undo_stack,
                 };
                 let block_editor = self.ui.do_ui(ui_ctx);
@@ -252,9 +228,8 @@ impl<'framework> ImageApplication<'framework> {
                 let app_surface_view = current_texture
                     .texture
                     .create_view(&wgpu::TextureViewDescriptor::default());
-                self.image_editor.render_document(&mut self.render_pass);
-                self.image_editor
-                    .render_canvas(&app_surface_view, &mut self.final_present_pass);
+                self.image_editor.render_document();
+                self.image_editor.render_canvas(&app_surface_view);
 
                 let surface_configuration = self.final_surface_configuration.clone();
 
@@ -311,13 +286,11 @@ impl<'framework> ImageApplication<'framework> {
                 "undo" => {
                     self.undo_stack.try_undo(&mut EditorContext {
                         image_editor: &mut self.image_editor,
-                        draw_pass: &mut self.render_pass,
                     });
                 }
                 "redo" => {
                     self.undo_stack.try_redo(&mut EditorContext {
                         image_editor: &mut self.image_editor,
-                        draw_pass: &mut self.render_pass,
                     });
                 }
                 "pick_brush" => self.toolbox.set_primary_tool(&self.brush_id),

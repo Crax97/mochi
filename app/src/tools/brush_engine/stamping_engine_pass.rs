@@ -215,50 +215,5 @@ impl StampingEngineRenderPass {
     ) where
         's: 'pass,
     {
-        let mut command_encoder =
-            framework
-                .device
-                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("Command Encoder that crax will forget to update"),
-                });
-        {
-            let stroking_engine_render_pass = wgpu::RenderPassDescriptor {
-                label: Some("Stamping Engine render pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: framework.texture2d_texture_view(&bitmap_target),
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Load,
-                        store: true,
-                    },
-                })],
-                depth_stencil_attachment: None,
-            };
-
-            let mut pass = command_encoder.begin_render_pass(&stroking_engine_render_pass);
-            let (width, height) = framework.texture2d_dimensions(&bitmap_target);
-            pass.set_viewport(0.0, 0.0, width as f32, height as f32, 0.0, 1.0);
-            if self.stamp_settings.is_eraser {
-                pass.set_pipeline(&self.eraser_pipeline);
-            } else {
-                pass.set_pipeline(&self.stamp_pipeline);
-            }
-            pass.set_bind_group(0, framework.texture2d_bind_group(&stamp), &[]);
-            pass.set_bind_group(
-                1,
-                framework.buffer_bind_group(&self.stamp_uniform_buffer_id),
-                &[],
-            );
-            pass.set_bind_group(2, &camera_bind_group, &[]);
-            pass.set_vertex_buffer(1, framework.buffer_slice(&self.instance_buffer_id, ..));
-            framework.asset_library.mesh(mesh_names::QUAD).draw(
-                &mut pass,
-                framework.buffer_elem_count(&self.instance_buffer_id),
-            );
-        }
-
-        framework
-            .queue
-            .submit(std::iter::once(command_encoder.finish()));
     }
 }

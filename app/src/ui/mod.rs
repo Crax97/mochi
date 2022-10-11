@@ -1,6 +1,5 @@
 use std::{cell::RefCell, rc::Rc};
 
-use framework::renderer::texture2d_draw_pass::Texture2dDrawPass;
 use framework::Framework;
 use image_editor::ImageEditor;
 use wgpu::{CommandBuffer, SurfaceConfiguration, TextureView};
@@ -19,7 +18,6 @@ pub struct UiContext<'app, 'framework> {
     pub image_editor: &'app mut ImageEditor<'framework>,
     pub toolbox: &'app mut Toolbox<'framework>,
     pub input_state: &'app InputState,
-    pub draw_pass: &'app mut Texture2dDrawPass<'framework>,
     pub undo_stack: &'app mut UndoStack,
 
     pub stamping_engine: Rc<RefCell<StrokingEngine>>,

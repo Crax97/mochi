@@ -1,5 +1,4 @@
 use cgmath::{point2, ElementWise, Point2};
-use framework::renderer::texture2d_draw_pass::Texture2dDrawPass;
 use framework::scene::Camera2d;
 use framework::{Framework, MeshInstance2D};
 use wgpu::TextureView;
@@ -105,27 +104,14 @@ impl<'framework> ImageEditor<'framework> {
         self.mutate_document(|d| d.update_layers());
     }
 
-    pub fn render_document<'s, 't>(&'s mut self, mut pass: &mut Texture2dDrawPass<'framework>)
+    pub fn render_document<'s, 't>(&'s mut self)
     where
         'framework: 't,
     {
-        self.document.render(&mut pass);
+        // self.document.render(&mut pass);
     }
 
-    pub fn render_canvas(&mut self, output_canvas: &TextureView, pass: &mut Texture2dDrawPass) {
-        pass.begin(self.framework, &self.camera());
-        pass.draw_texture(
-            self.document.final_layer().texture(),
-            MeshInstance2D::new(
-                point2(0.0, 0.0),
-                self.document.document_size().cast::<f32>().unwrap() * 0.5,
-                0.0,
-                false,
-                1.0,
-            ),
-        );
-        pass.finish(&output_canvas, true);
-    }
+    pub fn render_canvas(&mut self, output_canvas: &TextureView) {}
 
     pub fn get_full_image_texture(&self) -> &BitmapLayer {
         &self.document().final_layer()

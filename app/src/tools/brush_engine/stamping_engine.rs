@@ -247,6 +247,7 @@ impl BrushEngine for StrokingEngine {
             let inv_layer_matrix = current_layer_transform.matrix().invert();
             if let Some(inv_layer_matrix) = inv_layer_matrix {
                 let origin_inv = inv_layer_matrix.transform_point(point3(0.0, 0.0, 0.0));
+                /*
                 context
                     .draw_pass
                     .begin(context.image_editor.framework(), &bm_camera);
@@ -267,6 +268,7 @@ impl BrushEngine for StrokingEngine {
                 context
                     .draw_pass
                     .finish(framework.texture2d_texture_view(&new_texture_id), false);
+                */
             }
             new_texture_id
         };
@@ -279,7 +281,7 @@ impl BrushEngine for StrokingEngine {
         context
             .image_editor
             .document()
-            .blend_buffer_onto_current_layer(context.draw_pass);
+            .blend_buffer_onto_current_layer();
         Some(Box::new(cmd))
     }
 }

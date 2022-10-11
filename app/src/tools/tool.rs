@@ -1,12 +1,10 @@
 use cgmath::{Point2, Vector2};
 
 use crate::EditorCommand;
-use framework::renderer::texture2d_draw_pass::Texture2dDrawPass;
 use image_editor::ImageEditor;
 
 pub struct EditorContext<'editor, 'framework> {
     pub image_editor: &'editor mut ImageEditor<'framework>,
-    pub draw_pass: &'editor mut Texture2dDrawPass<'framework>,
 }
 
 #[derive(Debug, Clone, Copy)]

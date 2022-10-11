@@ -4,7 +4,6 @@ use crate::{
     LayerConstructionInfo,
 };
 use cgmath::{point2, vec2, Vector2};
-use framework::renderer::texture2d_draw_pass::Texture2dDrawPass;
 use framework::scene::Camera2d;
 use framework::Framework;
 use image::{DynamicImage, ImageBuffer};
@@ -178,46 +177,16 @@ impl<'l> Document<'l> {
         }
     }
 
-    pub(crate) fn render<'tex>(
-        &mut self,
-        mut pass: &mut Texture2dDrawPass<'l>, // layer_draw_pass: &crate::layers::Texture2dDrawPass,
-    ) where
+    pub(crate) fn render<'tex>(&mut self)
+    where
         'l: 'tex,
     {
         let final_layer = self.final_layer.texture();
 
-        pass.finish(self.framework.texture2d_texture_view(final_layer), true);
-
-        pass.begin(
-            self.framework,
-            &Camera2d::new(
-                -0.1,
-                1000.0,
-                [
-                    -(self.document_size().x as f32 * 0.5),
-                    self.document_size().x as f32 * 0.5,
-                    self.document_size().y as f32 * 0.5,
-                    -(self.document_size().y as f32 * 0.5),
-                ],
-            ),
-        );
-
         let mut draw_layer = |index| {
             let layer = self.layers.get(index).expect("Nonexistent layer");
-            layer.draw(
-                &mut pass,
-                self.framework
-                    .texture2d_texture_view(self.final_layer.texture()),
-            );
-            if index == &self.current_layer_index {
-                self.buffer_layer
-                    .draw(pass, point2(0.0, 0.0), vec2(1.0, 1.0), 0.0, 1.0);
-                pass.finish(
-                    self.framework
-                        .texture2d_texture_view(self.final_layer.texture()),
-                    false,
-                );
-            }
+
+            if index == &self.current_layer_index {}
         };
         for layer_node in self.tree_root.0.iter() {
             match layer_node {
@@ -277,7 +246,7 @@ impl<'l> Document<'l> {
         }
     }
 
-    pub fn blend_buffer_onto_current_layer(&self, pass: &mut Texture2dDrawPass) {
+    pub fn blend_buffer_onto_current_layer(&self) {
         match self.current_layer().layer_type {
             LayerType::Bitmap(ref bm) => {
                 let bm_camera = Camera2d::new(
@@ -290,14 +259,6 @@ impl<'l> Document<'l> {
                         -bm.size().y as f32 * 0.5,
                     ],
                 );
-
-                pass.begin(self.framework, &bm_camera);
-                let buffer_layer_texture_id = self.buffer_layer.texture();
-                let texture_view = self
-                    .framework
-                    .texture2d_texture_view(buffer_layer_texture_id);
-                // Clean the buffer layer
-                pass.finish(texture_view, true);
             }
         }
     }
