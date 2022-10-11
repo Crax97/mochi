@@ -85,7 +85,6 @@ dependencies = [
  "framework",
  "image",
  "image_editor",
- "lazy_static",
  "log",
  "pollster",
  "rand",
