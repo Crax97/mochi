@@ -1,6 +1,7 @@
 use framework::{
     asset_library::mesh_names,
     framework::{BufferId, TextureId},
+    shader::ShaderLayout,
     BufferConfiguration, Framework, Mesh, MeshInstance2D,
 };
 use wgpu::{

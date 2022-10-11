@@ -1,6 +1,8 @@
 use cgmath::{vec4, Point2, Vector2, Vector4};
 use wgpu::{VertexAttribute, VertexBufferLayout};
 
+use crate::shader::ShaderLayout;
+
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
 pub struct MeshInstance2D {
@@ -28,8 +30,8 @@ impl MeshInstance2D {
     }
 }
 
-impl<'a> MeshInstance2D {
-    pub fn layout() -> VertexBufferLayout<'a> {
+impl ShaderLayout for MeshInstance2D {
+    fn layout() -> VertexBufferLayout<'static> {
         const LAYOUT: &'static [VertexAttribute] =
             &wgpu::vertex_attr_array![2 => Float32x4, 3 => Float32x4];
         VertexBufferLayout {

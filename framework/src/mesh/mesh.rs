@@ -1,7 +1,7 @@
 use wgpu::{util::DeviceExt, Buffer, RenderPass, VertexAttribute, VertexBufferLayout};
 
 use super::types::*;
-use crate::framework::Framework;
+use crate::{framework::Framework, shader::ShaderLayout};
 
 pub struct MeshConstructionDetails {
     pub vertices: Vertices,
@@ -25,8 +25,8 @@ impl Mesh {
     pub const INDEX_BUFFER_SLOT: u32 = 1;
 }
 
-impl<'a> Mesh {
-    pub fn layout() -> VertexBufferLayout<'a> {
+impl ShaderLayout for Mesh {
+    fn layout() -> VertexBufferLayout<'static> {
         const LAYOUT: &'static [VertexAttribute] =
             &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x2];
         VertexBufferLayout {
@@ -35,7 +35,9 @@ impl<'a> Mesh {
             attributes: LAYOUT,
         }
     }
+}
 
+impl Mesh {
     pub(crate) fn reserved_buffer_count() -> u32 {
         2
     }

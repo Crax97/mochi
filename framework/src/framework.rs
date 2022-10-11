@@ -13,9 +13,11 @@ use log::*;
 use wgpu::*;
 
 use crate::{
-    asset_library, shader::Shader, texture2d::GpuImageData, AssetId, AssetMap, AssetRef,
-    AssetRefMut, AssetsLibrary, Mesh, MeshConstructionDetails, Texture2d, Texture2dConfiguration,
-    Vertex,
+    asset_library,
+    shader::{Shader, ShaderCreationInfo, ShaderLayout},
+    texture2d::GpuImageData,
+    AssetId, AssetMap, AssetRef, AssetRefMut, AssetsLibrary, Mesh, MeshConstructionDetails,
+    Texture2d, Texture2dConfiguration, Vertex,
 };
 
 use super::buffer::{Buffer, BufferConfiguration};
@@ -41,6 +43,7 @@ pub struct Framework {
 
     allocated_textures: TextureMap,
     allocated_buffers: BufferMap,
+    allocated_shaders: ShaderMap,
 }
 
 #[derive(Debug)]
@@ -115,6 +118,7 @@ impl<'a> Framework {
             asset_library,
             allocated_textures: Rc::new(RefCell::new(HashMap::new())),
             allocated_buffers: Rc::new(RefCell::new(HashMap::new())),
+            allocated_shaders: Rc::new(RefCell::new(HashMap::new())),
         };
         Framework::construct_initial_assets(&mut framework);
         Ok(framework)
@@ -186,12 +190,25 @@ impl<'a> Framework {
         );
         info!("\tUsing backend {}", backend_string);
     }
+
+    pub(crate) fn create_shader(&self, info: ShaderCreationInfo) -> ShaderId {
+        let shader = Shader::new(&self, info);
+
+        let shader_id = ShaderId::new();
+        self.allocated_shaders
+            .borrow_mut()
+            .insert(shader_id.0.clone(), shader);
+        shader_id
+    }
 }
 
 // Shaders
 impl<'a> Framework {
-    pub(crate) fn shader(&self, shader_id: &AssetId) -> AssetRef<Shader> {
-        todo!()
+    pub(crate) fn shader(&self, id: &AssetId) -> AssetRef<Shader> {
+        AssetRef {
+            in_ref: self.allocated_shaders.borrow(),
+            id: id.clone(),
+        }
     }
 }
 // Buffer

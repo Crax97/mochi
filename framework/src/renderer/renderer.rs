@@ -14,16 +14,6 @@ use crate::{
 
 use super::draw_command::{BindableResource, DrawCommand, PrimitiveType};
 
-pub struct Renderer<'f> {
-    framework: &'f Framework,
-
-    draw_queue: Vec<DrawCommand>,
-    camera_buffer_id: BufferId,
-    clear_color: Option<Color>,
-
-    texture2d_default_shader_id: ShaderId,
-}
-
 enum ResolvedResourceType<'a> {
     UniformBuffer(AssetRef<'a, Buffer>),
     Texture(AssetRef<'a, Texture2d>),
@@ -38,7 +28,35 @@ struct ResolvedDrawCommand<'a> {
     bindable_resources: Vec<ResolvedResourceType<'a>>,
 }
 
+pub struct Renderer<'f> {
+    framework: &'f Framework,
+
+    draw_queue: Vec<DrawCommand>,
+    camera_buffer_id: BufferId,
+    clear_color: Option<Color>,
+
+    texture2d_default_shader_id: ShaderId,
+}
+
 impl<'f> Renderer<'f> {
+    pub fn new(framework: &Framework) -> Self {
+        let camera_buffer_id =
+            framework.allocate_typed_buffer(BufferConfiguration::<Camera2dUniformBlock> {
+                initial_setup: BufferInitialSetup::Size(1),
+                buffer_type: BufferType::Uniform,
+                allow_write: true,
+                allow_read: false,
+            });
+        let texture2d_default_shader_id = framework.create_shader(todo!());
+        Self {
+            framework,
+            camera_buffer_id,
+            draw_queue: vec![],
+            clear_color: None,
+            texture2d_default_shader_id,
+        }
+    }
+
     pub fn begin(&mut self, camera: &Camera2d, clear_color: Option<Color>) {
         self.clear_color = clear_color;
         self.framework
