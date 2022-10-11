@@ -24,6 +24,22 @@ pub struct ShaderCreationInfo<'a> {
 }
 
 impl<'a> ShaderCreationInfo<'a> {
+    pub fn using_default_vertex_instanced(
+        framework: &Framework,
+        fragment: ShaderModuleDescriptor,
+    ) -> Self {
+        let default_vertex = include_wgsl!("shaders/default_vertex_instanced.wgsl");
+        let default_vertex = framework.device.create_shader_module(default_vertex);
+        let fragment_module = framework.device.create_shader_module(fragment);
+        Self {
+            vertex_module: default_vertex,
+            fragment_module,
+            output_format: None,
+            bind_elements: vec![],
+            blend_state: None,
+            layouts: vec![],
+        }
+    }
     pub fn using_default_vertex(framework: &Framework, fragment: ShaderModuleDescriptor) -> Self {
         let default_vertex = include_wgsl!("shaders/default_vertex.wgsl");
         let default_vertex = framework.device.create_shader_module(default_vertex);

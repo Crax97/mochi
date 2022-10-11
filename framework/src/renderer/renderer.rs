@@ -1,13 +1,13 @@
 use cgmath::{point2, vec2};
 use wgpu::{
-    Color, CommandEncoder, CommandEncoderDescriptor, LoadOp, Operations, RenderPass,
-    RenderPassColorAttachment, RenderPassDescriptor, TextureView,
+    include_wgsl, Color, CommandEncoder, CommandEncoderDescriptor, LoadOp, Operations, RenderPass,
+    RenderPassColorAttachment, RenderPassDescriptor, TextureFormat, TextureView,
 };
 
 use crate::{
     buffer::BufferInitialSetup,
     framework::{BufferId, ShaderId},
-    shader::Shader,
+    shader::{BindElement, Shader, ShaderCreationInfo},
     AssetRef, Buffer, BufferConfiguration, BufferType, Camera2d, Camera2dUniformBlock, Framework,
     Mesh, MeshInstance2D, Texture2d,
 };
@@ -39,7 +39,7 @@ pub struct Renderer<'f> {
 }
 
 impl<'f> Renderer<'f> {
-    pub fn new(framework: &Framework) -> Self {
+    pub fn new(framework: &'f Framework) -> Self {
         let camera_buffer_id =
             framework.allocate_typed_buffer(BufferConfiguration::<Camera2dUniformBlock> {
                 initial_setup: BufferInitialSetup::Size(1),
@@ -47,7 +47,8 @@ impl<'f> Renderer<'f> {
                 allow_write: true,
                 allow_read: false,
             });
-        let texture2d_default_shader_id = framework.create_shader(todo!());
+        let texture2d_default_shader_id =
+            framework.create_shader(Renderer::texture2d_shader_creation_info(framework));
         Self {
             framework,
             camera_buffer_id,
@@ -262,5 +263,16 @@ impl<'f> Renderer<'f> {
         } else {
             None
         }
+    }
+
+    pub fn texture2d_shader_creation_info(framework: &Framework) -> ShaderCreationInfo {
+        ShaderCreationInfo::using_default_vertex_instanced(
+            framework,
+            include_wgsl!("../shaders/default_fragment.wgsl"),
+        )
+        .with_bind_element(BindElement::Texture) // 0: texture + sampler
+        .with_bind_element(BindElement::UniformBuffer) // camera buffer
+        .with_layout::<Mesh>()
+        .with_layout::<MeshInstance2D>()
     }
 }
