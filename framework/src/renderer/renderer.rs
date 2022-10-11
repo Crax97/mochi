@@ -266,13 +266,6 @@ impl<'f> Renderer<'f> {
     }
 
     pub fn texture2d_shader_creation_info(framework: &Framework) -> ShaderCreationInfo {
-        ShaderCreationInfo::using_default_vertex_instanced(
-            framework,
-            include_wgsl!("../shaders/default_fragment.wgsl"),
-        )
-        .with_bind_element(BindElement::Texture) // 0: texture + sampler
-        .with_bind_element(BindElement::UniformBuffer) // camera buffer
-        .with_layout::<Mesh>()
-        .with_layout::<MeshInstance2D>()
+        ShaderCreationInfo::using_default_vertex_fragment_instanced(framework)
     }
 }

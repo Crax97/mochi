@@ -3,7 +3,7 @@ use wgpu::{
     ShaderModule, ShaderModuleDescriptor, TextureFormat, VertexBufferLayout, VertexState,
 };
 
-use crate::{Buffer, Framework, Texture2d};
+use crate::{Buffer, Framework, Mesh, MeshInstance2D, Texture2d};
 
 pub trait ShaderLayout {
     fn layout() -> VertexBufferLayout<'static>;
@@ -39,6 +39,8 @@ impl<'a> ShaderCreationInfo<'a> {
             blend_state: None,
             layouts: vec![],
         }
+        .with_layout::<Mesh>()
+        .with_layout::<MeshInstance2D>()
     }
     pub fn using_default_vertex(framework: &Framework, fragment: ShaderModuleDescriptor) -> Self {
         let default_vertex = include_wgsl!("shaders/default_vertex.wgsl");
@@ -52,6 +54,23 @@ impl<'a> ShaderCreationInfo<'a> {
             blend_state: None,
             layouts: vec![],
         }
+        .with_layout::<Mesh>()
+    }
+    pub fn using_default_vertex_fragment(framework: &Framework) -> Self {
+        ShaderCreationInfo::using_default_vertex(
+            framework,
+            include_wgsl!("shaders/default_fragment.wgsl"),
+        )
+        .with_bind_element(BindElement::Texture) // 0: texture + sampler
+        .with_bind_element(BindElement::UniformBuffer) // camera buffer
+    }
+    pub fn using_default_vertex_fragment_instanced(framework: &Framework) -> Self {
+        ShaderCreationInfo::using_default_vertex_instanced(
+            framework,
+            include_wgsl!("shaders/default_fragment.wgsl"),
+        )
+        .with_bind_element(BindElement::Texture) // 0: texture + sampler
+        .with_bind_element(BindElement::UniformBuffer) // camera buffer
     }
 
     pub fn with_bind_element(mut self, element: BindElement) -> Self {

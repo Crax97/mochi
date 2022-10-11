@@ -191,7 +191,7 @@ impl<'a> Framework {
         info!("\tUsing backend {}", backend_string);
     }
 
-    pub(crate) fn create_shader(&self, info: ShaderCreationInfo) -> ShaderId {
+    pub fn create_shader(&self, info: ShaderCreationInfo) -> ShaderId {
         let shader = Shader::new(&self, info);
 
         let shader_id = ShaderId::new();
