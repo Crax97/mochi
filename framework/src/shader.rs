@@ -1,9 +1,9 @@
 use wgpu::{
-    BindGroupLayout, BlendState, ColorTargetState, FragmentState, RenderPipeline, ShaderModule,
-    TextureFormat, VertexBufferLayout, VertexState,
+    include_wgsl, BindGroupLayout, BlendState, ColorTargetState, FragmentState, RenderPipeline,
+    ShaderModule, ShaderModuleDescriptor, TextureFormat, VertexBufferLayout, VertexState,
 };
 
-use crate::Framework;
+use crate::{Buffer, Framework, Texture2d};
 
 pub trait ShaderLayout {
     fn layout() -> VertexBufferLayout<'static>;
@@ -17,10 +17,43 @@ pub enum BindElement {
 pub struct ShaderCreationInfo<'a> {
     vertex_module: ShaderModule,
     fragment_module: ShaderModule,
-    output_format: TextureFormat,
+    output_format: Option<TextureFormat>,
     bind_elements: Vec<BindElement>,
-    blend_state: BlendState,
+    blend_state: Option<BlendState>,
     layouts: Vec<VertexBufferLayout<'a>>,
+}
+
+impl<'a> ShaderCreationInfo<'a> {
+    pub fn using_default_vertex(framework: &Framework, fragment: ShaderModuleDescriptor) -> Self {
+        let default_vertex = include_wgsl!("shaders/default_vertex.wgsl");
+        let default_vertex = framework.device.create_shader_module(default_vertex);
+        let fragment_module = framework.device.create_shader_module(fragment);
+        Self {
+            vertex_module: default_vertex,
+            fragment_module,
+            output_format: None,
+            bind_elements: vec![],
+            blend_state: None,
+            layouts: vec![],
+        }
+    }
+
+    pub fn with_bind_element(mut self, element: BindElement) -> Self {
+        self.bind_elements.push(element);
+        self
+    }
+    pub fn with_layout<T: ShaderLayout>(mut self) -> Self {
+        self.layouts.push(T::layout());
+        self
+    }
+    pub fn with_blend_state(mut self, blend_state: BlendState) -> Self {
+        self.blend_state = Some(blend_state);
+        self
+    }
+    pub fn with_output_format(mut self, format: wgpu::TextureFormat) -> Self {
+        self.output_format = Some(format);
+        self
+    }
 }
 
 pub struct Shader {
@@ -29,7 +62,10 @@ pub struct Shader {
 
 impl Shader {
     pub(crate) fn new(framework: &Framework, info: ShaderCreationInfo) -> Self {
-        let bind_group_layouts = Shader::bind_group_layouts_from_bind_elements(&info.bind_elements);
+        let bind_group_layouts =
+            Shader::bind_group_layouts_from_bind_elements(framework, &info.bind_elements);
+        let bind_group_layouts: Vec<&BindGroupLayout> =
+            bind_group_layouts.iter().map(|g| g).collect();
         let render_pipeline_layout =
             framework
                 .device
@@ -55,8 +91,11 @@ impl Shader {
                         module: &info.fragment_module,
                         entry_point: "fragment",
                         targets: &[Some(ColorTargetState {
-                            format: info.output_format,
-                            blend: Some(info.blend_state),
+                            format: info.output_format.unwrap_or(TextureFormat::Rgba8UnormSrgb),
+                            blend: Some(
+                                info.blend_state
+                                    .unwrap_or(BlendState::PREMULTIPLIED_ALPHA_BLENDING),
+                            ),
                             write_mask: wgpu::ColorWrites::ALL,
                         })],
                     }),
@@ -79,7 +118,16 @@ impl Shader {
         Self { render_pipeline }
     }
 
-    fn bind_group_layouts_from_bind_elements(elements: &Vec<BindElement>) -> Vec<&BindGroupLayout> {
-        todo!()
+    fn bind_group_layouts_from_bind_elements(
+        framework: &Framework,
+        elements: &Vec<BindElement>,
+    ) -> Vec<BindGroupLayout> {
+        elements
+            .iter()
+            .map(|e| match e {
+                BindElement::UniformBuffer => Buffer::bind_group_layout(framework),
+                BindElement::Texture => Texture2d::bind_group_layout(framework),
+            })
+            .collect()
     }
 }

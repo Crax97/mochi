@@ -12,9 +12,6 @@ struct PerFrameData {
     vp: mat4x4<f32>,
 }
 
-@group(0) @binding(0) var diffuse: texture_2d<f32>;
-@group(0) @binding(1) var s_diffuse: sampler;
-
 @group(1) @binding(0)
 var<uniform> uniform_data: PerFrameData;
 
@@ -49,7 +46,7 @@ fn translation(pos: vec2<f32>) -> mat4x4<f32> {
 }
 
 @vertex
-fn vs(in: VertexInput, instance: PerInstanceData) -> VertexOutput {
+fn vertex(in: VertexInput, instance: PerInstanceData) -> VertexOutput {
     let OPENGL_CORRECT = mat4x4<f32>(
         1.0, 0.0, 0.0, 0.0,
         0.0, 1.0, 0.0, 0.0,
@@ -71,10 +68,4 @@ fn vs(in: VertexInput, instance: PerInstanceData) -> VertexOutput {
     out.tex_uv = vec2<f32>(in.tex_uv.x, y);
     out.opacity = instance.rotation_flip_opacity.z;
     return out;
-}
-
-
-@fragment
-fn fs(in: VertexOutput) -> @location(0) vec4<f32> {
-    return textureSample(diffuse, s_diffuse, in.tex_uv) * in.opacity;
 }
