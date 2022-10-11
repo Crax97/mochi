@@ -1,6 +1,7 @@
+use cgmath::Vector2;
 use framework::{
-    asset_library::mesh_names, AssetsLibrary, Buffer, BufferConfiguration, Framework, Mesh,
-    MeshInstance2D, Texture2d,
+    asset_library::mesh_names, framework::BufferId, Asset, AssetsLibrary, Buffer,
+    BufferConfiguration, Framework, Mesh, MeshInstance2D, Texture2d,
 };
 use wgpu::{
     BindGroup, BlendComponent, ColorTargetState, FragmentState, RenderPipeline, VertexState,
@@ -9,16 +10,16 @@ use wgpu::{
 use crate::stamping_engine::{StampConfiguration, StampUniformData};
 
 pub struct StampingEngineRenderPass {
-    instance_buffer: Buffer,
+    instance_buffer_id: BufferId,
     stamp_pipeline: RenderPipeline,
     eraser_pipeline: RenderPipeline,
-    stamp_data_buffer: Buffer,
+    stamp_uniform_buffer_id: BufferId,
     brush_bind_group: BindGroup,
     stamp_settings: StampConfiguration,
 }
 impl StampingEngineRenderPass {
     pub fn new(framework: &Framework) -> Self {
-        let instance_buffer =
+        let instance_buffer_id =
             framework.allocate_typed_buffer(BufferConfiguration::<MeshInstance2D> {
                 initial_setup: framework::buffer::BufferInitialSetup::Data(&vec![]),
                 buffer_type: framework::BufferType::Vertex,
@@ -171,7 +172,7 @@ impl StampingEngineRenderPass {
         };
         let stamp_pipeline = make_pipeline(false);
         let eraser_pipeline = make_pipeline(true);
-        let stamp_uniform_buffer = framework.allocate_typed_buffer(BufferConfiguration::<
+        let stamp_uniform_buffer_id = framework.allocate_typed_buffer(BufferConfiguration::<
             StampUniformData,
         > {
             initial_setup: framework::buffer::BufferInitialSetup::Data(&vec![initial_setup.into()]),
@@ -179,6 +180,7 @@ impl StampingEngineRenderPass {
             allow_write: true,
             allow_read: false,
         });
+        let stamp_uniform_buffer = framework.buffer(stamp_uniform_buffer_id.clone());
         let texture_bind_layout =
             framework
                 .device
@@ -210,8 +212,8 @@ impl StampingEngineRenderPass {
 
         Self {
             brush_bind_group,
-            stamp_data_buffer: stamp_uniform_buffer,
-            instance_buffer,
+            stamp_uniform_buffer_id,
+            instance_buffer_id,
             stamp_pipeline,
             eraser_pipeline,
             stamp_settings: initial_setup,
@@ -219,7 +221,8 @@ impl StampingEngineRenderPass {
     }
 
     pub(crate) fn update(&mut self, framework: &Framework, instances: Vec<MeshInstance2D>) {
-        self.instance_buffer.write_sync(framework, &instances);
+        let mut instance_buffer = framework.buffer(self.instance_buffer_id.clone());
+        instance_buffer.write_sync(framework, &instances);
     }
 
     pub(crate) fn set_stamp_settings(
@@ -228,8 +231,8 @@ impl StampingEngineRenderPass {
         settings: StampConfiguration,
     ) {
         let unif_data: StampUniformData = settings.into();
-        self.stamp_data_buffer
-            .write_sync(framework, &vec![unif_data]);
+        let mut stamp_data_buffer = framework.buffer(self.stamp_uniform_buffer_id.clone());
+        stamp_data_buffer.write_sync(framework, &vec![unif_data]);
         self.stamp_settings = settings;
     }
 
@@ -237,28 +240,63 @@ impl StampingEngineRenderPass {
         self.stamp_settings
     }
 
-    pub fn execute<'s, 'call, 'pass>(
+    pub fn execute<'s, 'pass>(
         &'s self,
-        mut pass: wgpu::RenderPass<'pass>,
+        framework: &'pass Framework,
+        bitmap_target: &Asset<Texture2d>,
         stamp: &'pass Texture2d,
-        asset_library: &'pass AssetsLibrary,
         camera_bind_group: &'pass BindGroup,
     ) where
-        'pass: 'call,
         's: 'pass,
     {
-        if self.stamp_settings.is_eraser {
-            pass.set_pipeline(&self.eraser_pipeline);
-        } else {
-            pass.set_pipeline(&self.stamp_pipeline);
+        let mut command_encoder =
+            framework
+                .device
+                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("Command Encoder that crax will forget to update"),
+                });
+        {
+            let stroking_engine_render_pass = wgpu::RenderPassDescriptor {
+                label: Some("Stamping Engine render pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: bitmap_target.texture_view(),
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Load,
+                        store: true,
+                    },
+                })],
+                depth_stencil_attachment: None,
+            };
+            let instance_buffer = framework.buffer(self.instance_buffer_id.clone());
+
+            let mut pass = command_encoder.begin_render_pass(&stroking_engine_render_pass);
+
+            pass.set_viewport(
+                0.0,
+                0.0,
+                bitmap_target.width() as f32,
+                bitmap_target.height() as f32,
+                0.0,
+                1.0,
+            );
+            if self.stamp_settings.is_eraser {
+                pass.set_pipeline(&self.eraser_pipeline);
+            } else {
+                pass.set_pipeline(&self.stamp_pipeline);
+            }
+            pass.set_bind_group(0, stamp.bind_group(), &[]);
+            pass.set_bind_group(1, &self.brush_bind_group, &[]);
+            pass.set_bind_group(2, &camera_bind_group, &[]);
+            pass.set_vertex_buffer(1, instance_buffer.entire_slice());
+            framework
+                .asset_library
+                .mesh(mesh_names::QUAD)
+                .draw(&mut pass, instance_buffer.elem_count() as u32);
         }
 
-        pass.set_bind_group(0, stamp.bind_group(), &[]);
-        pass.set_bind_group(1, &self.brush_bind_group, &[]);
-        pass.set_bind_group(2, &camera_bind_group, &[]);
-        pass.set_vertex_buffer(1, self.instance_buffer.entire_slice());
-        asset_library
-            .mesh(mesh_names::QUAD)
-            .draw(&mut pass, self.instance_buffer.elem_count() as u32)
+        framework
+            .queue
+            .submit(std::iter::once(command_encoder.finish()));
     }
 }

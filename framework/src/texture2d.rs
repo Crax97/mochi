@@ -182,6 +182,7 @@ impl Texture2d {
             allow_write: true,
             allow_read: true,
         });
+        let oneshot_buffer = framework.buffer(oneshot_buffer);
         let mut encoder =
             framework
                 .device
@@ -290,6 +291,7 @@ impl Texture2d {
             allow_write: true,
             allow_read: true,
         });
+        let oneshot_buffer = framework.buffer(oneshot_buffer);
         encoder.copy_texture_to_buffer(
             wgpu::ImageCopyTexture {
                 texture: &self.texture,

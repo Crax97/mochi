@@ -20,6 +20,10 @@ pub type TextureId = AssetId<Texture2d>;
 type TextureMap = AssetMap<Texture2d>;
 type AllocatedTexture = AllocatedAsset<Texture2d>;
 
+pub type BufferId = AssetId<Buffer>;
+type BufferMap = AssetMap<Buffer>;
+type AllocatedBuffer = AllocatedAsset<Buffer>;
+
 pub struct Framework {
     pub instance: wgpu::Instance,
     pub adapter: wgpu::Adapter,
@@ -28,6 +32,7 @@ pub struct Framework {
     pub asset_library: AssetsLibrary,
 
     allocated_textures: TextureMap,
+    allocated_buffers: BufferMap,
 }
 
 #[derive(Debug)]
@@ -78,17 +83,20 @@ impl<'a> Framework {
             .add_mesh(asset_library::mesh_names::QUAD, quad_mesh);
     }
 
-    pub async fn new(device_descriptor: &DeviceDescriptor<'a>) -> Result<Self> {
+    pub fn new(device_descriptor: &DeviceDescriptor<'a>) -> Result<Self> {
         let instance = wgpu::Instance::new(Backends::all());
-        let adapter = instance
-            .request_adapter(&RequestAdapterOptions {
-                power_preference: PowerPreference::HighPerformance,
-                compatible_surface: None,
-                force_fallback_adapter: false,
-            })
-            .await
-            .ok_or(AdapterCreationError)?;
-        let (device, queue) = adapter.request_device(&device_descriptor, None).await?;
+        let adapter = pollster::block_on(async {
+            instance
+                .request_adapter(&RequestAdapterOptions {
+                    power_preference: PowerPreference::HighPerformance,
+                    compatible_surface: None,
+                    force_fallback_adapter: false,
+                })
+                .await
+        })
+        .ok_or(AdapterCreationError)?;
+        let (device, queue) =
+            pollster::block_on(async { adapter.request_device(&device_descriptor, None).await })?;
         let asset_library = AssetsLibrary::new();
         let mut framework = Framework {
             instance,
@@ -97,16 +105,35 @@ impl<'a> Framework {
             queue,
             asset_library,
             allocated_textures: Arc::new(Mutex::new(HashMap::new())),
+            allocated_buffers: Arc::new(Mutex::new(HashMap::new())),
         };
         Framework::construct_initial_assets(&mut framework);
         Ok(framework)
     }
 
     pub fn allocate_typed_buffer<BufferType: bytemuck::Pod + bytemuck::Zeroable>(
-        &'a self,
+        &self,
         configuration: BufferConfiguration<BufferType>,
-    ) -> Buffer {
-        Buffer::new(self, configuration)
+    ) -> BufferId {
+        let buffer = Buffer::new(self, configuration);
+
+        let alloc_buffer = AllocatedBuffer::new(buffer);
+        let buf_id = BufferId::new(self.allocated_buffers.clone());
+        self.allocated_buffers
+            .lock()
+            .unwrap()
+            .insert(buf_id.0.clone(), alloc_buffer);
+        buf_id
+    }
+
+    pub fn buffer(&self, id: BufferId) -> Asset<Buffer> {
+        self.allocated_buffers
+            .lock()
+            .unwrap()
+            .get(&id.0)
+            .expect("Failed to find given asset")
+            .asset
+            .clone()
     }
 
     pub fn allocate_texture2d(

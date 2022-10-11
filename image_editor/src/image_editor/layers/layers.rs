@@ -1,5 +1,5 @@
 use cgmath::{Point2, Point3, Vector2, Vector3};
-use framework::{Buffer, BufferConfiguration, Framework, MeshInstance2D};
+use framework::{framework::BufferId, Buffer, BufferConfiguration, Framework, MeshInstance2D};
 use renderer::render_pass::texture2d_draw_pass::Texture2dDrawPass;
 use scene::{Camera2d, Transform2d};
 use wgpu::TextureView;
@@ -26,7 +26,7 @@ pub struct Layer<'framework> {
     pub position: Point2<f32>,
     pub scale: Vector2<f32>,
     pub rotation_radians: f32,
-    pub instance_buffer: Buffer,
+    pub instance_buffer_id: BufferId,
 }
 
 pub struct LayerCreationInfo {
@@ -46,7 +46,7 @@ impl<'framework> Layer<'framework> {
         creation_info: LayerCreationInfo,
         framework: &'framework Framework,
     ) -> Self {
-        let instance_buffer = framework.allocate_typed_buffer(BufferConfiguration {
+        let instance_buffer_id = framework.allocate_typed_buffer(BufferConfiguration {
             initial_setup: framework::buffer::BufferInitialSetup::Data(
                 &Vec::<MeshInstance2D>::new(),
             ),
@@ -66,7 +66,7 @@ impl<'framework> Layer<'framework> {
             position: creation_info.position,
             scale: creation_info.scale,
             rotation_radians: creation_info.rotation_radians,
-            instance_buffer,
+            instance_buffer_id,
         }
     }
     pub(crate) fn update(&mut self, framework: &Framework) {
@@ -76,7 +76,8 @@ impl<'framework> Layer<'framework> {
                     x: self.scale.x * bitmap_layer.size().x * 0.5,
                     y: self.scale.y * bitmap_layer.size().y * 0.5,
                 };
-                self.instance_buffer.write_sync(
+                let mut instance_buffer = framework.buffer(self.instance_buffer_id.clone());
+                instance_buffer.write_sync(
                     framework,
                     &vec![MeshInstance2D::new(
                         self.position.clone(),
@@ -120,7 +121,8 @@ impl<'framework> Layer<'framework> {
 
     pub fn set_settings(&mut self, new_settings: LayerSettings) {
         self.settings = new_settings;
-        self.instance_buffer.write_sync(
+        let mut instance_buffer = self.framework.buffer(self.instance_buffer_id.clone());
+        instance_buffer.write_sync(
             self.framework,
             &vec![MeshInstance2D::new(
                 self.position,

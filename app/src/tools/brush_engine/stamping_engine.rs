@@ -1,5 +1,5 @@
 use cgmath::{point2, point3, vec2, SquareMatrix, Transform, Vector2};
-use framework::framework::TextureId;
+use framework::framework::{BufferId, TextureId};
 use framework::{Box2d, BufferConfiguration};
 use framework::{Buffer, Framework, MeshInstance2D};
 use image_editor::layers::{BitmapLayer, LayerIndex, LayerType};
@@ -108,7 +108,7 @@ pub struct StrokingEngine {
     current_stamp: usize,
     stamps: Vec<Stamp>,
     stamp_pass: StampingEngineRenderPass,
-    camera_buffer: Buffer,
+    camera_buffer_id: BufferId,
     camera_bind_group: BindGroup,
 }
 
@@ -116,7 +116,7 @@ impl StrokingEngine {
     pub fn new(initial_stamp: Stamp, framework: &Framework) -> Self {
         let stamp_pass = StampingEngineRenderPass::new(framework);
 
-        let camera_buffer = framework.allocate_typed_buffer(BufferConfiguration::<
+        let camera_buffer_id = framework.allocate_typed_buffer(BufferConfiguration::<
             Camera2dUniformBlock,
         > {
             initial_setup: framework::buffer::BufferInitialSetup::Size(std::mem::size_of::<
@@ -126,6 +126,7 @@ impl StrokingEngine {
             allow_write: true,
             allow_read: false,
         });
+        let camera_buffer = framework.buffer(camera_buffer_id.clone());
         let camera_bind_group_layout =
             framework
                 .device
@@ -159,7 +160,7 @@ impl StrokingEngine {
             stamps: vec![initial_stamp],
             current_stamp: 0,
             stamp_pass,
-            camera_buffer,
+            camera_buffer_id,
             camera_bind_group,
         }
     }
@@ -209,7 +210,11 @@ impl BrushEngine for StrokingEngine {
                         -buffer_layer.size().y as f32 * 0.5,
                     ],
                 );
-                self.camera_buffer.write_sync::<Camera2dUniformBlock>(
+                let mut camera_buffer = context
+                    .editor
+                    .framework()
+                    .buffer(self.camera_buffer_id.clone());
+                camera_buffer.write_sync::<Camera2dUniformBlock>(
                     context.editor.framework(),
                     &vec![(&bm_camera).into()],
                 );
@@ -217,36 +222,13 @@ impl BrushEngine for StrokingEngine {
                     .update(context.editor.framework(), instances);
                 // 2. Do draw
                 let bitmap_texture = context.editor.framework().texture2d(buffer_layer.texture());
-                let stroking_engine_render_pass = RenderPassDescriptor {
-                    label: Some("Stamping Engine render pass"),
-                    color_attachments: &[Some(RenderPassColorAttachment {
-                        view: bitmap_texture.texture_view(),
-                        resolve_target: None,
-                        ops: wgpu::Operations {
-                            load: wgpu::LoadOp::Load,
-                            store: true,
-                        },
-                    })],
-                    depth_stencil_attachment: None,
-                };
-                let mut render_pass = context
-                    .command_encoder
-                    .begin_render_pass(&stroking_engine_render_pass);
 
-                render_pass.set_viewport(
-                    0.0,
-                    0.0,
-                    buffer_layer.size().x,
-                    buffer_layer.size().y,
-                    0.0,
-                    1.0,
-                );
                 let stamp = self.current_stamp().brush_texture.texture();
                 let stamp = context.editor.framework().texture2d(stamp);
                 self.stamp_pass.execute(
-                    render_pass,
+                    context.editor.framework(),
+                    &bitmap_texture,
                     &stamp,
-                    &context.editor.framework().asset_library,
                     &self.camera_bind_group,
                 );
             }

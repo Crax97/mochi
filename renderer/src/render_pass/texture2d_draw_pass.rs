@@ -6,7 +6,7 @@ use wgpu::{
 };
 
 use framework::asset_library::mesh_names;
-use framework::framework::{Framework, TextureId};
+use framework::framework::{BufferId, Framework, TextureId};
 use framework::mesh::{Mesh, MeshInstance2D};
 use scene::{Camera2d, Camera2dUniformBlock};
 
@@ -21,7 +21,7 @@ pub struct Texture2dDrawPass<'framework> {
     textures: Vec<TextureDrawInfo>,
     clear_color: wgpu::Color,
     camera: Camera2d,
-    camera_buffer: Buffer,
+    camera_buffer_id: BufferId,
     camera_bind_group: BindGroup,
 }
 
@@ -31,7 +31,7 @@ impl<'tex, 'framework> Texture2dDrawPass<'framework> {
             .device
             .create_shader_module(wgpu::include_wgsl!("../shaders/draw_texture2d.wgsl"));
 
-        let camera_buffer = framework.allocate_typed_buffer(BufferConfiguration::<
+        let camera_buffer_id = framework.allocate_typed_buffer(BufferConfiguration::<
             Camera2dUniformBlock,
         > {
             initial_setup: framework::buffer::BufferInitialSetup::Size(std::mem::size_of::<
@@ -41,6 +41,7 @@ impl<'tex, 'framework> Texture2dDrawPass<'framework> {
             allow_write: true,
             allow_read: false,
         });
+        let camera_buffer = framework.buffer(camera_buffer_id.clone());
         let bind_group_layout =
             framework
                 .device
@@ -145,7 +146,7 @@ impl<'tex, 'framework> Texture2dDrawPass<'framework> {
             pipeline: simple_diffuse_pipeline,
             textures: vec![],
             clear_color: wgpu::Color::BLACK,
-            camera_buffer,
+            camera_buffer_id,
             camera_bind_group,
             camera: Camera2d::new(0.01, 1000.0, [-1.0, 1.0, 1.0, -1.0]),
         }
@@ -165,8 +166,8 @@ impl<'tex, 'framework> Texture2dDrawPass<'framework> {
         let mut new_camera = camera.clone();
         new_camera.set_position(point2(camera.position().x, -camera.position().y));
         self.camera = new_camera;
-        self.camera_buffer
-            .write_sync::<Camera2dUniformBlock>(framework, &vec![(&self.camera).into()]);
+        let mut camera_buffer = framework.buffer(self.camera_buffer_id.clone());
+        camera_buffer.write_sync::<Camera2dUniformBlock>(framework, &vec![(&self.camera).into()]);
     }
     pub fn finish(&mut self, output_texture: &TextureView, clear: bool) {
         let render_pass_description = RenderPassDescriptor {
@@ -218,6 +219,7 @@ impl<'tex, 'framework> Texture2dDrawPass<'framework> {
                     allow_write: false,
                     allow_read: false,
                 });
+                let instance_buffer = self.framework.buffer(instance_buffer);
                 {
                     let framework_texture = self.framework.texture2d(&texture.texture);
                     let mut pass = encoder.begin_render_pass(&render_pass_description);

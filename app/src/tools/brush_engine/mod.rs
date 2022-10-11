@@ -36,7 +36,6 @@ impl std::fmt::Display for StrokePath {
 pub struct StrokeContext<'editor, 'stroke> {
     pub layer: &'editor Layer<'editor>,
     pub editor: &'stroke ImageEditor<'editor>,
-    pub command_encoder: &'stroke mut CommandEncoder,
 }
 
 pub trait BrushEngine {
