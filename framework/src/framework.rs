@@ -13,8 +13,9 @@ use log::*;
 use wgpu::*;
 
 use crate::{
-    asset_library, texture2d::GpuImageData, AssetId, AssetMap, AssetRef, AssetRefMut,
-    AssetsLibrary, Mesh, MeshConstructionDetails, Texture2d, Texture2dConfiguration, Vertex,
+    asset_library, shader::Shader, texture2d::GpuImageData, AssetId, AssetMap, AssetRef,
+    AssetRefMut, AssetsLibrary, Mesh, MeshConstructionDetails, Texture2d, Texture2dConfiguration,
+    Vertex,
 };
 
 use super::buffer::{Buffer, BufferConfiguration};
@@ -24,6 +25,12 @@ type TextureMap = AssetMap<Texture2d>;
 
 pub type BufferId = AssetId;
 type BufferMap = AssetMap<Buffer>;
+
+pub type MeshId = AssetId;
+type MeshMap = AssetMap<Mesh>;
+
+pub type ShaderId = AssetId;
+type ShaderMap = AssetMap<Shader>;
 
 pub struct Framework {
     pub instance: wgpu::Instance,
@@ -77,6 +84,7 @@ impl<'a> Framework {
                 vertices: quad_mesh_vertices,
                 indices,
                 allow_editing: false,
+                primitives: 6,
             },
         );
 
@@ -180,6 +188,12 @@ impl<'a> Framework {
     }
 }
 
+// Shaders
+impl<'a> Framework {
+    pub(crate) fn shader(&self, shader_id: &AssetId) -> AssetRef<Shader> {
+        todo!()
+    }
+}
 // Buffer
 impl<'a> Framework {
     pub fn buffer_bind_group(&self, id: &BufferId) -> &BindGroup {

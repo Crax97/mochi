@@ -6,6 +6,7 @@ pub mod math;
 pub mod mesh;
 pub mod renderer;
 pub mod scene;
+pub mod shader;
 pub mod texture2d;
 
 pub use asset_id::*;

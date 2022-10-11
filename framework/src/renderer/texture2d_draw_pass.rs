@@ -205,7 +205,7 @@ impl<'tex, 'framework> Texture2dDrawPass<'framework> {
                     );
                     pass.set_vertex_buffer(1, self.framework.buffer_slice(&instance_buffer, ..));
 
-                    quad_mesh.draw(&mut pass, 1);
+                    quad_mesh.draw(&mut pass);
                 }
                 self.framework
                     .queue
