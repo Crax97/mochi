@@ -41,7 +41,7 @@ impl<'tex, 'framework> Texture2dDrawPass<'framework> {
             allow_write: true,
             allow_read: false,
         });
-        let camera_buffer = framework.buffer(camera_buffer_id.clone());
+        let camera_buffer = framework.buffer(&camera_buffer_id);
         let bind_group_layout =
             framework
                 .device
@@ -166,7 +166,7 @@ impl<'tex, 'framework> Texture2dDrawPass<'framework> {
         let mut new_camera = camera.clone();
         new_camera.set_position(point2(camera.position().x, -camera.position().y));
         self.camera = new_camera;
-        let mut camera_buffer = framework.buffer(self.camera_buffer_id.clone());
+        let mut camera_buffer = framework.buffer_mut(&self.camera_buffer_id);
         camera_buffer.write_sync::<Camera2dUniformBlock>(framework, &vec![(&self.camera).into()]);
     }
     pub fn finish(&mut self, output_texture: &TextureView, clear: bool) {
@@ -219,7 +219,7 @@ impl<'tex, 'framework> Texture2dDrawPass<'framework> {
                     allow_write: false,
                     allow_read: false,
                 });
-                let instance_buffer = self.framework.buffer(instance_buffer);
+                let instance_buffer = self.framework.buffer(&instance_buffer);
                 {
                     let framework_texture = self.framework.texture2d(&texture.texture);
                     let mut pass = encoder.begin_render_pass(&render_pass_description);

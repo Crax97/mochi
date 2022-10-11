@@ -126,7 +126,7 @@ impl StrokingEngine {
             allow_write: true,
             allow_read: false,
         });
-        let camera_buffer = framework.buffer(camera_buffer_id.clone());
+        let camera_buffer = framework.buffer(&camera_buffer_id);
         let camera_bind_group_layout =
             framework
                 .device
@@ -210,16 +210,19 @@ impl BrushEngine for StrokingEngine {
                         -buffer_layer.size().y as f32 * 0.5,
                     ],
                 );
-                let mut camera_buffer = context
-                    .editor
-                    .framework()
-                    .buffer(self.camera_buffer_id.clone());
-                camera_buffer.write_sync::<Camera2dUniformBlock>(
-                    context.editor.framework(),
-                    &vec![(&bm_camera).into()],
-                );
                 self.stamp_pass
                     .update(context.editor.framework(), instances);
+
+                {
+                    let mut camera_buffer = context
+                        .editor
+                        .framework()
+                        .buffer_mut(&self.camera_buffer_id);
+                    camera_buffer.write_sync::<Camera2dUniformBlock>(
+                        context.editor.framework(),
+                        &vec![(&bm_camera).into()],
+                    );
+                }
                 // 2. Do draw
                 let bitmap_texture = context.editor.framework().texture2d(buffer_layer.texture());
 
@@ -245,16 +248,23 @@ impl BrushEngine for StrokingEngine {
             let (old_layer_texture_id, size, layer_tex) = match layer.layer_type {
                 LayerType::Bitmap(ref bm) => (bm.texture(), bm.size(), bm),
             };
-            let old_layer_texture = context
-                .image_editor
-                .framework()
-                .texture2d(old_layer_texture_id);
+            let (width, height, format) = {
+                let old_layer_texture = context
+                    .image_editor
+                    .framework()
+                    .texture2d(old_layer_texture_id);
+                (
+                    old_layer_texture.width(),
+                    old_layer_texture.height(),
+                    old_layer_texture.format(),
+                )
+            };
             let new_texture_id = context.image_editor.framework().allocate_texture2d(
                 framework::Texture2dConfiguration {
                     debug_name: Some("Layer".to_owned()),
-                    width: old_layer_texture.width(),
-                    height: old_layer_texture.height(),
-                    format: old_layer_texture.format(),
+                    width,
+                    height,
+                    format,
                     allow_cpu_write: true,
                     allow_cpu_read: true,
                     allow_use_as_render_target: true,

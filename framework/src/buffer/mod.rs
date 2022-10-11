@@ -5,7 +5,6 @@ use crate::{AssetId, AssetMap};
 use super::framework::Framework;
 
 pub(crate) type BufferMap = AssetMap<Buffer>;
-pub type BufferId = AssetId<Buffer>;
 
 #[derive(Copy, Clone, Debug)]
 pub enum BufferType {

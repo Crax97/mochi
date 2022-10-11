@@ -1,7 +1,7 @@
 use cgmath::Vector2;
 use framework::{
-    asset_library::mesh_names, framework::BufferId, Asset, AssetsLibrary, Buffer,
-    BufferConfiguration, Framework, Mesh, MeshInstance2D, Texture2d,
+    asset_library::mesh_names, framework::BufferId, AssetsLibrary, Buffer, BufferConfiguration,
+    Framework, Mesh, MeshInstance2D, Texture2d,
 };
 use wgpu::{
     BindGroup, BlendComponent, ColorTargetState, FragmentState, RenderPipeline, VertexState,
@@ -180,7 +180,7 @@ impl StampingEngineRenderPass {
             allow_write: true,
             allow_read: false,
         });
-        let stamp_uniform_buffer = framework.buffer(stamp_uniform_buffer_id.clone());
+        let stamp_uniform_buffer = framework.buffer(&stamp_uniform_buffer_id.clone());
         let texture_bind_layout =
             framework
                 .device
@@ -221,7 +221,7 @@ impl StampingEngineRenderPass {
     }
 
     pub(crate) fn update(&mut self, framework: &Framework, instances: Vec<MeshInstance2D>) {
-        let mut instance_buffer = framework.buffer(self.instance_buffer_id.clone());
+        let mut instance_buffer = framework.buffer_mut(&self.instance_buffer_id);
         instance_buffer.write_sync(framework, &instances);
     }
 
@@ -231,7 +231,7 @@ impl StampingEngineRenderPass {
         settings: StampConfiguration,
     ) {
         let unif_data: StampUniformData = settings.into();
-        let mut stamp_data_buffer = framework.buffer(self.stamp_uniform_buffer_id.clone());
+        let mut stamp_data_buffer = framework.buffer_mut(&self.stamp_uniform_buffer_id);
         stamp_data_buffer.write_sync(framework, &vec![unif_data]);
         self.stamp_settings = settings;
     }
@@ -243,7 +243,7 @@ impl StampingEngineRenderPass {
     pub fn execute<'s, 'pass>(
         &'s self,
         framework: &'pass Framework,
-        bitmap_target: &Asset<Texture2d>,
+        bitmap_target: &Texture2d,
         stamp: &'pass Texture2d,
         camera_bind_group: &'pass BindGroup,
     ) where
@@ -268,7 +268,7 @@ impl StampingEngineRenderPass {
                 })],
                 depth_stencil_attachment: None,
             };
-            let instance_buffer = framework.buffer(self.instance_buffer_id.clone());
+            let instance_buffer = framework.buffer(&self.instance_buffer_id.clone());
 
             let mut pass = command_encoder.begin_render_pass(&stroking_engine_render_pass);
 

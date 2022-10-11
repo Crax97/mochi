@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, RwLock},
 };
 
 use anyhow::Result;
@@ -10,19 +10,17 @@ use uuid::Uuid;
 use wgpu::*;
 
 use crate::{
-    asset_library, AllocatedAsset, Asset, AssetId, AssetMap, AssetsLibrary, Mesh,
+    asset_library, AssetId, AssetMap, AssetRef, AssetRefMut, AssetsLibrary, Mesh,
     MeshConstructionDetails, Texture2d, Texture2dConfiguration, Vertex,
 };
 
 use super::buffer::{Buffer, BufferConfiguration};
 
-pub type TextureId = AssetId<Texture2d>;
+pub type TextureId = AssetId;
 type TextureMap = AssetMap<Texture2d>;
-type AllocatedTexture = AllocatedAsset<Texture2d>;
 
-pub type BufferId = AssetId<Buffer>;
+pub type BufferId = AssetId;
 type BufferMap = AssetMap<Buffer>;
-type AllocatedBuffer = AllocatedAsset<Buffer>;
 
 pub struct Framework {
     pub instance: wgpu::Instance,
@@ -104,8 +102,8 @@ impl<'a> Framework {
             device,
             queue,
             asset_library,
-            allocated_textures: Arc::new(Mutex::new(HashMap::new())),
-            allocated_buffers: Arc::new(Mutex::new(HashMap::new())),
+            allocated_textures: Arc::new(RwLock::new(HashMap::new())),
+            allocated_buffers: Arc::new(RwLock::new(HashMap::new())),
         };
         Framework::construct_initial_assets(&mut framework);
         Ok(framework)
@@ -117,26 +115,28 @@ impl<'a> Framework {
     ) -> BufferId {
         let buffer = Buffer::new(self, configuration);
 
-        let alloc_buffer = AllocatedBuffer::new(buffer);
-        let buf_id = BufferId::new(self.allocated_buffers.clone());
+        let buf_id = BufferId::new();
         self.allocated_buffers
-            .lock()
+            .try_write()
             .unwrap()
-            .insert(buf_id.0.clone(), alloc_buffer);
+            .insert(buf_id.0.clone(), buffer);
         buf_id
     }
 
-    pub fn buffer(&self, id: BufferId) -> Asset<Buffer> {
-        self.allocated_buffers
-            .lock()
-            .unwrap()
-            .get(&id.0)
-            .expect("Failed to find given asset")
-            .asset
-            .clone()
+    pub fn buffer<'r>(&'r self, id: &BufferId) -> AssetRef<'r, Buffer> {
+        AssetRef {
+            in_ref: self.allocated_buffers.try_read().unwrap(),
+            id: id.clone(),
+        }
+    }
+    pub fn buffer_mut<'r>(&'r self, id: &BufferId) -> AssetRefMut<'r, Buffer> {
+        AssetRefMut {
+            in_ref: self.allocated_buffers.try_write().unwrap(),
+            id: id.clone(),
+        }
     }
 
-    pub fn allocate_texture2d(
+    pub fn allocate_texture2d<'r>(
         &self,
         tex_info: Texture2dConfiguration,
         initial_data: Option<&[u8]>,
@@ -145,23 +145,19 @@ impl<'a> Framework {
         if let Some(data) = initial_data {
             tex.write_data(data, &self);
         }
-        let alloc_texture = AllocatedTexture::new(tex);
-        let tex_id = TextureId::new(self.allocated_textures.clone());
+        let tex_id = TextureId::new();
         self.allocated_textures
-            .lock()
+            .try_write()
             .unwrap()
-            .insert(tex_id.0.clone(), alloc_texture);
+            .insert(tex_id.0.clone(), tex);
         tex_id
     }
 
-    pub fn texture2d(&self, id: &TextureId) -> Asset<Texture2d> {
-        self.allocated_textures
-            .lock()
-            .unwrap()
-            .get(&id.0)
-            .expect("Failed to find given texture2d")
-            .asset
-            .clone()
+    pub fn texture2d<'r>(&'r self, id: &TextureId) -> AssetRef<'r, Texture2d> {
+        AssetRef {
+            in_ref: self.allocated_textures.try_read().unwrap(),
+            id: id.clone(),
+        }
     }
 
     pub fn log_info(&self) {
