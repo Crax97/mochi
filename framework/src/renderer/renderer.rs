@@ -1,15 +1,15 @@
-use cgmath::{point2, vec2};
+use cgmath::{point2, point3, vec2};
 use wgpu::{
-    include_wgsl, Color, CommandEncoder, CommandEncoderDescriptor, LoadOp, Operations, RenderPass,
-    RenderPassColorAttachment, RenderPassDescriptor, TextureFormat, TextureView,
+    Color, CommandEncoder, CommandEncoderDescriptor, LoadOp, Operations, RenderPass,
+    RenderPassColorAttachment, RenderPassDescriptor, TextureView,
 };
 
 use crate::{
     buffer::BufferInitialSetup,
-    framework::{BufferId, ShaderId},
+    framework::{BufferId, MeshId, ShaderId},
     shader::{Shader, ShaderCreationInfo},
     AssetRef, Buffer, BufferConfiguration, BufferType, Camera2d, Camera2dUniformBlock, Framework,
-    Mesh, MeshInstance2D, Texture2d,
+    Mesh, MeshConstructionDetails, MeshInstance2D, Texture2d, Vertex,
 };
 
 use super::draw_command::{BindableResource, DrawCommand, DrawMode, PrimitiveType};
@@ -24,7 +24,7 @@ enum ResolvedDrawType<'a> {
         buffer: AssetRef<'a, Buffer>,
         elements: u32,
     },
-    Separate(Vec<AssetRef<'a, Buffer>>),
+    Separate(Vec<ResolvedResourceType<'a>>),
 }
 
 struct ResolvedDrawCommand<'a> {
@@ -44,9 +44,42 @@ pub struct Renderer<'f> {
 
     texture2d_instanced_shader_id: ShaderId,
     texture2d_single_shader_id: ShaderId,
+
+    quad_mesh_id: MeshId,
 }
 
 impl<'f> Renderer<'f> {
+    fn construct_initial_quad(f: &Framework) -> MeshId {
+        let quad_mesh_vertices = [
+            Vertex {
+                position: point3(-1.0, 1.0, 0.0),
+                tex_coords: point2(0.0, 1.0),
+            },
+            Vertex {
+                position: point3(1.0, 1.0, 0.0),
+                tex_coords: point2(1.0, 1.0),
+            },
+            Vertex {
+                position: point3(-1.0, -1.0, 0.0),
+                tex_coords: point2(0.0, 0.0),
+            },
+            Vertex {
+                position: point3(1.0, -1.0, 0.0),
+                tex_coords: point2(1.0, 0.0),
+            },
+        ]
+        .into();
+
+        let indices = [0u16, 1, 2, 2, 1, 3].into();
+        let construction_info = MeshConstructionDetails {
+            vertices: quad_mesh_vertices,
+            indices,
+            allow_editing: false,
+            primitives: 6,
+        };
+        f.allocate_mesh(construction_info)
+    }
+
     pub fn new(framework: &'f Framework) -> Self {
         let camera_buffer_id =
             framework.allocate_typed_buffer(BufferConfiguration::<Camera2dUniformBlock> {
@@ -59,6 +92,8 @@ impl<'f> Renderer<'f> {
             framework.create_shader(Renderer::texture2d_shader_creation_info(framework));
         let texture2d_single_shader_id =
             framework.create_shader(ShaderCreationInfo::using_default_vertex_fragment(framework));
+
+        let quad_mesh_id = Renderer::construct_initial_quad(framework);
         Self {
             framework,
             camera_buffer_id,
@@ -67,6 +102,7 @@ impl<'f> Renderer<'f> {
 
             texture2d_instanced_shader_id,
             texture2d_single_shader_id,
+            quad_mesh_id,
         }
     }
 
@@ -163,7 +199,7 @@ impl<'f> Renderer<'f> {
                 }
                 ResolvedDrawType::Separate(buffers) => {
                     for buffer in buffers {
-                        self.bind_vertex_buffer(Mesh::INDEX_BUFFER_SLOT, &buffer, &mut render_pass);
+                        self.bind_resource(Mesh::INDEX_BUFFER_SLOT, buffer, &mut render_pass);
                         command.mesh.draw(&mut render_pass);
                     }
                 }
@@ -193,11 +229,12 @@ impl<'f> Renderer<'f> {
         render_pass.set_bind_group(idx, bind_group, &[])
     }
 
-    fn pick_mesh_from_draw_type<'a>(&self, draw_type: &PrimitiveType) -> AssetRef<'a, Mesh> {
-        match draw_type {
-            PrimitiveType::Texture2D { .. } => todo!(), // Pick quad mesh
+    fn pick_mesh_from_draw_type<'a>(&'a self, draw_type: &PrimitiveType) -> AssetRef<'a, Mesh> {
+        let mesh_id = match draw_type {
+            PrimitiveType::Texture2D { .. } => &self.quad_mesh_id, // Pick quad mesh
             _ => unreachable!(),
-        }
+        };
+        self.framework.mesh(&mesh_id)
     }
 
     fn pick_shader_from_command(&self, command: &DrawCommand) -> AssetRef<'f, Shader> {
@@ -339,7 +376,9 @@ impl<'f> Renderer<'f> {
                             allow_read: true,
                         })
                     })
-                    .map(|buffer_id| self.framework.buffer(&buffer_id));
+                    .map(|buffer_id| {
+                        ResolvedResourceType::UniformBuffer(self.framework.buffer(&buffer_id))
+                    });
                 ResolvedDrawType::Separate(instances.collect())
             }
         }

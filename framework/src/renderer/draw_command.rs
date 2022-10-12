@@ -38,7 +38,6 @@ pub struct OptionalDrawData {
 
 pub struct DrawCommand {
     pub primitives: PrimitiveType,
-    pub primitive_count: u32,
     pub draw_mode: DrawMode,
     pub additional_data: OptionalDrawData,
 }

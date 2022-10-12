@@ -44,6 +44,7 @@ pub struct Framework {
     allocated_textures: TextureMap,
     allocated_buffers: BufferMap,
     allocated_shaders: ShaderMap,
+    allocated_meshes: MeshMap,
 }
 
 #[derive(Debug)]
@@ -59,42 +60,6 @@ impl std::fmt::Display for AdapterCreationError {
 impl std::error::Error for AdapterCreationError {}
 
 impl<'a> Framework {
-    fn construct_initial_assets(f: &mut Framework) {
-        let quad_mesh_vertices = [
-            Vertex {
-                position: point3(-1.0, 1.0, 0.0),
-                tex_coords: point2(0.0, 1.0),
-            },
-            Vertex {
-                position: point3(1.0, 1.0, 0.0),
-                tex_coords: point2(1.0, 1.0),
-            },
-            Vertex {
-                position: point3(-1.0, -1.0, 0.0),
-                tex_coords: point2(0.0, 0.0),
-            },
-            Vertex {
-                position: point3(1.0, -1.0, 0.0),
-                tex_coords: point2(1.0, 0.0),
-            },
-        ]
-        .into();
-
-        let indices = [0u16, 1, 2, 2, 1, 3].into();
-        let quad_mesh = Mesh::new(
-            &f,
-            MeshConstructionDetails {
-                vertices: quad_mesh_vertices,
-                indices,
-                allow_editing: false,
-                primitives: 6,
-            },
-        );
-
-        f.asset_library
-            .add_mesh(asset_library::mesh_names::QUAD, quad_mesh);
-    }
-
     pub fn new(device_descriptor: &DeviceDescriptor<'a>) -> Result<Self> {
         let instance = wgpu::Instance::new(Backends::all());
         let adapter = pollster::block_on(async {
@@ -109,8 +74,9 @@ impl<'a> Framework {
         .ok_or(AdapterCreationError)?;
         let (device, queue) =
             pollster::block_on(async { adapter.request_device(&device_descriptor, None).await })?;
+
         let asset_library = AssetsLibrary::new();
-        let mut framework = Framework {
+        let framework = Framework {
             instance,
             adapter,
             device,
@@ -119,8 +85,8 @@ impl<'a> Framework {
             allocated_textures: Rc::new(RefCell::new(InnerAssetMap::new())),
             allocated_buffers: Rc::new(RefCell::new(InnerAssetMap::new())),
             allocated_shaders: Rc::new(RefCell::new(InnerAssetMap::new())),
+            allocated_meshes: Rc::new(RefCell::new(InnerAssetMap::new())),
         };
-        Framework::construct_initial_assets(&mut framework);
         Ok(framework)
     }
 
@@ -192,6 +158,17 @@ impl<'a> Framework {
         self.allocated_buffers.borrow_mut().update();
         self.allocated_shaders.borrow_mut().update();
         self.allocated_textures.borrow_mut().update();
+    }
+    pub fn allocate_mesh(&self, construction_info: MeshConstructionDetails) -> MeshId {
+        let mesh = Mesh::new(self, construction_info);
+        self.allocated_meshes.borrow_mut().insert(mesh)
+    }
+
+    pub fn mesh<'r>(&'r self, id: &MeshId) -> AssetRef<'r, Mesh> {
+        AssetRef {
+            in_ref: self.allocated_meshes.borrow(),
+            id: id.clone(),
+        }
     }
 }
 
