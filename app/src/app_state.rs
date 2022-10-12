@@ -272,6 +272,7 @@ impl<'framework> ImageApplication<'framework> {
         }
 
         self.window.request_redraw();
+        self.framework.update_asset_maps();
         ControlFlow::Wait
     }
 

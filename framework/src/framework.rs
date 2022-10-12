@@ -16,22 +16,22 @@ use crate::{
     asset_library,
     shader::{Shader, ShaderCreationInfo, ShaderLayout},
     texture2d::GpuImageData,
-    AssetId, AssetMap, AssetRef, AssetRefMut, AssetsLibrary, Mesh, MeshConstructionDetails,
-    Texture2d, Texture2dConfiguration, Vertex,
+    AssetId, AssetMap, AssetRef, AssetRefMut, AssetsLibrary, InnerAssetMap, Mesh,
+    MeshConstructionDetails, Texture2d, Texture2dConfiguration, Vertex,
 };
 
 use super::buffer::{Buffer, BufferConfiguration};
 
-pub type TextureId = AssetId;
+pub type TextureId = AssetId<Texture2d>;
 type TextureMap = AssetMap<Texture2d>;
 
-pub type BufferId = AssetId;
+pub type BufferId = AssetId<Buffer>;
 type BufferMap = AssetMap<Buffer>;
 
-pub type MeshId = AssetId;
+pub type MeshId = AssetId<Mesh>;
 type MeshMap = AssetMap<Mesh>;
 
-pub type ShaderId = AssetId;
+pub type ShaderId = AssetId<Shader>;
 type ShaderMap = AssetMap<Shader>;
 
 pub struct Framework {
@@ -116,9 +116,9 @@ impl<'a> Framework {
             device,
             queue,
             asset_library,
-            allocated_textures: Rc::new(RefCell::new(HashMap::new())),
-            allocated_buffers: Rc::new(RefCell::new(HashMap::new())),
-            allocated_shaders: Rc::new(RefCell::new(HashMap::new())),
+            allocated_textures: Rc::new(RefCell::new(InnerAssetMap::new())),
+            allocated_buffers: Rc::new(RefCell::new(InnerAssetMap::new())),
+            allocated_shaders: Rc::new(RefCell::new(InnerAssetMap::new())),
         };
         Framework::construct_initial_assets(&mut framework);
         Ok(framework)
@@ -130,11 +130,7 @@ impl<'a> Framework {
     ) -> BufferId {
         let buffer = Buffer::new(self, configuration);
 
-        let buf_id = BufferId::new();
-        self.allocated_buffers
-            .borrow_mut()
-            .insert(buf_id.0.clone(), buffer);
-        buf_id
+        self.allocated_buffers.borrow_mut().insert(buffer)
     }
 
     pub(crate) fn buffer<'r>(&'r self, id: &BufferId) -> AssetRef<'r, Buffer> {
@@ -159,11 +155,7 @@ impl<'a> Framework {
         if let Some(data) = initial_data {
             tex.write_data(data, &self);
         }
-        let tex_id = TextureId::new();
-        self.allocated_textures
-            .borrow_mut()
-            .insert(tex_id.0.clone(), tex);
-        tex_id
+        self.allocated_textures.borrow_mut().insert(tex)
     }
 
     pub(crate) fn texture2d<'r>(&'r self, id: &TextureId) -> AssetRef<'r, Texture2d> {
@@ -193,18 +185,19 @@ impl<'a> Framework {
 
     pub fn create_shader(&self, info: ShaderCreationInfo) -> ShaderId {
         let shader = Shader::new(&self, info);
+        self.allocated_shaders.borrow_mut().insert(shader)
+    }
 
-        let shader_id = ShaderId::new();
-        self.allocated_shaders
-            .borrow_mut()
-            .insert(shader_id.0.clone(), shader);
-        shader_id
+    pub fn update_asset_maps(&self) {
+        self.allocated_buffers.borrow_mut().update();
+        self.allocated_shaders.borrow_mut().update();
+        self.allocated_textures.borrow_mut().update();
     }
 }
 
 // Shaders
 impl<'a> Framework {
-    pub(crate) fn shader(&self, id: &AssetId) -> AssetRef<Shader> {
+    pub(crate) fn shader(&self, id: &ShaderId) -> AssetRef<Shader> {
         AssetRef {
             in_ref: self.allocated_shaders.borrow(),
             id: id.clone(),
