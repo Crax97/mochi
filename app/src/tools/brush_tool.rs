@@ -97,6 +97,7 @@ impl<'framework> Tool for BrushTool<'framework> {
                 let context = StrokeContext {
                     layer: context.image_editor.selected_layer(),
                     editor: &context.image_editor,
+                    renderer: context.renderer,
                 };
 
                 self.engine.borrow_mut().stroke(path, context);

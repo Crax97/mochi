@@ -91,6 +91,7 @@ impl EguiUI {
                             {
                                 app_ctx.undo_stack.do_undo(&mut EditorContext {
                                     image_editor: app_ctx.image_editor,
+                                    renderer: app_ctx.renderer,
                                 })
                             }
                             let redo = egui::Button::new("Redo");
@@ -100,6 +101,7 @@ impl EguiUI {
                             {
                                 app_ctx.undo_stack.do_redo(&mut EditorContext {
                                     image_editor: app_ctx.image_editor,
+                                    renderer: app_ctx.renderer,
                                 })
                             }
                         });

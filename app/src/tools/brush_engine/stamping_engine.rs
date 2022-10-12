@@ -1,8 +1,9 @@
-use cgmath::{point2, point3, vec2, SquareMatrix, Transform};
+use cgmath::{point2, point3, vec2, Rad, SquareMatrix, Transform};
 use framework::framework::{BufferId, TextureId};
+use framework::renderer::draw_command::{DrawCommand, DrawMode, PrimitiveType};
 use framework::scene::{Camera2d, Camera2dUniformBlock};
-use framework::BufferConfiguration;
 use framework::{Buffer, Framework, MeshInstance2D};
+use framework::{BufferConfiguration, Transform2d};
 use image_editor::layers::{BitmapLayer, LayerIndex, LayerType};
 
 use crate::tools::{EditorCommand, EditorContext};
@@ -159,41 +160,29 @@ impl BrushEngine for StrokingEngine {
                 let buffer_layer = context.editor.document().buffer_layer();
 
                 // 1. Update buffer
-                let instances: Vec<MeshInstance2D> = path
+                let transforms: Vec<Transform2d> = path
                     .points
                     .iter()
-                    .map(|pt| {
-                        MeshInstance2D::new(pt.position, vec2(pt.size, pt.size), 0.0, true, 1.0)
+                    .map(|pt| Transform2d {
+                        position: point3(pt.position.x, pt.position.y, 0.0),
+                        scale: vec2(pt.size, pt.size),
+                        rotation_radians: Rad(0.0),
                     })
                     .collect();
 
-                let bm_camera = Camera2d::new(
-                    -0.1,
-                    1000.0,
-                    [
-                        -buffer_layer.size().x as f32 * 0.5,
-                        buffer_layer.size().x as f32 * 0.5,
-                        buffer_layer.size().y as f32 * 0.5,
-                        -buffer_layer.size().y as f32 * 0.5,
-                    ],
-                );
-                self.stamp_pass
-                    .update(context.editor.framework(), instances);
-
-                let framework = context.editor.framework();
-                framework.buffer_write_sync::<Camera2dUniformBlock>(
-                    &self.camera_buffer_id,
-                    vec![(&bm_camera).into()],
-                );
                 // 2. Do draw
 
                 let stamp = self.current_stamp().brush_texture.texture();
-                self.stamp_pass.execute(
-                    context.editor.framework(),
-                    buffer_layer.texture().clone(),
-                    stamp.clone(),
-                    &framework.buffer_bind_group(&self.camera_buffer_id),
-                );
+                context.renderer.begin(&buffer_layer.camera(), None);
+                context.renderer.draw(DrawCommand {
+                    primitives: PrimitiveType::Texture2D {
+                        texture_id: stamp.clone(),
+                        instances: transforms,
+                    },
+                    draw_mode: DrawMode::Instanced(0),
+                    additional_data: Default::default(),
+                });
+                context.renderer.end_on_texture(buffer_layer.texture());
             }
         }
     }
@@ -202,7 +191,6 @@ impl BrushEngine for StrokingEngine {
         &mut self,
         context: &mut crate::tools::EditorContext,
     ) -> Option<Box<dyn EditorCommand>> {
-        let framework = context.image_editor.framework();
         let new_texture_id = {
             let modified_layer = context.image_editor.document().current_layer_index();
             let layer = context.image_editor.document().get_layer(&modified_layer);
@@ -231,12 +219,6 @@ impl BrushEngine for StrokingEngine {
                     allow_use_as_render_target: true,
                 },
                 None,
-            );
-
-            let bm_camera = Camera2d::new(
-                -0.1,
-                1000.0,
-                [-size.x * 0.5, size.x * 0.5, size.y * 0.5, -size.y * 0.5],
             );
 
             let current_layer_transform = layer.transform();

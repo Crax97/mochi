@@ -183,6 +183,7 @@ impl<'framework> ImageApplication<'framework> {
         self.dispatch_actions(actions);
         let context = EditorContext {
             image_editor: &mut self.image_editor,
+            renderer: &mut self.renderer,
         };
         self.toolbox
             .update(&self.input_state, &mut self.undo_stack, context);
@@ -213,6 +214,7 @@ impl<'framework> ImageApplication<'framework> {
                     stamping_engine: self.stamping_engine.clone(),
                     brush_tool: self.brush_tool.clone(),
                     undo_stack: &mut self.undo_stack,
+                    renderer: &mut self.renderer,
                 };
                 let block_editor = self.ui.do_ui(ui_ctx);
                 self.toolbox.set_is_blocked(block_editor);
@@ -297,11 +299,13 @@ impl<'framework> ImageApplication<'framework> {
                 "undo" => {
                     self.undo_stack.try_undo(&mut EditorContext {
                         image_editor: &mut self.image_editor,
+                        renderer: &mut self.renderer,
                     });
                 }
                 "redo" => {
                     self.undo_stack.try_redo(&mut EditorContext {
                         image_editor: &mut self.image_editor,
+                        renderer: &mut self.renderer,
                     });
                 }
                 "pick_brush" => self.toolbox.set_primary_tool(&self.brush_id),

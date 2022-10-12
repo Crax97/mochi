@@ -189,7 +189,16 @@ impl<'l> Document<'l> {
         let mut draw_layer = |index| {
             let layer = self.layers.get(index).expect("Nonexistent layer");
             layer.draw(renderer, final_layer);
-            if index == &self.current_layer_index {}
+            if index == &self.current_layer_index {
+                self.buffer_layer.draw(
+                    renderer,
+                    point2(0.0, 0.0),
+                    vec2(1.0, 1.0),
+                    0.0,
+                    1.0,
+                    final_layer,
+                );
+            }
         };
         for layer_node in self.tree_root.0.iter() {
             match layer_node {

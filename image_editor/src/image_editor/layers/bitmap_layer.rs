@@ -109,7 +109,7 @@ impl BitmapLayer {
         renderer.end_on_texture(output);
     }
 
-    fn camera(&self) -> Camera2d {
+    pub fn camera(&self) -> Camera2d {
         let half_w = self.size().x * 0.5;
         let half_h = self.size().y * 0.5;
         Camera2d::new(-0.01, 1000.0, [-half_w, half_w, half_h, -half_h])

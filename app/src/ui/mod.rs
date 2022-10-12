@@ -1,6 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
-use framework::Framework;
+use framework::{renderer::renderer::Renderer, Framework};
 use image_editor::ImageEditor;
 use wgpu::{CommandBuffer, SurfaceConfiguration, TextureView};
 use winit::window::Window;
@@ -16,6 +16,7 @@ mod egui_ui;
 
 pub struct UiContext<'app, 'framework> {
     pub image_editor: &'app mut ImageEditor<'framework>,
+    pub renderer: &'app mut Renderer<'framework>,
     pub toolbox: &'app mut Toolbox<'framework>,
     pub input_state: &'app InputState,
     pub undo_stack: &'app mut UndoStack,

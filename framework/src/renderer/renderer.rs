@@ -1,6 +1,7 @@
 use cgmath::{point2, point3, vec2};
 use wgpu::{
-    Color, CommandEncoder, CommandEncoderDescriptor, LoadOp, Operations, RenderPass,
+    BindGroup, BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor, Color,
+    CommandEncoder, CommandEncoderDescriptor, LoadOp, Operations, RenderPass,
     RenderPassColorAttachment, RenderPassDescriptor, TextureView,
 };
 
@@ -16,6 +17,7 @@ use super::draw_command::{BindableResource, DrawCommand, DrawMode, PrimitiveType
 
 enum ResolvedResourceType<'a> {
     UniformBuffer(AssetRef<'a, Buffer>),
+    EmptyBindGroup,
     Texture(AssetRef<'a, Texture2d>),
 }
 
@@ -41,6 +43,7 @@ pub struct Renderer<'f> {
     draw_queue: Vec<DrawCommand>,
     camera_buffer_id: BufferId,
     clear_color: Option<Color>,
+    empty_bind_group: BindGroup,
 
     texture2d_instanced_shader_id: ShaderId,
     texture2d_single_shader_id: ShaderId,
@@ -82,6 +85,20 @@ impl<'f> Renderer<'f> {
         f.allocate_mesh(construction_info)
     }
 
+    fn empty_bind_group(framework: &Framework) -> BindGroup {
+        let layout = framework
+            .device
+            .create_bind_group_layout(&BindGroupLayoutDescriptor {
+                label: None,
+                entries: &[],
+            });
+        framework.device.create_bind_group(&BindGroupDescriptor {
+            label: None,
+            layout: &layout,
+            entries: &[],
+        })
+    }
+
     pub fn new(framework: &'f Framework) -> Self {
         let camera_buffer_id =
             framework.allocate_typed_buffer(BufferConfiguration::<Camera2dUniformBlock> {
@@ -96,11 +113,13 @@ impl<'f> Renderer<'f> {
             framework.create_shader(ShaderCreationInfo::using_default_vertex_fragment(framework));
 
         let quad_mesh_id = Renderer::construct_initial_quad(framework);
+        let empty_bind_group = Renderer::empty_bind_group(framework);
         Self {
             framework,
             camera_buffer_id,
             draw_queue: vec![],
             clear_color: None,
+            empty_bind_group,
 
             texture2d_instanced_shader_id,
             texture2d_single_shader_id,
@@ -182,7 +201,7 @@ impl<'f> Renderer<'f> {
     }
 
     fn execute_commands<'a>(
-        &self,
+        &'a self,
         mut render_pass: RenderPass<'a>,
         camera_buffer: &'a ResolvedResourceType<'a>,
         commands: &'a Vec<ResolvedDrawCommand<'a>>,
@@ -229,7 +248,7 @@ impl<'f> Renderer<'f> {
         render_pass.set_vertex_buffer(idx, buffer.entire_slice());
     }
     fn bind_resource<'a>(
-        &self,
+        &'a self,
         idx: u32,
         resource: &'a ResolvedResourceType<'a>,
         render_pass: &mut RenderPass<'a>,
@@ -237,6 +256,7 @@ impl<'f> Renderer<'f> {
         let bind_group = match resource {
             ResolvedResourceType::UniformBuffer(buffer) => buffer.bind_group.as_ref().unwrap(),
             ResolvedResourceType::Texture(texture) => &texture.bind_group,
+            ResolvedResourceType::EmptyBindGroup => &self.empty_bind_group,
         };
         render_pass.set_bind_group(idx, bind_group, &[])
     }
@@ -316,10 +336,13 @@ impl<'f> Renderer<'f> {
     ) -> Vec<(u32, ResolvedResourceType<'a>)> {
         match &command.primitives {
             PrimitiveType::Texture2D { texture_id, .. } => {
-                vec![(
-                    Renderer::DIFFUSE_BIND_GROUP_LOCATION,
-                    ResolvedResourceType::Texture(self.framework.texture2d(texture_id)),
-                )]
+                vec![
+                    (1, ResolvedResourceType::EmptyBindGroup),
+                    (
+                        Renderer::DIFFUSE_BIND_GROUP_LOCATION,
+                        ResolvedResourceType::Texture(self.framework.texture2d(texture_id)),
+                    ),
+                ]
             }
             _ => unreachable!(),
         }

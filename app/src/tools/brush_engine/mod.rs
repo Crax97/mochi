@@ -3,6 +3,7 @@ pub mod stamping_engine_pass;
 
 use cgmath::{InnerSpace, Point2};
 
+use framework::renderer::renderer::Renderer;
 use image_editor::{layers::Layer, ImageEditor};
 
 use super::{EditorCommand, EditorContext};
@@ -32,9 +33,10 @@ impl std::fmt::Display for StrokePath {
     }
 }
 
-pub struct StrokeContext<'editor, 'stroke> {
+pub struct StrokeContext<'editor, 'stroke, 'f> {
     pub layer: &'editor Layer<'editor>,
     pub editor: &'stroke ImageEditor<'editor>,
+    pub renderer: &'stroke mut Renderer<'f>,
 }
 
 pub trait BrushEngine {

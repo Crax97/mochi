@@ -1,10 +1,12 @@
 use cgmath::{Point2, Vector2};
+use framework::renderer::renderer::Renderer;
 
 use crate::EditorCommand;
 use image_editor::ImageEditor;
 
 pub struct EditorContext<'editor, 'framework> {
     pub image_editor: &'editor mut ImageEditor<'framework>,
+    pub renderer: &'editor mut Renderer<'framework>,
 }
 
 #[derive(Debug, Clone, Copy)]
