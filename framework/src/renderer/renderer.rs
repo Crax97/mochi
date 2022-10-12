@@ -7,22 +7,29 @@ use wgpu::{
 use crate::{
     buffer::BufferInitialSetup,
     framework::{BufferId, ShaderId},
-    shader::{BindElement, Shader, ShaderCreationInfo},
+    shader::{Shader, ShaderCreationInfo},
     AssetRef, Buffer, BufferConfiguration, BufferType, Camera2d, Camera2dUniformBlock, Framework,
     Mesh, MeshInstance2D, Texture2d,
 };
 
-use super::draw_command::{BindableResource, DrawCommand, PrimitiveType};
+use super::draw_command::{BindableResource, DrawCommand, DrawMode, PrimitiveType};
 
 enum ResolvedResourceType<'a> {
     UniformBuffer(AssetRef<'a, Buffer>),
     Texture(AssetRef<'a, Texture2d>),
 }
 
+enum ResolvedDrawType<'a> {
+    Instanced {
+        buffer: AssetRef<'a, Buffer>,
+        elements: u32,
+    },
+    Separate(Vec<AssetRef<'a, Buffer>>),
+}
+
 struct ResolvedDrawCommand<'a> {
     mesh: AssetRef<'a, Mesh>,
-    mesh_instances: u32,
-    instance_buffer: Option<AssetRef<'a, Buffer>>,
+    draw_type: ResolvedDrawType<'a>,
     shader: AssetRef<'a, Shader>,
     vertex_buffers: Vec<AssetRef<'a, Buffer>>,
     bindable_resources: Vec<ResolvedResourceType<'a>>,
@@ -35,7 +42,8 @@ pub struct Renderer<'f> {
     camera_buffer_id: BufferId,
     clear_color: Option<Color>,
 
-    texture2d_default_shader_id: ShaderId,
+    texture2d_instanced_shader_id: ShaderId,
+    texture2d_single_shader_id: ShaderId,
 }
 
 impl<'f> Renderer<'f> {
@@ -47,14 +55,18 @@ impl<'f> Renderer<'f> {
                 allow_write: true,
                 allow_read: false,
             });
-        let texture2d_default_shader_id =
+        let texture2d_instanced_shader_id =
             framework.create_shader(Renderer::texture2d_shader_creation_info(framework));
+        let texture2d_single_shader_id =
+            framework.create_shader(ShaderCreationInfo::using_default_vertex_fragment(framework));
         Self {
             framework,
             camera_buffer_id,
             draw_queue: vec![],
             clear_color: None,
-            texture2d_default_shader_id,
+
+            texture2d_instanced_shader_id,
+            texture2d_single_shader_id,
         }
     }
 
@@ -115,8 +127,7 @@ impl<'f> Renderer<'f> {
             .map(|command| -> ResolvedDrawCommand {
                 ResolvedDrawCommand {
                     mesh: self.pick_mesh_from_draw_type(&command.primitives),
-                    mesh_instances: command.primitive_count,
-                    instance_buffer: self.resolve_instance_buffer(&command),
+                    draw_type: self.resolve_draw_type(&command),
                     shader: self.pick_shader_from_command(&command),
                     vertex_buffers: self.resolve_vertex_buffers(&command),
                     bindable_resources: self.resolve_bindable_resources(&command),
@@ -144,17 +155,18 @@ impl<'f> Renderer<'f> {
             for (idx, resource) in command.bindable_resources.iter().enumerate() {
                 self.bind_resource(idx as u32, resource, &mut render_pass);
             }
-            if let Some(instance_buffer) = command.instance_buffer.as_ref() {
-                self.bind_vertex_buffer(
-                    Mesh::INDEX_BUFFER_SLOT,
-                    &instance_buffer,
-                    &mut render_pass,
-                );
-                command
-                    .mesh
-                    .draw_instanced(&mut render_pass, command.mesh_instances);
-            } else {
-                command.mesh.draw(&mut render_pass);
+
+            match &command.draw_type {
+                ResolvedDrawType::Instanced { buffer, elements } => {
+                    self.bind_vertex_buffer(Mesh::INDEX_BUFFER_SLOT, &buffer, &mut render_pass);
+                    command.mesh.draw_instanced(&mut render_pass, *elements);
+                }
+                ResolvedDrawType::Separate(buffers) => {
+                    for buffer in buffers {
+                        self.bind_vertex_buffer(Mesh::INDEX_BUFFER_SLOT, &buffer, &mut render_pass);
+                        command.mesh.draw(&mut render_pass);
+                    }
+                }
             }
         }
     }
@@ -193,7 +205,10 @@ impl<'f> Renderer<'f> {
             &shader_id
         } else {
             match command.primitives {
-                PrimitiveType::Texture2D { .. } => &self.texture2d_default_shader_id, // Pick quad mesh
+                PrimitiveType::Texture2D { .. } => match command.draw_mode {
+                    DrawMode::Instanced(_) => &self.texture2d_instanced_shader_id,
+                    DrawMode::Single => &self.texture2d_single_shader_id,
+                }, // Pick quad mesh
                 _ => unreachable!(),
             }
         };
@@ -252,20 +267,81 @@ impl<'f> Renderer<'f> {
         }
     }
 
-    fn resolve_instance_buffer<'a>(
-        &'a self,
-        command: &DrawCommand,
-    ) -> Option<AssetRef<'a, Buffer>> {
-        if let Some(buffer_id) = &command.instance_buffer_id {
-            let buffer = self.framework.buffer(buffer_id);
-
-            Some(buffer)
-        } else {
-            None
+    fn resolve_draw_type<'a>(&self, command: &DrawCommand) -> ResolvedDrawType {
+        match command.draw_mode {
+            DrawMode::Instanced(instances) => {
+                self.build_instance_buffer_for_primitive_type(&command.primitives)
+            }
+            DrawMode::Single => self.build_uniform_buffers_for_primitive_type(&command.primitives),
         }
     }
 
     pub fn texture2d_shader_creation_info(framework: &Framework) -> ShaderCreationInfo {
         ShaderCreationInfo::using_default_vertex_fragment_instanced(framework)
+    }
+
+    fn build_instance_buffer_for_primitive_type(
+        &self,
+        primitives: &PrimitiveType,
+    ) -> ResolvedDrawType {
+        match primitives {
+            PrimitiveType::Noop => unreachable!(),
+            PrimitiveType::Texture2D { instances, .. } => {
+                let mesh_instances_2d = instances
+                    .iter()
+                    .map(|inst| {
+                        MeshInstance2D::new(
+                            point2(inst.position.x, inst.position.y),
+                            vec2(inst.scale.x, inst.scale.y),
+                            inst.rotation_radians.0,
+                            true,
+                            1.0,
+                        )
+                    })
+                    .collect();
+                let buffer_id = self.framework.allocate_typed_buffer(BufferConfiguration {
+                    initial_setup: BufferInitialSetup::Data(&mesh_instances_2d),
+                    buffer_type: BufferType::Vertex,
+                    allow_write: false,
+                    allow_read: true,
+                });
+                ResolvedDrawType::Instanced {
+                    buffer: self.framework.buffer(&buffer_id),
+                    elements: instances.len() as u32,
+                }
+            }
+        }
+    }
+
+    fn build_uniform_buffers_for_primitive_type(
+        &self,
+        primitives: &PrimitiveType,
+    ) -> ResolvedDrawType {
+        match primitives {
+            PrimitiveType::Noop => unreachable!(),
+            PrimitiveType::Texture2D { instances, .. } => {
+                let instances = instances
+                    .iter()
+                    .map(|inst| {
+                        MeshInstance2D::new(
+                            point2(inst.position.x, inst.position.y),
+                            vec2(inst.scale.x, inst.scale.y),
+                            inst.rotation_radians.0,
+                            true,
+                            1.0,
+                        )
+                    })
+                    .map(|instance| {
+                        self.framework.allocate_typed_buffer(BufferConfiguration {
+                            initial_setup: BufferInitialSetup::Data(&vec![instance]),
+                            buffer_type: BufferType::Uniform,
+                            allow_write: false,
+                            allow_read: true,
+                        })
+                    })
+                    .map(|buffer_id| self.framework.buffer(&buffer_id));
+                ResolvedDrawType::Separate(instances.collect())
+            }
+        }
     }
 }

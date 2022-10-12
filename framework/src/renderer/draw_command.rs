@@ -1,7 +1,16 @@
 use crate::{
     framework::{BufferId, ShaderId, TextureId},
-    Transform2d,
+    MeshInstance2D, Transform2d,
 };
+
+pub enum DrawMode {
+    // The shader used supports instancing: all the instance data passed in the draw call
+    // will be stored in an instance buffer
+    Instanced(u32),
+
+    // The instances will be drawn in separated render passes
+    Single,
+}
 
 #[derive(Default)]
 pub enum PrimitiveType {
@@ -9,6 +18,7 @@ pub enum PrimitiveType {
     Noop,
     Texture2D {
         texture_id: TextureId,
+        instances: Vec<Transform2d>,
     },
 }
 
@@ -29,6 +39,6 @@ pub struct OptionalDrawData {
 pub struct DrawCommand {
     pub primitives: PrimitiveType,
     pub primitive_count: u32,
-    pub instance_buffer_id: Option<BufferId>,
+    pub draw_mode: DrawMode,
     pub additional_data: OptionalDrawData,
 }
