@@ -12,6 +12,17 @@ pub struct Camera2d {
     pub left_right_top_bottom: [f32; 4],
 }
 
+impl Default for Camera2d {
+    fn default() -> Self {
+        Self {
+            transform: Default::default(),
+            near: 0.01,
+            far: 1000.0,
+            left_right_top_bottom: [-1.0, 1.0, 1.0, -1.0],
+        }
+    }
+}
+
 impl Camera2d {
     pub fn new(near: f32, far: f32, left_right_top_bottom: [f32; 4]) -> Self {
         assert!(far > near);
@@ -45,11 +56,11 @@ impl Camera2d {
     }
 
     pub fn scale(&mut self, delta: f32) {
-        self.transform.scale(vec3(delta, delta, 0.0));
+        self.transform.scale(vec2(delta, delta));
     }
 
     pub fn set_scale(&mut self, new_scale: f32) {
-        self.transform.set_scale(vec3(new_scale, new_scale, 0.0));
+        self.transform.set_scale(vec2(new_scale, new_scale));
     }
 
     pub fn current_scale(&self) -> f32 {
@@ -60,7 +71,7 @@ impl Camera2d {
         Matrix4::from_nonuniform_scale(
             1.0 / self.transform.scale.x,
             1.0 / self.transform.scale.y,
-            1.0 / self.transform.scale.z,
+            1.0,
         ) * Matrix4::from_angle_z(self.transform.rotation_radians)
             * Matrix4::from_translation(Vector3 {
                 x: self.transform.position.x,

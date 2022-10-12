@@ -4,8 +4,8 @@ use crate::{
     LayerConstructionInfo,
 };
 use cgmath::{point2, vec2, Vector2};
-use framework::scene::Camera2d;
 use framework::Framework;
+use framework::{renderer::renderer::Renderer, scene::Camera2d};
 use image::{DynamicImage, ImageBuffer};
 
 use std::collections::HashMap;
@@ -177,15 +177,18 @@ impl<'l> Document<'l> {
         }
     }
 
-    pub(crate) fn render<'tex>(&mut self)
+    pub(crate) fn render<'tex>(&mut self, renderer: &mut Renderer)
     where
         'l: 'tex,
     {
         let final_layer = self.final_layer.texture();
 
+        renderer.begin(&Camera2d::default(), Some(wgpu::Color::TRANSPARENT));
+        renderer.end_on_texture(final_layer);
+
         let mut draw_layer = |index| {
             let layer = self.layers.get(index).expect("Nonexistent layer");
-
+            layer.draw(renderer, final_layer);
             if index == &self.current_layer_index {}
         };
         for layer_node in self.tree_root.0.iter() {

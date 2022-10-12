@@ -1,4 +1,6 @@
 use cgmath::{Point2, Point3, Vector2, Vector3};
+use framework::framework::TextureId;
+use framework::renderer::renderer::Renderer;
 use framework::scene::Transform2d;
 use framework::{framework::BufferId, BufferConfiguration, Framework, MeshInstance2D};
 use wgpu::TextureView;
@@ -88,7 +90,7 @@ impl<'framework> Layer<'framework> {
             }
         }
     }
-    pub(crate) fn draw<'library, 'pass, 'l>(&'l self, target: &TextureView)
+    pub(crate) fn draw<'library, 'pass, 'l>(&'l self, renderer: &mut Renderer, target: &TextureId)
     where
         'framework: 'pass,
         'l: 'pass,
@@ -99,10 +101,12 @@ impl<'framework> Layer<'framework> {
         match &self.layer_type {
             LayerType::Bitmap(ref bm) => {
                 bm.draw(
+                    renderer,
                     self.position,
                     self.scale,
                     self.rotation_radians,
                     self.settings.opacity,
+                    target,
                 );
             }
         }
@@ -134,10 +138,9 @@ impl<'framework> Layer<'framework> {
                 y: self.position.y,
                 z: 0.0,
             },
-            scale: Vector3 {
+            scale: Vector2 {
                 x: self.scale.x,
                 y: self.scale.y,
-                z: 1.0,
             },
             rotation_radians: cgmath::Rad(self.rotation_radians),
         }

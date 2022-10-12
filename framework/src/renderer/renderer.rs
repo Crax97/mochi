@@ -6,7 +6,7 @@ use wgpu::{
 
 use crate::{
     buffer::BufferInitialSetup,
-    framework::{BufferId, MeshId, ShaderId},
+    framework::{BufferId, MeshId, ShaderId, TextureId},
     shader::{Shader, ShaderCreationInfo},
     AssetRef, Buffer, BufferConfiguration, BufferType, Camera2d, Camera2dUniformBlock, Framework,
     Mesh, MeshConstructionDetails, MeshInstance2D, Texture2d, Vertex,
@@ -32,7 +32,7 @@ struct ResolvedDrawCommand<'a> {
     draw_type: ResolvedDrawType<'a>,
     shader: AssetRef<'a, Shader>,
     vertex_buffers: Vec<AssetRef<'a, Buffer>>,
-    bindable_resources: Vec<ResolvedResourceType<'a>>,
+    bindable_resources: Vec<(u32, ResolvedResourceType<'a>)>,
 }
 
 pub struct Renderer<'f> {
@@ -49,6 +49,8 @@ pub struct Renderer<'f> {
 }
 
 impl<'f> Renderer<'f> {
+    const DIFFUSE_BIND_GROUP_LOCATION: u32 = 2;
+
     fn construct_initial_quad(f: &Framework) -> MeshId {
         let quad_mesh_vertices = [
             Vertex {
@@ -115,6 +117,11 @@ impl<'f> Renderer<'f> {
         self.draw_queue.push(draw_command)
     }
 
+    pub fn end_on_texture(&mut self, output: &TextureId) {
+        let texture = self.framework.texture2d(output);
+        self.end(&texture.texture_view);
+    }
+
     pub fn end(&mut self, output: &TextureView) {
         let mut command_encoder = self.create_command_encoder();
         self.execute_draw_queue(&mut command_encoder, output);
@@ -147,7 +154,9 @@ impl<'f> Renderer<'f> {
 
         let render_pass = command_encoder.begin_render_pass(&render_pass_description);
         let commands = self.resolve_draw_commands();
-        self.execute_commands(render_pass, &commands);
+        let camera_buffer =
+            ResolvedResourceType::UniformBuffer(self.framework.buffer(&self.camera_buffer_id));
+        self.execute_commands(render_pass, &camera_buffer, &commands);
     }
 
     fn submit_frame(&mut self, command_encoder: CommandEncoder) {
@@ -175,10 +184,13 @@ impl<'f> Renderer<'f> {
     fn execute_commands<'a>(
         &self,
         mut render_pass: RenderPass<'a>,
+        camera_buffer: &'a ResolvedResourceType<'a>,
         commands: &'a Vec<ResolvedDrawCommand<'a>>,
     ) {
         for command in commands.iter() {
             render_pass.set_pipeline(&command.shader.render_pipeline);
+
+            self.bind_resource(0, camera_buffer, &mut render_pass);
 
             for (idx, buffer) in command.vertex_buffers.iter().enumerate() {
                 self.bind_vertex_buffer(
@@ -188,8 +200,8 @@ impl<'f> Renderer<'f> {
                 );
             }
 
-            for (idx, resource) in command.bindable_resources.iter().enumerate() {
-                self.bind_resource(idx as u32, resource, &mut render_pass);
+            for (idx, resource) in command.bindable_resources.iter() {
+                self.bind_resource(*idx, resource, &mut render_pass);
             }
 
             match &command.draw_type {
@@ -199,7 +211,7 @@ impl<'f> Renderer<'f> {
                 }
                 ResolvedDrawType::Separate(buffers) => {
                     for buffer in buffers {
-                        self.bind_resource(Mesh::INDEX_BUFFER_SLOT, buffer, &mut render_pass);
+                        self.bind_resource(Mesh::MESH_INFO_UNIFORM_SLOT, buffer, &mut render_pass);
                         command.mesh.draw(&mut render_pass);
                     }
                 }
@@ -269,21 +281,29 @@ impl<'f> Renderer<'f> {
     fn resolve_bindable_resources<'a>(
         &'a self,
         command: &DrawCommand,
-    ) -> Vec<ResolvedResourceType<'a>> {
+    ) -> Vec<(u32, ResolvedResourceType<'a>)> {
         let mut specific_draw_resources = self.resolve_draw_type_resources(command);
         let mut additional_draw_resources = command
             .additional_data
             .additional_bindable_resource
             .iter()
-            .map(|resource| match &resource {
-                BindableResource::UniformBuffer(buf_id) => ResolvedResourceType::UniformBuffer({
-                    let buffer = self.framework.buffer(buf_id);
-                    debug_assert!(buffer.config.buffer_type == BufferType::Uniform);
-                    buffer
-                }),
-                BindableResource::Texture(tex_id) => {
-                    ResolvedResourceType::Texture(self.framework.texture2d(tex_id))
-                }
+            .enumerate()
+            .map(|(idx, resource)| {
+                (
+                    idx as u32 + Shader::reserved_buffer_count(),
+                    match &resource {
+                        BindableResource::UniformBuffer(buf_id) => {
+                            ResolvedResourceType::UniformBuffer({
+                                let buffer = self.framework.buffer(buf_id);
+                                debug_assert!(buffer.config.buffer_type == BufferType::Uniform);
+                                buffer
+                            })
+                        }
+                        BindableResource::Texture(tex_id) => {
+                            ResolvedResourceType::Texture(self.framework.texture2d(tex_id))
+                        }
+                    },
+                )
             })
             .collect();
         specific_draw_resources.append(&mut additional_draw_resources);
@@ -293,11 +313,12 @@ impl<'f> Renderer<'f> {
     fn resolve_draw_type_resources<'a>(
         &'a self,
         command: &DrawCommand,
-    ) -> Vec<ResolvedResourceType<'a>> {
+    ) -> Vec<(u32, ResolvedResourceType<'a>)> {
         match &command.primitives {
             PrimitiveType::Texture2D { texture_id, .. } => {
-                vec![ResolvedResourceType::Texture(
-                    self.framework.texture2d(texture_id),
+                vec![(
+                    Renderer::DIFFUSE_BIND_GROUP_LOCATION,
+                    ResolvedResourceType::Texture(self.framework.texture2d(texture_id)),
                 )]
             }
             _ => unreachable!(),

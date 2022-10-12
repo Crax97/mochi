@@ -23,6 +23,8 @@ pub struct Mesh {
 impl Mesh {
     pub const VERTEX_BUFFER_SLOT: u32 = 0;
     pub const INDEX_BUFFER_SLOT: u32 = 1;
+
+    pub const MESH_INFO_UNIFORM_SLOT: u32 = 1;
 }
 
 impl ShaderLayout for Mesh {
@@ -39,7 +41,7 @@ impl ShaderLayout for Mesh {
 
 impl Mesh {
     pub(crate) fn reserved_buffer_count() -> u32 {
-        2
+        5
     }
 }
 

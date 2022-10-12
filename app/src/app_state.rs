@@ -72,7 +72,6 @@ pub struct ImageApplication<'framework> {
     pub(crate) final_surface: Surface,
     pub(crate) final_surface_configuration: SurfaceConfiguration,
     renderer: Renderer<'framework>,
-    final_present_shader: ShaderId,
     image_editor: ImageEditor<'framework>,
     input_state: InputState,
     toolbox: Toolbox<'framework>,
@@ -122,10 +121,6 @@ impl<'framework> ImageApplication<'framework> {
         let ui = ui::create_ui(&framework, &final_surface_configuration, &window);
 
         let renderer = Renderer::new(framework);
-        let final_present_shader_info =
-            ShaderCreationInfo::using_default_vertex_fragment(framework)
-                .with_output_format(TextureFormat::Bgra8UnormSrgb);
-        let final_present_shader = framework.create_shader(final_present_shader_info);
 
         Self {
             framework,
@@ -133,7 +128,6 @@ impl<'framework> ImageApplication<'framework> {
             renderer,
             final_surface,
             final_surface_configuration,
-            final_present_shader,
             image_editor,
             input_state: InputState::default(),
             toolbox,
@@ -242,19 +236,11 @@ impl<'framework> ImageApplication<'framework> {
                 let app_surface_view = current_texture
                     .texture
                     .create_view(&wgpu::TextureViewDescriptor::default());
-                self.renderer.begin(
-                    self.image_editor.camera(),
-                    Some(wgpu::Color {
-                        r: 0.02,
-                        g: 0.02,
-                        b: 0.02,
-                        a: 0.02,
-                    }),
-                );
-                self.image_editor.render_document();
-                self.image_editor.render_canvas(&app_surface_view);
 
-                self.renderer.end(&app_surface_view);
+                self.image_editor.render_document(&mut self.renderer);
+                self.image_editor
+                    .render_canvas(&mut self.renderer, &app_surface_view);
+
                 let surface_configuration = self.final_surface_configuration.clone();
 
                 let ui_command = self.ui.present(

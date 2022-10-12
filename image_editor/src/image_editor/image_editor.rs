@@ -1,7 +1,11 @@
 use cgmath::{point2, ElementWise, Point2};
+use framework::framework::ShaderId;
+use framework::renderer::draw_command::{DrawCommand, DrawMode, OptionalDrawData, PrimitiveType};
+use framework::renderer::renderer::Renderer;
 use framework::scene::Camera2d;
-use framework::{Framework, MeshInstance2D};
-use wgpu::TextureView;
+use framework::shader::ShaderCreationInfo;
+use framework::{Framework, MeshInstance2D, Transform2d};
+use wgpu::{TextureFormat, TextureView};
 
 use crate::document::DocumentCreationInfo;
 
@@ -23,6 +27,7 @@ pub struct ImageEditor<'framework> {
     pan_camera: Camera2d,
 
     document: Document<'framework>,
+    final_present_shader: ShaderId,
 }
 impl<'framework> ImageEditor<'framework> {
     pub fn new(framework: &'framework Framework, initial_window_bounds: &[f32; 2]) -> Self {
@@ -48,12 +53,18 @@ impl<'framework> ImageEditor<'framework> {
         } else {
             test_document.outer_size().y / initial_window_bounds[1]
         } * 1.5;
+
+        let final_present_shader_info =
+            ShaderCreationInfo::using_default_vertex_fragment(framework)
+                .with_output_format(TextureFormat::Bgra8UnormSrgb);
+        let final_present_shader = framework.create_shader(final_present_shader_info);
         println!("Initial scale: {initial_camera_scale}");
         //pan_camera.set_scale(initial_camera_scale);
         ImageEditor {
             framework,
             pan_camera,
             document: test_document,
+            final_present_shader,
         }
     }
 
@@ -104,14 +115,32 @@ impl<'framework> ImageEditor<'framework> {
         self.mutate_document(|d| d.update_layers());
     }
 
-    pub fn render_document<'s, 't>(&'s mut self)
+    pub fn render_document<'s, 't>(&'s mut self, renderer: &mut Renderer)
     where
         'framework: 't,
     {
-        // self.document.render(&mut pass);
+        self.document.render(renderer);
     }
 
-    pub fn render_canvas(&mut self, output_canvas: &TextureView) {}
+    pub fn render_canvas(&mut self, renderer: &mut Renderer, output_canvas: &TextureView) {
+        renderer.begin(&self.pan_camera, Some(wgpu::Color::TRANSPARENT));
+        renderer.draw(DrawCommand {
+            primitives: PrimitiveType::Texture2D {
+                texture_id: self.document.final_layer().texture().clone(),
+                instances: vec![Transform2d {
+                    scale: self.document.document_size().cast::<f32>().unwrap() * 0.5,
+                    ..Default::default()
+                }],
+            },
+            draw_mode: DrawMode::Single,
+            additional_data: OptionalDrawData {
+                additional_vertex_buffers: vec![],
+                additional_bindable_resource: vec![],
+                shader: Some(self.final_present_shader.clone()),
+            },
+        });
+        renderer.end(output_canvas);
+    }
 
     pub fn get_full_image_texture(&self) -> &BitmapLayer {
         &self.document().final_layer()

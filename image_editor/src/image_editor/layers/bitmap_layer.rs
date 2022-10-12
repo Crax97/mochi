@@ -1,5 +1,12 @@
-use cgmath::{num_traits::ToPrimitive, Vector2};
-use framework::{framework::TextureId, Framework, MeshInstance2D, Texture2dConfiguration};
+use cgmath::{num_traits::ToPrimitive, point2, point3, Point3, Rad, Vector2};
+use framework::{
+    framework::TextureId,
+    renderer::{
+        draw_command::{DrawCommand, DrawMode, OptionalDrawData, PrimitiveType},
+        renderer::Renderer,
+    },
+    Camera2d, Framework, MeshInstance2D, Texture2dConfiguration, Transform2d,
+};
 
 pub struct BitmapLayerConfiguration {
     pub label: String,
@@ -71,14 +78,40 @@ impl BitmapLayer {
 
     pub fn draw(
         &self,
+        renderer: &mut Renderer,
         position: cgmath::Point2<f32>,
         scale: Vector2<f32>,
         rotation_radians: f32,
         opacity: f32,
+        output: &TextureId,
     ) {
         let real_scale = Vector2 {
             x: scale.x * self.size().x * 0.5,
             y: scale.y * self.size().y * 0.5,
         };
+        renderer.begin(&self.camera(), None);
+        renderer.draw(DrawCommand {
+            primitives: PrimitiveType::Texture2D {
+                texture_id: self.texture().clone(),
+                instances: vec![Transform2d {
+                    position: Point3 {
+                        x: position.x,
+                        y: position.y,
+                        z: 0.0,
+                    },
+                    scale: real_scale,
+                    rotation_radians: Rad(rotation_radians),
+                }],
+            },
+            draw_mode: DrawMode::Single,
+            additional_data: OptionalDrawData::default(),
+        });
+        renderer.end_on_texture(output);
+    }
+
+    fn camera(&self) -> Camera2d {
+        let half_w = self.size().x * 0.5;
+        let half_h = self.size().y * 0.5;
+        Camera2d::new(-0.01, 1000.0, [-half_w, half_w, half_h, -half_h])
     }
 }

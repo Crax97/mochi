@@ -1,6 +1,7 @@
 use wgpu::{
-    include_wgsl, BindGroupLayout, BlendState, ColorTargetState, FragmentState, RenderPipeline,
-    ShaderModule, ShaderModuleDescriptor, TextureFormat, VertexBufferLayout, VertexState,
+    include_wgsl, BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor, BlendState,
+    ColorTargetState, FragmentState, RenderPipeline, ShaderModule, ShaderModuleDescriptor,
+    TextureFormat, VertexBufferLayout, VertexState,
 };
 
 use crate::{Buffer, Framework, Mesh, MeshInstance2D, Texture2d};
@@ -12,6 +13,7 @@ pub trait ShaderLayout {
 pub enum BindElement {
     UniformBuffer,
     Texture,
+    None,
 }
 
 pub struct ShaderCreationInfo<'a> {
@@ -41,6 +43,8 @@ impl<'a> ShaderCreationInfo<'a> {
         }
         .with_layout::<Mesh>()
         .with_layout::<MeshInstance2D>()
+        .with_bind_element(BindElement::UniformBuffer) // 0 camera info buffer
+        .with_bind_element(BindElement::None) // 1 is unused, for compat with default fragment shader
     }
     pub fn using_default_vertex(framework: &Framework, fragment: ShaderModuleDescriptor) -> Self {
         let default_vertex = include_wgsl!("shaders/default_vertex.wgsl");
@@ -55,22 +59,22 @@ impl<'a> ShaderCreationInfo<'a> {
             layouts: vec![],
         }
         .with_layout::<Mesh>()
+        .with_bind_element(BindElement::UniformBuffer) // 0 mesh info buffer
+        .with_bind_element(BindElement::UniformBuffer) // 1 camera info buffer
     }
     pub fn using_default_vertex_fragment(framework: &Framework) -> Self {
         ShaderCreationInfo::using_default_vertex(
             framework,
             include_wgsl!("shaders/default_fragment.wgsl"),
         )
-        .with_bind_element(BindElement::Texture) // 0: texture + sampler
-        .with_bind_element(BindElement::UniformBuffer) // camera buffer
+        .with_bind_element(BindElement::Texture) // 2: diffuse texture + sampler
     }
     pub fn using_default_vertex_fragment_instanced(framework: &Framework) -> Self {
         ShaderCreationInfo::using_default_vertex_instanced(
             framework,
             include_wgsl!("shaders/default_fragment.wgsl"),
         )
-        .with_bind_element(BindElement::Texture) // 0: texture + sampler
-        .with_bind_element(BindElement::UniformBuffer) // camera buffer
+        .with_bind_element(BindElement::Texture) // 2: texture + sampler
     }
 
     pub fn with_bind_element(mut self, element: BindElement) -> Self {
@@ -96,6 +100,9 @@ pub struct Shader {
 }
 
 impl Shader {
+    pub fn reserved_buffer_count() -> u32 {
+        5
+    }
     pub(crate) fn new(framework: &Framework, info: ShaderCreationInfo) -> Self {
         let bind_group_layouts =
             Shader::bind_group_layouts_from_bind_elements(framework, &info.bind_elements);
@@ -162,6 +169,14 @@ impl Shader {
             .map(|e| match e {
                 BindElement::UniformBuffer => Buffer::bind_group_layout(framework),
                 BindElement::Texture => Texture2d::bind_group_layout(framework),
+                BindElement::None => {
+                    framework
+                        .device
+                        .create_bind_group_layout(&BindGroupLayoutDescriptor {
+                            label: None,
+                            entries: &[],
+                        })
+                }
             })
             .collect()
     }
