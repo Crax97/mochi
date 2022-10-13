@@ -76,7 +76,7 @@ impl InputState {
                     let mouse_position = position.cast::<f32>();
                     self.current_cursor_position = PhysicalPosition {
                         x: mouse_position.x,
-                        y: mouse_position.y,
+                        y: self.window_size.height as f32 - mouse_position.y,
                     };
                 }
                 winit::event::WindowEvent::MouseWheel { delta, .. } => {
