@@ -331,8 +331,9 @@ impl Texture2d {
         y: u32,
         width: u32,
         height: u32,
+        output_texture: &TextureId,
         framework: &Framework,
-    ) -> TextureId {
+    ) {
         let mut encoder =
             framework
                 .device
@@ -343,19 +344,8 @@ impl Texture2d {
         // Needed because textures in wgpu go from bottom to top, and we
         // pass coords from top to bottom
         let real_y = self.convert_region_y_to_wgpu_y(y, height);
-        let oneshot_texture_id = framework.allocate_texture2d(
-            crate::Texture2dConfiguration {
-                debug_name: Some("Tex Subregion".into()),
-                width,
-                height,
-                format: self.format,
-                allow_cpu_write: true,
-                allow_cpu_read: true,
-                allow_use_as_render_target: true,
-            },
-            None,
-        );
-        let oneshot_texture = framework.texture2d(&oneshot_texture_id);
+
+        let oneshot_texture = framework.texture2d(output_texture);
         encoder.copy_texture_to_texture(
             wgpu::ImageCopyTexture {
                 texture: &self.texture,
@@ -376,7 +366,5 @@ impl Texture2d {
             },
         );
         framework.queue.submit(std::iter::once(encoder.finish()));
-
-        oneshot_texture_id
     }
 }

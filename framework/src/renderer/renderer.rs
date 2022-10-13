@@ -132,6 +132,7 @@ impl<'f> Renderer<'f> {
         self.framework
             .buffer_write_sync::<Camera2dUniformBlock>(&self.camera_buffer_id, vec![camera.into()]);
     }
+
     pub fn draw(&mut self, draw_command: DrawCommand) {
         self.draw_queue.push(draw_command)
     }

@@ -240,7 +240,21 @@ impl<'a> Framework {
         width: u32,
         height: u32,
     ) -> TextureId {
+        let format = { self.texture2d(id).format };
+        let output_texture = self.allocate_texture2d(
+            crate::Texture2dConfiguration {
+                debug_name: Some("Tex Subregion".into()),
+                width,
+                height,
+                format,
+                allow_cpu_write: true,
+                allow_cpu_read: true,
+                allow_use_as_render_target: true,
+            },
+            None,
+        );
         self.texture2d(id)
-            .read_subregion_texture2d(x, y, width, height, self)
+            .read_subregion_texture2d(x, y, width, height, &output_texture, self);
+        output_texture
     }
 }

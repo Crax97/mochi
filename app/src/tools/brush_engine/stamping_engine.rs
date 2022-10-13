@@ -228,30 +228,31 @@ impl BrushEngine for StrokingEngine {
             // To correctly blend the buffer with the current layer, we have to move into the current layer's
             // coordinate system
             let inv_layer_matrix = current_layer_transform.matrix().invert();
+            let buffer_layer = context.image_editor.document().buffer_layer();
             if let Some(inv_layer_matrix) = inv_layer_matrix {
                 let origin_inv = inv_layer_matrix.transform_point(point3(0.0, 0.0, 0.0));
-                /*
-                context
-                    .draw_pass
-                    .begin(context.image_editor.framework(), &bm_camera);
+                context.renderer.begin(&layer_tex.camera(), None);
                 layer_tex.draw(
-                    context.draw_pass,
+                    context.renderer,
                     point2(0.0, 0.0),
                     vec2(1.0, 1.0),
                     0.0,
                     1.0,
+                    &new_texture_id,
                 );
-                context.image_editor.document().buffer_layer().draw(
-                    context.draw_pass,
+                buffer_layer.draw(
+                    context.renderer,
                     point2(origin_inv.x, origin_inv.y),
                     vec2(1.0, 1.0),
                     0.0,
                     1.0,
+                    &new_texture_id,
                 );
+
                 context
-                    .draw_pass
-                    .finish(framework.texture2d_texture_view(&new_texture_id), false);
-                */
+                    .renderer
+                    .begin(&layer_tex.camera(), Some(wgpu::Color::TRANSPARENT));
+                context.renderer.end_on_texture(buffer_layer.texture());
             }
             new_texture_id
         };
