@@ -368,6 +368,7 @@ impl<'f> Renderer<'f> {
             PrimitiveType::Texture2D {
                 instances,
                 flip_uv_y,
+                multiply_color,
                 ..
             } => {
                 let mesh_instances_2d = instances
@@ -378,7 +379,7 @@ impl<'f> Renderer<'f> {
                             vec2(inst.scale.x, inst.scale.y),
                             inst.rotation_radians.0,
                             *flip_uv_y,
-                            1.0,
+                            *multiply_color,
                         )
                     })
                     .collect();
@@ -401,7 +402,8 @@ impl<'f> Renderer<'f> {
             PrimitiveType::Noop => unreachable!(),
             PrimitiveType::Texture2D {
                 instances,
-                flip_uv_y: flip_y,
+                flip_uv_y,
+                multiply_color,
                 ..
             } => {
                 let instances = instances
@@ -411,8 +413,8 @@ impl<'f> Renderer<'f> {
                             point2(inst.position.x, inst.position.y),
                             vec2(inst.scale.x, inst.scale.y),
                             inst.rotation_radians.0,
-                            *flip_y,
-                            1.0,
+                            *flip_uv_y,
+                            *multiply_color,
                         )
                     })
                     .map(|instance| {

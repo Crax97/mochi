@@ -132,6 +132,7 @@ impl<'framework> ImageEditor<'framework> {
                     ..Default::default()
                 }],
                 flip_uv_y: true,
+                multiply_color: wgpu::Color::WHITE,
             },
             draw_mode: DrawMode::Single,
             additional_data: OptionalDrawData {

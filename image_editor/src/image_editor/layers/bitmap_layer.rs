@@ -103,6 +103,12 @@ impl BitmapLayer {
                     rotation_radians: Rad(rotation_radians),
                 }],
                 flip_uv_y: true,
+                multiply_color: wgpu::Color {
+                    r: 1.0,
+                    g: 1.0,
+                    b: 1.0,
+                    a: opacity as f64,
+                },
             },
             draw_mode: DrawMode::Single,
             additional_data: OptionalDrawData::default(),

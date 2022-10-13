@@ -76,6 +76,17 @@ pub struct StampConfiguration {
     pub is_eraser: bool,
 }
 
+impl StampConfiguration {
+    fn wgpu_color(&self) -> wgpu::Color {
+        wgpu::Color {
+            r: self.color_srgb[0] as f64 / 255.0,
+            g: self.color_srgb[1] as f64 / 255.0,
+            b: self.color_srgb[2] as f64 / 255.0,
+            a: self.opacity as f64 / 255.0,
+        }
+    }
+}
+
 #[repr(C)]
 #[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct StampUniformData {
@@ -183,6 +194,7 @@ impl BrushEngine for StrokingEngine {
                         texture_id: stamp.clone(),
                         instances: transforms,
                         flip_uv_y: true,
+                        multiply_color: self.settings().wgpu_color(),
                     },
                     draw_mode: DrawMode::Instanced(0),
                     additional_data: Default::default(),

@@ -20,6 +20,7 @@ pub enum PrimitiveType {
         texture_id: TextureId,
         instances: Vec<Transform2d>,
         flip_uv_y: bool,
+        multiply_color: wgpu::Color,
     },
 }
 

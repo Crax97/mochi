@@ -5,7 +5,8 @@ struct VertexInput {
 
 struct PerInstanceData {
     @location(2) position_and_size: vec4<f32>,
-    @location(3) rotation_flip_opacity: vec4<f32>,
+    @location(3) rotation_flip: vec4<f32>,
+    @location(4) multiply_color: vec4<f32>,
 }
 
 struct PerFrameData {
@@ -16,11 +17,11 @@ struct PerFrameData {
 var<uniform> uniform_data: PerFrameData;
 
 
-struct VertexOutput {
+struct FragmentInput {
     @builtin(position) coordinates_position: vec4<f32>,
     @location(0) position: vec3<f32>,
     @location(1) tex_uv: vec2<f32>,
-    @location(2) opacity: f32,
+    @location(2) multiply_color: vec4<f32>,
 }
 
 fn rot_z(angle_rads: f32) -> mat4x4<f32> {
@@ -47,7 +48,7 @@ fn translation(pos: vec2<f32>) -> mat4x4<f32> {
 }
 
 @vertex
-fn vertex(in: VertexInput, instance: PerInstanceData) -> VertexOutput {
+fn vertex(in: VertexInput, instance: PerInstanceData) -> FragmentInput {
     let OPENGL_CORRECT = mat4x4<f32>(
         1.0, 0.0, 0.0, 0.0,
         0.0, 1.0, 0.0, 0.0,
@@ -55,18 +56,19 @@ fn vertex(in: VertexInput, instance: PerInstanceData) -> VertexOutput {
         0.0, 0.0, 0.5, 1.0
     );
 
-    var out : VertexOutput;
+    var out : FragmentInput;
     var vp = OPENGL_CORRECT * uniform_data.vp;
     var trans = translation(instance.position_and_size.xy);
-    var rot = rot_z(instance.rotation_flip_opacity.x);
+    var rot = rot_z(instance.rotation_flip.x);
+    let flip = instance.rotation_flip.y;
+    
     var scale = scale(instance.position_and_size.zw);
     var model = rot * scale * trans;
     var projected = vec4<f32>(in.position, 1.0) * model;
-    let flip = instance.rotation_flip_opacity.y;
     let y = flip * (1.0 - in.tex_uv.y) + (1.0 - flip) * in.tex_uv.y;
     out.coordinates_position = vp * projected;
     out.position = in.position;
     out.tex_uv = vec2<f32>(in.tex_uv.x, y);
-    out.opacity = instance.rotation_flip_opacity.z;
+    out.multiply_color = instance.multiply_color;
     return out;
 }

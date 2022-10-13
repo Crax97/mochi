@@ -70,6 +70,16 @@ impl<'framework> Layer<'framework> {
             instance_buffer_id,
         }
     }
+
+    fn wgpu_color(&self) -> wgpu::Color {
+        wgpu::Color {
+            r: 1.0,
+            g: 1.0,
+            b: 1.0,
+            a: self.settings.opacity as f64,
+        }
+    }
+
     pub(crate) fn update(&mut self, framework: &Framework) {
         match &self.layer_type {
             LayerType::Bitmap(bitmap_layer) => {
@@ -84,7 +94,7 @@ impl<'framework> Layer<'framework> {
                         real_scale,
                         self.rotation_radians,
                         true,
-                        self.settings.opacity,
+                        self.wgpu_color(),
                     )],
                 );
             }
@@ -126,7 +136,7 @@ impl<'framework> Layer<'framework> {
                 self.scale,
                 self.rotation_radians,
                 true,
-                self.settings.opacity,
+                wgpu::Color::WHITE,
             )],
         );
     }
