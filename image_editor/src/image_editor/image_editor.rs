@@ -131,6 +131,7 @@ impl<'framework> ImageEditor<'framework> {
                     scale: self.document.document_size().cast::<f32>().unwrap() * 0.5,
                     ..Default::default()
                 }],
+                flip_uv_y: true,
             },
             draw_mode: DrawMode::Single,
             additional_data: OptionalDrawData {

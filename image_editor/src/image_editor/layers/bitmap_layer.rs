@@ -102,6 +102,7 @@ impl BitmapLayer {
                     scale: real_scale,
                     rotation_radians: Rad(rotation_radians),
                 }],
+                flip_uv_y: false,
             },
             draw_mode: DrawMode::Single,
             additional_data: OptionalDrawData::default(),

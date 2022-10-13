@@ -1,6 +1,6 @@
 use crate::{
     framework::{BufferId, ShaderId, TextureId},
-    MeshInstance2D, Transform2d,
+    Transform2d,
 };
 
 pub enum DrawMode {
@@ -19,6 +19,7 @@ pub enum PrimitiveType {
     Texture2D {
         texture_id: TextureId,
         instances: Vec<Transform2d>,
+        flip_uv_y: bool,
     },
 }
 

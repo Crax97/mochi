@@ -178,6 +178,7 @@ impl BrushEngine for StrokingEngine {
                     primitives: PrimitiveType::Texture2D {
                         texture_id: stamp.clone(),
                         instances: transforms,
+                        flip_uv_y: true,
                     },
                     draw_mode: DrawMode::Instanced(0),
                     additional_data: Default::default(),

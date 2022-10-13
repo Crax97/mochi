@@ -351,9 +351,9 @@ impl<'f> Renderer<'f> {
     fn resolve_draw_type<'a>(&self, command: &DrawCommand) -> ResolvedDrawType {
         match command.draw_mode {
             DrawMode::Instanced(instances) => {
-                self.build_instance_buffer_for_primitive_type(&command.primitives)
+                self.build_instance_buffer_for_primitive_type(&command)
             }
-            DrawMode::Single => self.build_uniform_buffers_for_primitive_type(&command.primitives),
+            DrawMode::Single => self.build_uniform_buffers_for_primitive_type(&command),
         }
     }
 
@@ -361,13 +361,14 @@ impl<'f> Renderer<'f> {
         ShaderCreationInfo::using_default_vertex_fragment_instanced(framework)
     }
 
-    fn build_instance_buffer_for_primitive_type(
-        &self,
-        primitives: &PrimitiveType,
-    ) -> ResolvedDrawType {
-        match primitives {
+    fn build_instance_buffer_for_primitive_type(&self, command: &DrawCommand) -> ResolvedDrawType {
+        match &command.primitives {
             PrimitiveType::Noop => unreachable!(),
-            PrimitiveType::Texture2D { instances, .. } => {
+            PrimitiveType::Texture2D {
+                instances,
+                flip_uv_y,
+                ..
+            } => {
                 let mesh_instances_2d = instances
                     .iter()
                     .map(|inst| {
@@ -375,7 +376,7 @@ impl<'f> Renderer<'f> {
                             point2(inst.position.x, inst.position.y),
                             vec2(inst.scale.x, inst.scale.y),
                             inst.rotation_radians.0,
-                            true,
+                            *flip_uv_y,
                             1.0,
                         )
                     })
@@ -394,13 +395,14 @@ impl<'f> Renderer<'f> {
         }
     }
 
-    fn build_uniform_buffers_for_primitive_type(
-        &self,
-        primitives: &PrimitiveType,
-    ) -> ResolvedDrawType {
-        match primitives {
+    fn build_uniform_buffers_for_primitive_type(&self, command: &DrawCommand) -> ResolvedDrawType {
+        match &command.primitives {
             PrimitiveType::Noop => unreachable!(),
-            PrimitiveType::Texture2D { instances, .. } => {
+            PrimitiveType::Texture2D {
+                instances,
+                flip_uv_y: flip_y,
+                ..
+            } => {
                 let instances = instances
                     .iter()
                     .map(|inst| {
@@ -408,7 +410,7 @@ impl<'f> Renderer<'f> {
                             point2(inst.position.x, inst.position.y),
                             vec2(inst.scale.x, inst.scale.y),
                             inst.rotation_radians.0,
-                            true,
+                            *flip_y,
                             1.0,
                         )
                     })

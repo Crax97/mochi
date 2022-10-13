@@ -64,7 +64,8 @@ fn vertex(in: VertexInput) -> VertexOutput {
     var model = rot * scale * trans;
     var projected = vec4<f32>(in.position, 1.0) * model;
     var vp = OPENGL_CORRECT * uniform_data.vp;
-    let y = 1.0 - in.tex_uv.y;
+    let flip_uv_y = instance_data.rotation_flip_opacity.y;
+    let y = (1.0 - in.tex_uv.y) * flip_uv_y + (1.0 - flip_uv_y) * in.tex_uv.y;
     out.coordinates_position = vp * projected;
     out.position = in.position;
     out.tex_uv = vec2<f32>(in.tex_uv.x, y);
