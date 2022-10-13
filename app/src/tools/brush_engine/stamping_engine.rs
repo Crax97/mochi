@@ -1,10 +1,12 @@
 use cgmath::{point2, point3, vec2, Rad, SquareMatrix, Transform};
-use framework::framework::{BufferId, TextureId};
-use framework::renderer::draw_command::{DrawCommand, DrawMode, PrimitiveType};
-use framework::scene::{Camera2d, Camera2dUniformBlock};
-use framework::{Buffer, Framework, MeshInstance2D};
+use framework::framework::{BufferId, ShaderId, TextureId};
+use framework::renderer::draw_command::{DrawCommand, DrawMode, OptionalDrawData, PrimitiveType};
+use framework::scene::Camera2dUniformBlock;
+use framework::shader::{BindElement, ShaderCreationInfo};
+use framework::{Buffer, Framework};
 use framework::{BufferConfiguration, Transform2d};
 use image_editor::layers::{BitmapLayer, LayerIndex, LayerType};
+use wgpu::{include_wgsl, BlendComponent};
 
 use crate::tools::{EditorCommand, EditorContext};
 use crate::{StrokeContext, StrokePath};
@@ -116,10 +118,40 @@ pub struct StrokingEngine {
     current_stamp: usize,
     stamps: Vec<Stamp>,
     stamp_configuration: StampConfiguration,
+    brush_shader_id: ShaderId,
+    eraser_shader_id: ShaderId,
 }
 
 impl StrokingEngine {
     pub fn new(initial_stamp: Stamp, framework: &Framework) -> Self {
+        let brush_shader_info = ShaderCreationInfo::using_default_vertex_instanced(
+            framework,
+            include_wgsl!("brush_fragment.wgsl"),
+        )
+        .with_bind_element(BindElement::Texture); // 2: texture + sampler
+
+        let eraser_blend_state = wgpu::BlendState {
+            color: BlendComponent {
+                src_factor: wgpu::BlendFactor::Zero,
+                dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
+                operation: wgpu::BlendOperation::Add,
+            },
+            alpha: BlendComponent {
+                src_factor: wgpu::BlendFactor::Zero,
+                dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
+                operation: wgpu::BlendOperation::Add,
+            },
+        };
+
+        let eraser_shader_info = ShaderCreationInfo::using_default_vertex_instanced(
+            framework,
+            include_wgsl!("brush_fragment.wgsl"),
+        )
+        .with_bind_element(BindElement::Texture)
+        .with_blend_state(eraser_blend_state); // 2: texture + sampler
+        let brush_shader_id = framework.create_shader(brush_shader_info);
+        let eraser_shader_id = framework.create_shader(eraser_shader_info);
+
         Self {
             stamps: vec![initial_stamp],
             current_stamp: 0,
@@ -131,6 +163,8 @@ impl StrokingEngine {
                 padding: [0.0; 3],
                 is_eraser: false,
             },
+            brush_shader_id,
+            eraser_shader_id,
         }
     }
 
@@ -197,7 +231,14 @@ impl BrushEngine for StrokingEngine {
                             multiply_color: self.settings().wgpu_color(),
                         },
                         draw_mode: DrawMode::Instanced(0),
-                        additional_data: Default::default(),
+                        additional_data: OptionalDrawData {
+                            shader: Some(if self.settings().is_eraser {
+                                self.eraser_shader_id.clone()
+                            } else {
+                                self.brush_shader_id.clone()
+                            }),
+                            ..Default::default()
+                        },
                     });
                     context.renderer.end_on_texture(current_layer.texture());
                 }
