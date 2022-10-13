@@ -9,7 +9,6 @@ use image_editor::layers::{BitmapLayer, LayerIndex, LayerType};
 use crate::tools::{EditorCommand, EditorContext};
 use crate::{StrokeContext, StrokePath};
 
-use super::stamping_engine_pass::StampingEngineRenderPass;
 use super::BrushEngine;
 
 struct LayerReplaceCommand {
@@ -106,14 +105,12 @@ impl From<StampConfiguration> for StampUniformData {
 pub struct StrokingEngine {
     current_stamp: usize,
     stamps: Vec<Stamp>,
-    stamp_pass: StampingEngineRenderPass,
     camera_buffer_id: BufferId,
+    stamp_configuration: StampConfiguration,
 }
 
 impl StrokingEngine {
     pub fn new(initial_stamp: Stamp, framework: &Framework) -> Self {
-        let stamp_pass = StampingEngineRenderPass::new(framework);
-
         let camera_buffer_id = framework.allocate_typed_buffer(BufferConfiguration::<
             Camera2dUniformBlock,
         > {
@@ -128,8 +125,15 @@ impl StrokingEngine {
         Self {
             stamps: vec![initial_stamp],
             current_stamp: 0,
-            stamp_pass,
             camera_buffer_id,
+            stamp_configuration: StampConfiguration {
+                color_srgb: [255, 255, 255],
+                opacity: 255,
+                flow: 1.0,
+                softness: 0.2,
+                padding: [0.0; 3],
+                is_eraser: false,
+            },
         }
     }
 
@@ -138,11 +142,11 @@ impl StrokingEngine {
     }
 
     pub fn settings(&self) -> StampConfiguration {
-        self.stamp_pass.get_stamp_settings()
+        self.stamp_configuration.clone()
     }
 
     pub fn set_new_settings(&mut self, framework: &Framework, settings: StampConfiguration) {
-        self.stamp_pass.set_stamp_settings(framework, settings);
+        self.stamp_configuration = settings;
     }
 
     fn current_stamp(&self) -> &Stamp {

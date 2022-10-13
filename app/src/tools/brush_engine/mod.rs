@@ -1,5 +1,4 @@
 pub mod stamping_engine;
-pub mod stamping_engine_pass;
 
 use cgmath::{InnerSpace, Point2};
 
