@@ -115,27 +115,14 @@ impl From<StampConfiguration> for StampUniformData {
 pub struct StrokingEngine {
     current_stamp: usize,
     stamps: Vec<Stamp>,
-    camera_buffer_id: BufferId,
     stamp_configuration: StampConfiguration,
 }
 
 impl StrokingEngine {
     pub fn new(initial_stamp: Stamp, framework: &Framework) -> Self {
-        let camera_buffer_id = framework.allocate_typed_buffer(BufferConfiguration::<
-            Camera2dUniformBlock,
-        > {
-            initial_setup: framework::buffer::BufferInitialSetup::Size(std::mem::size_of::<
-                Camera2dUniformBlock,
-            >() as u64),
-            buffer_type: framework::BufferType::Uniform,
-            allow_write: true,
-            allow_read: false,
-        });
-
         Self {
             stamps: vec![initial_stamp],
             current_stamp: 0,
-            camera_buffer_id,
             stamp_configuration: StampConfiguration {
                 color_srgb: [0, 0, 0],
                 opacity: 255,
