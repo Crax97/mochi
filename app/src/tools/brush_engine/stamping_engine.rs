@@ -19,22 +19,8 @@ impl LayerReplaceCommand {
     pub fn new(
         context: &mut EditorContext,
         modified_layer: LayerIndex,
-        new_texture_id: TextureId,
+        old_layer_texture_id: TextureId,
     ) -> Self {
-        let old_layer_texture_id = match context
-            .image_editor
-            .document()
-            .get_layer(&modified_layer)
-            .layer_type
-        {
-            LayerType::Bitmap(ref bm) => bm.texture().clone(),
-        };
-        context.image_editor.mutate_document(|doc| {
-            doc.mutate_layer(&modified_layer, |lay| match &mut lay.layer_type {
-                LayerType::Bitmap(bm) => bm.replace_texture(new_texture_id.clone()),
-            })
-        });
-
         Self {
             old_layer_texture_id,
             modified_layer,
@@ -44,10 +30,23 @@ impl LayerReplaceCommand {
 
 impl EditorCommand for LayerReplaceCommand {
     fn undo(&self, context: &mut EditorContext) -> Box<dyn EditorCommand> {
+        let new_texture_id = match context
+            .image_editor
+            .document()
+            .get_layer(&self.modified_layer)
+            .layer_type
+        {
+            LayerType::Bitmap(ref bm) => bm.texture().clone(),
+        };
+        context.image_editor.mutate_document(|doc| {
+            doc.mutate_layer(&self.modified_layer, |lay| match &mut lay.layer_type {
+                LayerType::Bitmap(bm) => bm.replace_texture(self.old_layer_texture_id.clone()),
+            })
+        });
         Box::new(LayerReplaceCommand::new(
             context,
             self.modified_layer,
-            self.old_layer_texture_id.clone(),
+            new_texture_id.clone(),
         ))
     }
 }
@@ -138,7 +137,7 @@ impl StrokingEngine {
             current_stamp: 0,
             camera_buffer_id,
             stamp_configuration: StampConfiguration {
-                color_srgb: [255, 255, 255],
+                color_srgb: [0, 0, 0],
                 opacity: 255,
                 flow: 1.0,
                 softness: 0.2,
@@ -168,61 +167,81 @@ impl StrokingEngine {
 }
 
 impl BrushEngine for StrokingEngine {
-    fn stroke(&mut self, path: StrokePath, context: StrokeContext) {
-        match context.editor.document().current_layer().layer_type {
+    fn stroke(
+        &mut self,
+        path: StrokePath,
+        context: StrokeContext,
+    ) -> Option<Box<dyn EditorCommand>> {
+        let layer = context.editor.document().current_layer();
+        match layer.layer_type {
             // TODO: Deal with difference between current_layer and buffer_layer size
-            LayerType::Bitmap(_) => {
-                let buffer_layer = context.editor.document().buffer_layer();
+            LayerType::Bitmap(ref current_layer) => {
+                // 1. Create draw info
 
-                // 1. Update buffer
-                let transforms: Vec<Transform2d> = path
-                    .points
-                    .iter()
-                    .map(|pt| Transform2d {
-                        position: point3(pt.position.x, pt.position.y, 0.0),
-                        scale: vec2(pt.size, pt.size),
-                        rotation_radians: Rad(0.0),
-                    })
-                    .collect();
+                let current_layer_transform = layer.transform();
+                let inv_layer_matrix = current_layer_transform.matrix().invert();
+                if let Some(inv_layer_matrix) = inv_layer_matrix {
+                    let transforms: Vec<Transform2d> = path
+                        .points
+                        .iter()
+                        .map(|pt| {
+                            let origin_inv = inv_layer_matrix.transform_point(point3(
+                                pt.position.x,
+                                pt.position.y,
+                                0.0,
+                            ));
+                            Transform2d {
+                                position: origin_inv,
+                                scale: vec2(pt.size, pt.size),
+                                rotation_radians: Rad(0.0),
+                            }
+                        })
+                        .collect();
 
-                // 2. Do draw
+                    // 2. Do draw
 
-                let stamp = self.current_stamp().brush_texture.texture();
-                context.renderer.begin(&buffer_layer.camera(), None);
-                context.renderer.draw(DrawCommand {
-                    primitives: PrimitiveType::Texture2D {
-                        texture_id: stamp.clone(),
-                        instances: transforms,
-                        flip_uv_y: true,
-                        multiply_color: self.settings().wgpu_color(),
-                    },
-                    draw_mode: DrawMode::Instanced(0),
-                    additional_data: Default::default(),
-                });
-                context.renderer.end_on_texture(buffer_layer.texture());
+                    let stamp = self.current_stamp().brush_texture.texture();
+                    context.renderer.begin(&current_layer.camera(), None);
+                    context.renderer.draw(DrawCommand {
+                        primitives: PrimitiveType::Texture2D {
+                            texture_id: stamp.clone(),
+                            instances: transforms,
+                            flip_uv_y: true,
+                            multiply_color: self.settings().wgpu_color(),
+                        },
+                        draw_mode: DrawMode::Instanced(0),
+                        additional_data: Default::default(),
+                    });
+                    context.renderer.end_on_texture(current_layer.texture());
+                }
             }
         }
+        None
     }
 
     fn end_stroking(
         &mut self,
         context: &mut crate::tools::EditorContext,
     ) -> Option<Box<dyn EditorCommand>> {
-        let new_texture_id = {
-            let modified_layer = context.image_editor.document().current_layer_index();
+        None
+    }
+
+    fn begin_stroking(&mut self, context: &mut EditorContext) -> Option<Box<dyn EditorCommand>> {
+        let modified_layer = context.image_editor.document().current_layer_index();
+        let (old_layer_texture_id, new_texture_id) = {
             let layer = context.image_editor.document().get_layer(&modified_layer);
-            let (old_layer_texture_id, size, layer_tex) = match layer.layer_type {
-                LayerType::Bitmap(ref bm) => (bm.texture(), bm.size(), bm),
+            let (old_layer_texture_id, layer_tex) = match layer.layer_type {
+                LayerType::Bitmap(ref bm) => (bm.texture().clone(), bm),
             };
             let (width, height, format) = {
                 let (width, height) = context
                     .image_editor
                     .framework()
-                    .texture2d_dimensions(old_layer_texture_id);
+                    .texture2d_dimensions(&old_layer_texture_id);
                 let format = context
                     .image_editor
                     .framework()
-                    .texture2d_format(old_layer_texture_id);
+                    .texture2d_format(&old_layer_texture_id);
                 (width, height, format)
             };
             let new_texture_id = context.image_editor.framework().allocate_texture2d(
@@ -238,50 +257,27 @@ impl BrushEngine for StrokingEngine {
                 None,
             );
 
-            let current_layer_transform = layer.transform();
-            // The buffer_layer is always drawn in front of the camera, so to correctly blend it with
-            // The current layer may be placed away from the camera
-            // To correctly blend the buffer with the current layer, we have to move into the current layer's
-            // coordinate system
-            let inv_layer_matrix = current_layer_transform.matrix().invert();
-            let buffer_layer = context.image_editor.document().buffer_layer();
-            if let Some(inv_layer_matrix) = inv_layer_matrix {
-                let origin_inv = inv_layer_matrix.transform_point(point3(0.0, 0.0, 0.0));
-                context.renderer.begin(&layer_tex.camera(), None);
-                layer_tex.draw(
-                    context.renderer,
-                    point2(0.0, 0.0),
-                    vec2(1.0, 1.0),
-                    0.0,
-                    1.0,
-                    &new_texture_id,
-                );
-                buffer_layer.draw(
-                    context.renderer,
-                    point2(origin_inv.x, origin_inv.y),
-                    vec2(1.0, 1.0),
-                    0.0,
-                    1.0,
-                    &new_texture_id,
-                );
+            layer_tex.draw(
+                context.renderer,
+                point2(0.0, 0.0),
+                vec2(1.0, 1.0),
+                0.0,
+                1.0,
+                &new_texture_id,
+            );
 
-                context
-                    .renderer
-                    .begin(&layer_tex.camera(), Some(wgpu::Color::TRANSPARENT));
-                context.renderer.end_on_texture(buffer_layer.texture());
-            }
-            new_texture_id
+            (old_layer_texture_id, new_texture_id)
         };
+        context.image_editor.mutate_document(|doc| {
+            doc.mutate_layer(&modified_layer, |lay| match &mut lay.layer_type {
+                LayerType::Bitmap(bm) => bm.replace_texture(new_texture_id.clone()),
+            })
+        });
         let cmd = LayerReplaceCommand::new(
             context,
             context.image_editor.document().current_layer_index(),
-            new_texture_id,
+            old_layer_texture_id,
         );
-
-        context
-            .image_editor
-            .document()
-            .blend_buffer_onto_current_layer();
         Some(Box::new(cmd))
     }
 }

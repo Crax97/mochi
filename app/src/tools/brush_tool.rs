@@ -55,8 +55,10 @@ impl<'framework> Tool for BrushTool<'framework> {
         if let Some(pos) = pt {
             self.last_mouse_position = pos;
             self.last_pressure = pointer_click.pressure;
+            self.engine.borrow_mut().begin_stroking(context)
+        } else {
+            None
         }
-        None
     }
 
     fn on_pointer_move(
@@ -93,19 +95,19 @@ impl<'framework> Tool for BrushTool<'framework> {
 
             let path = StrokePath::linear_start_to_end(start, end, self.step);
 
-            {
-                let context = StrokeContext {
-                    layer: context.image_editor.selected_layer(),
-                    editor: &context.image_editor,
-                    renderer: context.renderer,
-                };
+            let context = StrokeContext {
+                layer: context.image_editor.selected_layer(),
+                editor: &context.image_editor,
+                renderer: context.renderer,
+            };
 
-                self.engine.borrow_mut().stroke(path, context);
-                self.last_mouse_position = new_pointer_position;
-                self.last_pressure = pointer_motion.pressure;
-            }
+            self.last_mouse_position = new_pointer_position;
+            self.last_pressure = pointer_motion.pressure;
+
+            self.engine.borrow_mut().stroke(path, context)
+        } else {
+            None
         }
-        None
     }
 
     fn on_pointer_release(

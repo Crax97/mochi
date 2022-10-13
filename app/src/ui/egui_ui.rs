@@ -111,7 +111,8 @@ impl EguiUI {
             let window_hovered = windows.iter().any(|win| {
                 win.response.rect.contains(Pos2 {
                     x: app_ctx.input_state.mouse_position().x,
-                    y: app_ctx.input_state.mouse_position().y,
+                    y: app_ctx.input_state.window_size().y as f32
+                        - app_ctx.input_state.mouse_position().y,
                 })
             });
             (window_hovered, layer_action)
