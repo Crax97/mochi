@@ -159,7 +159,7 @@ impl EguiUI {
         });
 
         if new_config != engine_config {
-            stamping_engine.set_new_settings(app_ctx.image_editor.framework(), new_config);
+            stamping_engine.set_new_settings(new_config);
         }
 
         let mut brush_tool = app_ctx.brush_tool.borrow_mut();

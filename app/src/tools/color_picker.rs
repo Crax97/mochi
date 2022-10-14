@@ -69,7 +69,7 @@ impl Tool for ColorPicker {
                 (pixel.b * 255.0) as u8,
             ];
             settings.opacity = (pixel.a * 255.0) as u8;
-            engine.set_new_settings(context.image_editor.framework(), settings);
+            engine.set_new_settings(settings);
         }
         None
     }

@@ -39,13 +39,19 @@ pub struct StrokeContext<'editor, 'stroke, 'f> {
 }
 
 pub trait BrushEngine {
-    fn begin_stroking(&mut self, context: &mut EditorContext) -> Option<Box<dyn EditorCommand>>;
+    fn begin_stroking(&mut self, _context: &mut EditorContext) -> Option<Box<dyn EditorCommand>> {
+        None
+    }
     fn stroke(
         &mut self,
-        path: StrokePath,
-        context: StrokeContext,
-    ) -> Option<Box<dyn EditorCommand>>;
-    fn end_stroking(&mut self, context: &mut EditorContext) -> Option<Box<dyn EditorCommand>>;
+        _path: StrokePath,
+        _context: StrokeContext,
+    ) -> Option<Box<dyn EditorCommand>> {
+        None
+    }
+    fn end_stroking(&mut self, _context: &mut EditorContext) -> Option<Box<dyn EditorCommand>> {
+        None
+    }
 }
 impl StrokePath {
     pub(crate) fn linear_start_to_end(start: StrokePoint, end: StrokePoint, step: f32) -> Self {
