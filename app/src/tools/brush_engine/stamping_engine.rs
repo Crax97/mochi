@@ -272,26 +272,12 @@ impl BrushEngine for StrokingEngine {
                     .texture2d_format(&old_layer_texture_id);
                 (width, height, format)
             };
-            let new_texture_id = context.image_editor.framework().allocate_texture2d(
-                framework::Texture2dConfiguration {
-                    debug_name: Some("Layer".to_owned()),
-                    width,
-                    height,
-                    format,
-                    allow_cpu_write: true,
-                    allow_cpu_read: true,
-                    allow_use_as_render_target: true,
-                },
-                None,
-            );
-
-            layer_tex.draw(
-                context.renderer,
-                point2(0.0, 0.0),
-                vec2(1.0, 1.0),
-                0.0,
-                1.0,
-                &new_texture_id,
+            let new_texture_id = context.image_editor.framework().texture2d_copy_subregion(
+                &old_layer_texture_id,
+                0,
+                0,
+                width,
+                height,
             );
 
             (old_layer_texture_id, new_texture_id)

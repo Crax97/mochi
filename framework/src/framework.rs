@@ -232,7 +232,7 @@ impl<'a> Framework {
     pub fn texture2d_read_data(&self, id: &TextureId) -> GpuImageData {
         self.texture2d(id).read_data(self)
     }
-    pub fn texture2d_read_subregion(
+    pub fn texture2d_copy_subregion(
         &self,
         id: &TextureId,
         x: u32,

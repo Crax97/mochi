@@ -66,7 +66,7 @@ impl Tool for DebugSelectRegionTool {
                         let region_width = end_x - begin_x;
                         let region_height = end_y - begin_y;
 
-                        let new_subregion_texture = framework.texture2d_read_subregion(
+                        let new_subregion_texture = framework.texture2d_copy_subregion(
                             bm.texture(),
                             begin_x,
                             begin_y,
