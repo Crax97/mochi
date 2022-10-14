@@ -30,7 +30,7 @@ impl<'a> ShaderCreationInfo<'a> {
         framework: &Framework,
         fragment: ShaderModuleDescriptor,
     ) -> Self {
-        let default_vertex = include_wgsl!("shaders/default_vertex_instanced.wgsl");
+        let default_vertex = include_wgsl!("default_shaders/default_vertex_instanced.wgsl");
         let default_vertex = framework.device.create_shader_module(default_vertex);
         let fragment_module = framework.device.create_shader_module(fragment);
         Self {
@@ -47,7 +47,7 @@ impl<'a> ShaderCreationInfo<'a> {
         .with_bind_element(BindElement::None) // 1 is unused, for compat with default fragment shader
     }
     pub fn using_default_vertex(framework: &Framework, fragment: ShaderModuleDescriptor) -> Self {
-        let default_vertex = include_wgsl!("shaders/default_vertex.wgsl");
+        let default_vertex = include_wgsl!("default_shaders/default_vertex.wgsl");
         let default_vertex = framework.device.create_shader_module(default_vertex);
         let fragment_module = framework.device.create_shader_module(fragment);
         Self {
@@ -65,14 +65,14 @@ impl<'a> ShaderCreationInfo<'a> {
     pub fn using_default_vertex_fragment(framework: &Framework) -> Self {
         ShaderCreationInfo::using_default_vertex(
             framework,
-            include_wgsl!("shaders/default_fragment.wgsl"),
+            include_wgsl!("default_shaders/default_fragment.wgsl"),
         )
         .with_bind_element(BindElement::Texture) // 2: diffuse texture + sampler
     }
     pub fn using_default_vertex_fragment_instanced(framework: &Framework) -> Self {
         ShaderCreationInfo::using_default_vertex_instanced(
             framework,
-            include_wgsl!("shaders/default_fragment.wgsl"),
+            include_wgsl!("default_shaders/default_fragment.wgsl"),
         )
         .with_bind_element(BindElement::Texture) // 2: texture + sampler
     }
