@@ -1,4 +1,4 @@
-use cgmath::{num_traits::clamp_min, Point2, Vector2};
+use cgmath::{Point2, Vector2};
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, PartialEq)]

@@ -248,7 +248,7 @@ impl BrushEngine for StrokingEngine {
                             flip_uv_y: true,
                             multiply_color: self.settings().wgpu_color(),
                         },
-                        draw_mode: DrawMode::Instanced(0),
+                        draw_mode: DrawMode::Instanced,
                         additional_data: OptionalDrawData {
                             shader: Some(if self.settings().is_eraser {
                                 self.eraser_shader_id.clone()

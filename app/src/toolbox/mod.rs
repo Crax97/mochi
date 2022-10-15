@@ -13,7 +13,6 @@ use cgmath::point2;
 use framework::Framework;
 use image_editor::{
     layers::{BitmapLayer, BitmapLayerConfiguration},
-    ImageEditor,
 };
 use winit::event::MouseButton;
 

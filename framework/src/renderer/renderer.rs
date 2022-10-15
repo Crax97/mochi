@@ -1,6 +1,6 @@
 use cgmath::{point2, point3, vec2};
 use wgpu::{
-    BindGroup, BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor, Color,
+    BindGroup, BindGroupDescriptor, BindGroupLayoutDescriptor, Color,
     CommandEncoder, CommandEncoderDescriptor, LoadOp, Operations, RenderPass,
     RenderPassColorAttachment, RenderPassDescriptor, TextureView,
 };
@@ -276,7 +276,7 @@ impl<'f> Renderer<'f> {
         } else {
             match command.primitives {
                 PrimitiveType::Texture2D { .. } => match command.draw_mode {
-                    DrawMode::Instanced(_) => &self.texture2d_instanced_shader_id,
+                    DrawMode::Instanced => &self.texture2d_instanced_shader_id,
                     DrawMode::Single => &self.texture2d_single_shader_id,
                 }, // Pick quad mesh
                 _ => unreachable!(),
@@ -351,7 +351,7 @@ impl<'f> Renderer<'f> {
 
     fn resolve_draw_type<'a>(&self, command: &DrawCommand) -> ResolvedDrawType {
         match command.draw_mode {
-            DrawMode::Instanced(instances) => {
+            DrawMode::Instanced => {
                 self.build_instance_buffer_for_primitive_type(&command)
             }
             DrawMode::Single => self.build_uniform_buffers_for_primitive_type(&command),

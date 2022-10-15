@@ -6,7 +6,7 @@ use crate::{
 pub enum DrawMode {
     // The shader used supports instancing: all the instance data passed in the draw call
     // will be stored in an instance buffer
-    Instanced(u32),
+    Instanced,
 
     // The instances will be drawn in separated render passes
     Single,

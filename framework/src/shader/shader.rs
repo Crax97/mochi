@@ -1,5 +1,5 @@
 use wgpu::{
-    include_wgsl, BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor, BlendState,
+    include_wgsl, BindGroupLayout, BindGroupLayoutDescriptor, BlendState,
     ColorTargetState, FragmentState, RenderPipeline, ShaderModule, ShaderModuleDescriptor,
     TextureFormat, VertexBufferLayout, VertexState,
 };

@@ -9,13 +9,11 @@ use crate::tools::{
 };
 use crate::ui::{self, Ui, UiContext};
 use crate::{ActionState, Key, KeyBinding, ModifierSet};
-use framework::framework::ShaderId;
 use framework::renderer::renderer::Renderer;
-use framework::shader::ShaderCreationInfo;
 use framework::Framework;
 use image_editor::ImageEditor;
 use log::info;
-use wgpu::{CommandBuffer, Surface, SurfaceConfiguration, TextureFormat};
+use wgpu::{CommandBuffer, Surface, SurfaceConfiguration};
 use winit::dpi::LogicalSize;
 use winit::event::WindowEvent;
 use winit::event_loop::ControlFlow;

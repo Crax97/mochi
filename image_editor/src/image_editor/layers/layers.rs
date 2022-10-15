@@ -1,9 +1,8 @@
-use cgmath::{Point2, Point3, Vector2, Vector3};
+use cgmath::{Point2, Point3, Vector2};
 use framework::framework::TextureId;
 use framework::renderer::renderer::Renderer;
 use framework::scene::Transform2d;
 use framework::{framework::BufferId, BufferConfiguration, Framework, MeshInstance2D};
-use wgpu::TextureView;
 
 use super::{bitmap_layer, BitmapLayer};
 

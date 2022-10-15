@@ -257,21 +257,4 @@ impl<'l> Document<'l> {
             }
         }
     }
-
-    pub fn blend_buffer_onto_current_layer(&self) {
-        match self.current_layer().layer_type {
-            LayerType::Bitmap(ref bm) => {
-                let bm_camera = Camera2d::new(
-                    -0.1,
-                    1000.0,
-                    [
-                        -bm.size().x as f32 * 0.5,
-                        bm.size().x as f32 * 0.5,
-                        bm.size().y as f32 * 0.5,
-                        -bm.size().y as f32 * 0.5,
-                    ],
-                );
-            }
-        }
-    }
 }

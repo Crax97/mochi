@@ -1,4 +1,4 @@
-use cgmath::{num_traits::ToPrimitive, point2, point3, Point3, Rad, Vector2};
+use cgmath::{num_traits::ToPrimitive, Point3, Rad, Vector2};
 use framework::{
     framework::TextureId,
     renderer::{

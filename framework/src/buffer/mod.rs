@@ -1,7 +1,5 @@
 use wgpu::{util::DeviceExt, BindGroup, BindGroupLayout, BufferSlice, BufferUsages};
 
-use crate::AssetMap;
-
 use super::framework::Framework;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -55,10 +53,10 @@ impl Buffer {
 impl From<BufferType> for BufferUsages {
     fn from(buffer_type: BufferType) -> Self {
         match buffer_type {
-            BufferType::Vertex => wgpu::BufferUsages::VERTEX,
-            BufferType::Uniform => wgpu::BufferUsages::UNIFORM,
-            BufferType::Storage => wgpu::BufferUsages::STORAGE,
-            BufferType::Oneshot => wgpu::BufferUsages::empty(),
+            BufferType::Vertex => BufferUsages::VERTEX,
+            BufferType::Uniform => BufferUsages::UNIFORM,
+            BufferType::Storage => BufferUsages::STORAGE,
+            BufferType::Oneshot => BufferUsages::empty(),
         }
     }
 }
@@ -93,14 +91,14 @@ where
     let buffer_usage: BufferUsages = config.buffer_type.into();
     let usage: BufferUsages = buffer_usage
         | if config.allow_write {
-            wgpu::BufferUsages::MAP_WRITE | wgpu::BufferUsages::COPY_DST
+            BufferUsages::MAP_WRITE | BufferUsages::COPY_DST
         } else {
-            wgpu::BufferUsages::empty()
+            BufferUsages::empty()
         }
         | if config.allow_read {
-            wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_SRC
+            BufferUsages::MAP_READ | BufferUsages::COPY_SRC
         } else {
-            wgpu::BufferUsages::empty()
+            BufferUsages::empty()
         };
     let (buffer, num_items) = match data {
         BufferInitialSetup::Data(data) => (
@@ -211,16 +209,6 @@ impl Buffer {
         let buffer = &self.buffer.buffer;
         queue.write_buffer(&buffer, 0, &bytemuck::cast_slice(&data.as_slice()));
     }
-
-    pub(crate) fn binding_resource(&self) -> wgpu::BufferBinding {
-        let buffer = &self.buffer.buffer;
-        buffer.as_entire_buffer_binding()
-    }
-
-    pub(crate) fn elem_count(&self) -> usize {
-        self.buffer.num_items
-    }
-
     pub(crate) fn read_region(
         &self,
         framework: &'_ Framework,

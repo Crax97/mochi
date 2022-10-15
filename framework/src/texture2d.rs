@@ -1,5 +1,5 @@
 use std::num::{NonZeroU32, NonZeroU8};
-use wgpu::{Color, Extent3d, ImageCopyBuffer, ImageDataLayout, Origin3d, TextureFormat};
+use wgpu::{Color, Extent3d, ImageCopyBuffer, ImageDataLayout, Origin3d};
 
 use crate::{framework::TextureId, Framework};
 

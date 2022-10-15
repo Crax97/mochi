@@ -1,8 +1,6 @@
-use std::{default, hash::Hash};
+use std::{hash::Hash};
 
 use egui::epaint::ahash::HashMap;
-
-use crate::tools::EditorContext;
 
 use super::{
     key::{Key, ModifierSet},

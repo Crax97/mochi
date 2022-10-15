@@ -1,23 +1,18 @@
 use std::{
     cell::RefCell,
-    collections::HashMap,
-    ops::RangeFull,
     rc::Rc,
-    sync::{Arc, RwLock},
 };
 
 use anyhow::Result;
-use cgmath::{point2, point3};
 use log::*;
 
 use wgpu::*;
 
 use crate::{
-    asset_library,
-    shader::{Shader, ShaderCreationInfo, ShaderLayout},
+    shader::{Shader, ShaderCreationInfo},
     texture2d::GpuImageData,
     AssetId, AssetMap, AssetRef, AssetRefMut, AssetsLibrary, InnerAssetMap, Mesh,
-    MeshConstructionDetails, Texture2d, Texture2dConfiguration, Vertex,
+    MeshConstructionDetails, Texture2d, Texture2dConfiguration,
 };
 
 use super::buffer::{Buffer, BufferConfiguration};
@@ -183,16 +178,6 @@ impl<'a> Framework {
 }
 // Buffer
 impl<'a> Framework {
-    pub fn buffer_bind_group(&self, id: &BufferId) -> &BindGroup {
-        todo!()
-    }
-    pub fn buffer_slice<'r>(&'r self, id: &BufferId, range: RangeFull) -> BufferSlice {
-        todo!()
-    }
-    pub fn buffer_elem_count<'r>(&'r self, id: &BufferId) -> u32 {
-        self.buffer(id).buffer.num_items as u32
-    }
-
     pub fn buffer_write_sync<T: bytemuck::Pod + bytemuck::Zeroable>(
         &self,
         id: &BufferId,
@@ -204,14 +189,6 @@ impl<'a> Framework {
 
 // Texture2D
 impl<'a> Framework {
-    pub fn texture2d_bind_group(&self, id: &TextureId) -> &BindGroup {
-        todo!()
-    }
-
-    pub fn texture2d_texture_view(&self, id: &TextureId) -> &TextureView {
-        todo!()
-    }
-
     pub fn texture2d_dimensions(&self, id: &TextureId) -> (u32, u32) {
         (self.texture2d_width(id), self.texture2d_height(id))
     }
