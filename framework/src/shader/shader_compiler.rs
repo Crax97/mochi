@@ -10,6 +10,7 @@ use naga::{
     valid::{Capabilities, ValidationFlags, Validator},
     Module,
 };
+use wgpu::ShaderModuleDescriptor;
 
 enum PreprocessorCommand {
     Nothing(String),
@@ -76,6 +77,20 @@ impl ShaderCompiler {
     pub fn compile(&self, source: &str) -> Result<Module, ParseError> {
         let parsed_source = self.preprocess_source(source);
         parse_str(&parsed_source)
+    }
+
+    pub fn compile_into_shader_description<'a>(
+        &'a self,
+        name: &'a str,
+        source: &str,
+    ) -> Result<ShaderModuleDescriptor, ParseError> {
+        let module = self.compile(source);
+        module.and_then(|module| {
+            Ok(ShaderModuleDescriptor {
+                label: Some(name),
+                source: wgpu::ShaderSource::Naga(module),
+            })
+        })
     }
 
     fn preprocess_source(&self, source: &str) -> String {
