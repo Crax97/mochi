@@ -1,5 +1,5 @@
-// TODO: Add some kind of preprocessor for this stuff
-// Something like @include relative_path
+//@include :common_definitions
+//@include :2d_definitions
 
 struct FragmentInput {
     @builtin(position) coordinates_position: vec4<f32>,

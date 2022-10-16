@@ -1,3 +1,7 @@
+//@include :common_definitions
+//@include :2d_definitions
+//@include :2d_transformations
+
 struct VertexInput {
     @location(0) position: vec3<f32>,
     @location(1) tex_uv: vec2<f32>,
@@ -9,43 +13,8 @@ struct PerInstanceData {
     @location(4) multiply_color: vec4<f32>,
 }
 
-struct PerFrameData {
-    vp: mat4x4<f32>,
-}
-
 @group(0) @binding(0)
 var<uniform> uniform_data: PerFrameData;
-
-
-struct FragmentInput {
-    @builtin(position) coordinates_position: vec4<f32>,
-    @location(0) position: vec3<f32>,
-    @location(1) tex_uv: vec2<f32>,
-    @location(2) multiply_color: vec4<f32>,
-}
-
-fn rot_z(angle_rads: f32) -> mat4x4<f32> {
-    let ca = cos(angle_rads);
-    let sa = sin(angle_rads);
-    return mat4x4(ca , -sa, 0.0, 0.0,
-                  sa , ca , 0.0, 0.0,
-                  0.0, 0.0, 1.0, 0.0,
-                  0.0, 0.0, 0.0, 1.0);
-}
-
-fn scale(s: vec2<f32>) -> mat4x4<f32> {
-    return mat4x4(s.x, 0.0, 0.0, 0.0,
-                  0.0, s.y, 0.0, 0.0,
-                  0.0, 0.0, 1.0, 0.0,
-                  0.0, 0.0, 0.0, 1.0);
-}
-
-fn translation(pos: vec2<f32>) -> mat4x4<f32> {
-    return mat4x4(1.0, 0.0, 0.0, pos.x,
-                  0.0, 1.0, 0.0, pos.y,
-                  0.0, 0.0, 1.0, 0.0,
-                  0.0, 0.0, 0.0, 1.0);
-}
 
 @vertex
 fn vertex(in: VertexInput, instance: PerInstanceData) -> FragmentInput {

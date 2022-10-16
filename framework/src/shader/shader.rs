@@ -1,6 +1,6 @@
 use wgpu::{
-    include_wgsl, BindGroupLayout, BindGroupLayoutDescriptor, BlendState,
-    ColorTargetState, FragmentState, RenderPipeline, ShaderModule, ShaderModuleDescriptor,
+    include_wgsl, BindGroupLayout, BindGroupLayoutDescriptor, BlendState, ColorTargetState,
+    FragmentState, RenderPipeline, ShaderModule, ShaderModuleDescriptor, ShaderSource,
     TextureFormat, VertexBufferLayout, VertexState,
 };
 
@@ -30,8 +30,14 @@ impl<'a> ShaderCreationInfo<'a> {
         framework: &Framework,
         fragment: ShaderModuleDescriptor,
     ) -> Self {
-        let default_vertex = include_wgsl!("default_shaders/default_vertex_instanced.wgsl");
-        let default_vertex = framework.device.create_shader_module(default_vertex);
+        let default_vertex = include_str!("default_shaders/default_vertex_instanced.wgsl");
+        let default_vertex = framework.shader_compiler.compile(default_vertex).unwrap();
+        let default_vertex = framework
+            .device
+            .create_shader_module(ShaderModuleDescriptor {
+                label: Some("Default Vertex Shader"),
+                source: ShaderSource::Naga(default_vertex),
+            });
         let fragment_module = framework.device.create_shader_module(fragment);
         Self {
             vertex_module: default_vertex,
@@ -47,8 +53,14 @@ impl<'a> ShaderCreationInfo<'a> {
         .with_bind_element(BindElement::None) // 1 is unused, for compat with default fragment shader
     }
     pub fn using_default_vertex(framework: &Framework, fragment: ShaderModuleDescriptor) -> Self {
-        let default_vertex = include_wgsl!("default_shaders/default_vertex.wgsl");
-        let default_vertex = framework.device.create_shader_module(default_vertex);
+        let default_vertex = include_str!("default_shaders/default_vertex.wgsl");
+        let default_vertex = framework.shader_compiler.compile(default_vertex).unwrap();
+        let default_vertex = framework
+            .device
+            .create_shader_module(ShaderModuleDescriptor {
+                label: Some("Default Vertex Shader"),
+                source: ShaderSource::Naga(default_vertex),
+            });
         let fragment_module = framework.device.create_shader_module(fragment);
         Self {
             vertex_module: default_vertex,
@@ -63,18 +75,24 @@ impl<'a> ShaderCreationInfo<'a> {
         .with_bind_element(BindElement::UniformBuffer) // 1 camera info buffer
     }
     pub fn using_default_vertex_fragment(framework: &Framework) -> Self {
-        ShaderCreationInfo::using_default_vertex(
-            framework,
-            include_wgsl!("default_shaders/default_fragment.wgsl"),
-        )
-        .with_bind_element(BindElement::Texture) // 2: diffuse texture + sampler
+        let default_fragment = include_str!("default_shaders/default_fragment.wgsl");
+        let default_fragment = framework.shader_compiler.compile(default_fragment).unwrap();
+        let default_fragment = ShaderModuleDescriptor {
+            label: Some("Default Vertex Shader"),
+            source: ShaderSource::Naga(default_fragment),
+        };
+        ShaderCreationInfo::using_default_vertex(framework, default_fragment)
+            .with_bind_element(BindElement::Texture) // 2: diffuse texture + sampler
     }
     pub fn using_default_vertex_fragment_instanced(framework: &Framework) -> Self {
-        ShaderCreationInfo::using_default_vertex_instanced(
-            framework,
-            include_wgsl!("default_shaders/default_fragment.wgsl"),
-        )
-        .with_bind_element(BindElement::Texture) // 2: texture + sampler
+        let default_fragment = include_str!("default_shaders/default_fragment.wgsl");
+        let default_fragment = framework.shader_compiler.compile(default_fragment).unwrap();
+        let default_fragment = ShaderModuleDescriptor {
+            label: Some("Default Vertex Shader"),
+            source: ShaderSource::Naga(default_fragment),
+        };
+        ShaderCreationInfo::using_default_vertex_instanced(framework, default_fragment)
+            .with_bind_element(BindElement::Texture) // 2: texture + sampler
     }
 
     pub fn with_bind_element(mut self, element: BindElement) -> Self {

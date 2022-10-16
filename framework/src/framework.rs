@@ -1,7 +1,4 @@
-use std::{
-    cell::RefCell,
-    rc::Rc,
-};
+use std::{cell::RefCell, rc::Rc};
 
 use anyhow::Result;
 use log::*;
@@ -9,7 +6,7 @@ use log::*;
 use wgpu::*;
 
 use crate::{
-    shader::{Shader, ShaderCreationInfo},
+    shader::{Shader, ShaderCompiler, ShaderCreationInfo},
     texture2d::GpuImageData,
     AssetId, AssetMap, AssetRef, AssetRefMut, AssetsLibrary, InnerAssetMap, Mesh,
     MeshConstructionDetails, Texture2d, Texture2dConfiguration,
@@ -35,11 +32,37 @@ pub struct Framework {
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
     pub asset_library: AssetsLibrary,
+    pub shader_compiler: ShaderCompiler,
 
     allocated_textures: TextureMap,
     allocated_buffers: BufferMap,
     allocated_shaders: ShaderMap,
     allocated_meshes: MeshMap,
+}
+
+impl Framework {
+    fn build_shader_compiler() -> ShaderCompiler {
+        let mut shader_compiler = ShaderCompiler::new();
+        shader_compiler
+            .define(
+                "common_definitions",
+                include_str!("shader/default_shaders/common_definitions.wgsl"),
+            )
+            .expect("Failed to compile common definitions");
+        shader_compiler
+            .define(
+                "2d_definitions",
+                include_str!("shader/default_shaders/2d_definitions.wgsl"),
+            )
+            .expect("Failed to compile 2d definitions");
+        shader_compiler
+            .define(
+                "2d_transformations",
+                include_str!("shader/default_shaders/2d_transformations.wgsl"),
+            )
+            .expect("Failed to compile 2d transformations functions");
+        shader_compiler
+    }
 }
 
 #[derive(Debug)]
@@ -71,6 +94,7 @@ impl<'a> Framework {
             pollster::block_on(async { adapter.request_device(&device_descriptor, None).await })?;
 
         let asset_library = AssetsLibrary::new();
+        let shader_compiler = Framework::build_shader_compiler();
         let framework = Framework {
             instance,
             adapter,
@@ -81,6 +105,7 @@ impl<'a> Framework {
             allocated_buffers: Rc::new(RefCell::new(InnerAssetMap::new())),
             allocated_shaders: Rc::new(RefCell::new(InnerAssetMap::new())),
             allocated_meshes: Rc::new(RefCell::new(InnerAssetMap::new())),
+            shader_compiler,
         };
         Ok(framework)
     }
@@ -144,11 +169,6 @@ impl<'a> Framework {
         info!("\tUsing backend {}", backend_string);
     }
 
-    pub fn create_shader(&self, info: ShaderCreationInfo) -> ShaderId {
-        let shader = Shader::new(&self, info);
-        self.allocated_shaders.borrow_mut().insert(shader)
-    }
-
     pub fn update_asset_maps(&self) {
         self.allocated_buffers.borrow_mut().update();
         self.allocated_shaders.borrow_mut().update();
@@ -169,6 +189,11 @@ impl<'a> Framework {
 
 // Shaders
 impl<'a> Framework {
+    pub fn create_shader(&self, info: ShaderCreationInfo) -> ShaderId {
+        let shader = Shader::new(&self, info);
+        self.allocated_shaders.borrow_mut().insert(shader)
+    }
+
     pub(crate) fn shader(&self, id: &ShaderId) -> AssetRef<Shader> {
         AssetRef {
             in_ref: self.allocated_shaders.borrow(),

@@ -14,7 +14,6 @@ crate-type=["staticlib", "lib"]
 winit = "0.27.2"
 env_logger = "0.9"
 log = "0.4"
-wgpu = "0.13"
 bytemuck = {version = "1.12.1", features = [ "derive" ] }
 cgmath="0.18.0"
 as-slice="0.2.1"
@@ -22,9 +21,13 @@ anyhow="1.0.63"
 futures-intrusive = "0.4.0"
 pollster = "0.2"
 
+[dependencies.wgpu]
+version = "0.13.1"
+features = ["naga"]
+
 [dependencies.naga]
-version="0.10.0"
-features = ["validate", "wgsl-in"]
+version="0.9"
+features = ["span", "validate", "wgsl-in"]
 
 
 [dependencies.uuid]

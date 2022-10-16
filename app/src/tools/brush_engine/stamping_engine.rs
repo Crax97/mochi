@@ -5,7 +5,7 @@ use framework::shader::{BindElement, ShaderCreationInfo};
 use framework::Transform2d;
 use framework::{Buffer, Framework};
 use image_editor::layers::{BitmapLayer, LayerIndex, LayerType};
-use wgpu::{include_wgsl, BlendComponent};
+use wgpu::{include_wgsl, BlendComponent, ShaderModuleDescriptor, ShaderSource};
 
 use crate::tools::{EditorCommand, EditorContext};
 use crate::{StrokeContext, StrokePath};
@@ -118,9 +118,13 @@ pub struct StrokingEngine {
 
 impl StrokingEngine {
     pub fn new(initial_stamp: Stamp, framework: &Framework) -> Self {
+        let brush_fragment = framework.shader_compiler.compile(include_str!("brush_fragment.wgsl")).unwrap();
         let brush_shader_info = ShaderCreationInfo::using_default_vertex_instanced(
             framework,
-            include_wgsl!("brush_fragment.wgsl"),
+            ShaderModuleDescriptor {
+                label: Some("Brush shader"),
+                source: ShaderSource::Naga(brush_fragment)
+            },
         )
         .with_bind_element(BindElement::Texture); // 2: texture + sampler
 
@@ -137,9 +141,13 @@ impl StrokingEngine {
             },
         };
 
+        let brush_fragment = framework.shader_compiler.compile(include_str!("brush_fragment.wgsl")).unwrap();
         let eraser_shader_info = ShaderCreationInfo::using_default_vertex_instanced(
             framework,
-            include_wgsl!("brush_fragment.wgsl"),
+            ShaderModuleDescriptor {
+                label: Some("Eraser shader"),
+                source: ShaderSource::Naga(brush_fragment)
+            },
         )
         .with_bind_element(BindElement::Texture)
         .with_blend_state(eraser_blend_state); // 2: texture + sampler
