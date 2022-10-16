@@ -1,5 +1,6 @@
 //@include :common_definitions
 //@include :2d_definitions
+//@include :blend_modes
 
 @group(2) @binding(0) var diffuse: texture_2d<f32>;
 @group(2) @binding(1) var s_diffuse: sampler;

@@ -1,0 +1,33 @@
+Index: app/src/tools/brush_engine/blend_modes.wgsl
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/app/src/tools/brush_engine/blend_modes.wgsl b/app/src/tools/brush_engine/blend_modes.wgsl
+new file mode 100644
+--- /dev/null	(date 1665944320663)
++++ b/app/src/tools/brush_engine/blend_modes.wgsl	(date 1665944320663)
+@@ -0,0 +1,5 @@
++fn blend_normal(bottom: vec4<f32>,  top: vec4<f32>) -> vec4<f32> {
++    // Over operastor
++    let a = bottom.a + top.a * (1.0 - bottom.a);
++    return (bottom * bottom.a + top * top.a) / a;
++}
+\ No newline at end of file
+Index: app/src/tools/brush_engine/brush_fragment.wgsl
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>//@include :common_definitions\n//@include :2d_definitions\n\n@group(2) @binding(0) var diffuse: texture_2d<f32>;\n@group(2) @binding(1) var s_diffuse: sampler;\n\n@fragment\nfn fragment(in: FragmentInput) -> @location(0) vec4<f32> {\n    return textureSample(diffuse, s_diffuse, in.tex_uv).a * in.multiply_color;\n}
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/app/src/tools/brush_engine/brush_fragment.wgsl b/app/src/tools/brush_engine/brush_fragment.wgsl
+--- a/app/src/tools/brush_engine/brush_fragment.wgsl	(revision 637fd088b3e284af57a2d243de07121a7466306c)
++++ b/app/src/tools/brush_engine/brush_fragment.wgsl	(date 1665943385941)
+@@ -1,5 +1,6 @@
+ //@include :common_definitions
+ //@include :2d_definitions
++//@include blend_modes.wgsl
+ 
+ @group(2) @binding(0) var diffuse: texture_2d<f32>;
+ @group(2) @binding(1) var s_diffuse: sampler;

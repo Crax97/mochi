@@ -1,10 +1,10 @@
-use cgmath::{ElementWise, Point2};
-use framework::framework::ShaderId;
+use cgmath::{ElementWise, Point2, Vector4};
+use framework::framework::{BufferId, ShaderId};
 use framework::renderer::draw_command::{DrawCommand, DrawMode, OptionalDrawData, PrimitiveType};
 use framework::renderer::renderer::Renderer;
 use framework::scene::Camera2d;
-use framework::shader::ShaderCreationInfo;
-use framework::{Framework, Transform2d};
+use framework::shader::{BindElement, ShaderCreationInfo};
+use framework::{BufferConfiguration, Framework, Transform2d};
 use wgpu::{TextureFormat, TextureView};
 
 use crate::document::DocumentCreationInfo;
@@ -25,10 +25,12 @@ pub struct LayerConstructionInfo {
 pub struct ImageEditor<'framework> {
     framework: &'framework Framework,
     pan_camera: Camera2d,
+    layer_draw_shader: ShaderId,
 
     document: Document<'framework>,
     final_present_shader: ShaderId,
 }
+
 impl<'framework> ImageEditor<'framework> {
     pub fn new(framework: &'framework Framework, initial_window_bounds: &[f32; 2]) -> Self {
         let test_width = 1800;
@@ -60,11 +62,15 @@ impl<'framework> ImageEditor<'framework> {
         let final_present_shader = framework.create_shader(final_present_shader_info);
         println!("Initial scale: {initial_camera_scale}");
         //pan_camera.set_scale(initial_camera_scale);
+
+        let layer_draw_shader = framework.shader_compiler.compile_into_shader_description("Layer draw shader", include_str!("layers/layer_fragment.wgsl")).unwrap();
+        let layer_draw_shader = framework.create_shader(ShaderCreationInfo::using_default_vertex(framework, layer_draw_shader).with_bind_element(BindElement::Texture).with_bind_element(BindElement::Texture).with_bind_element(BindElement::UniformBuffer));
         ImageEditor {
             framework,
             pan_camera,
             document: test_document,
             final_present_shader,
+            layer_draw_shader,
         }
     }
 
@@ -116,10 +122,10 @@ impl<'framework> ImageEditor<'framework> {
     }
 
     pub fn render_document<'s, 't>(&'s mut self, renderer: &mut Renderer)
-    where
-        'framework: 't,
+        where
+            'framework: 't,
     {
-        self.document.render(renderer);
+        self.document.render(renderer, self.layer_draw_shader.clone());
     }
 
     pub fn render_canvas(&mut self, renderer: &mut Renderer, output_canvas: &TextureView) {

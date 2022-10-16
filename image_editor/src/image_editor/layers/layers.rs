@@ -1,5 +1,5 @@
 use cgmath::{Point2, Point3, Vector2};
-use framework::framework::TextureId;
+use framework::framework::{ShaderId, TextureId};
 use framework::renderer::renderer::Renderer;
 use framework::scene::Transform2d;
 use framework::{framework::BufferId, BufferConfiguration, Framework, MeshInstance2D};
@@ -81,11 +81,15 @@ impl<'framework> Layer<'framework> {
         }
     }
 
-    pub(crate) fn update(&mut self, framework: &Framework) {
-        
-    }
-    pub(crate) fn draw<'library, 'pass, 'l>(&'l self, renderer: &mut Renderer, target: &TextureId)
-    where
+    pub(crate) fn update(&mut self, framework: &Framework) {}
+
+    pub(crate) fn draw<'library, 'pass, 'l>(
+        &'l self,
+        renderer: &mut Renderer,
+        bottom_layer: &TextureId,
+        target: &TextureId,
+        shader_to_use: ShaderId,
+    ) where
         'framework: 'pass,
         'l: 'pass,
     {
@@ -101,6 +105,7 @@ impl<'framework> Layer<'framework> {
                     self.rotation_radians,
                     self.settings.opacity,
                     target,
+                    Some(shader_to_use),
                 );
             }
         }

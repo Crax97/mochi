@@ -4,13 +4,12 @@ use crate::{
     LayerConstructionInfo,
 };
 use cgmath::{point2, vec2, Vector2};
-use framework::Framework;
 use framework::{renderer::renderer::Renderer, scene::Camera2d};
+use framework::{AssetId, Framework, Texture2d};
 use image::{DynamicImage, ImageBuffer};
 
-use std::collections::HashMap;
 use framework::framework::ShaderId;
-
+use std::collections::HashMap;
 
 enum BufferingStep {
     First,
@@ -24,7 +23,6 @@ pub struct Document<'framework> {
     document_size: Vector2<u32>,
     layers: HashMap<LayerIndex, Layer<'framework>>,
     tree_root: RootLayer,
-
     final_layer_1: BitmapLayer,
     final_layer_2: BitmapLayer,
     buffering_step: BufferingStep,
@@ -43,16 +41,16 @@ impl<'l> Document<'l> {
         let final_layer_1 = BitmapLayer::new(
             framework,
             BitmapLayerConfiguration {
-                label: "Final Rendering Layer".to_owned(),
+                label: "Double Buffering Layer 1".to_owned(),
                 width: config.width,
                 height: config.height,
                 initial_background_color: [0.5, 0.5, 0.5, 1.0],
             },
         );
-        let final_layer_2  = BitmapLayer::new(
+        let final_layer_2 = BitmapLayer::new(
             framework,
             BitmapLayerConfiguration {
-                label: "Final Rendering Layer".to_owned(),
+                label: "Double Buffering Layer 2".to_owned(),
                 width: config.width,
                 height: config.height,
                 initial_background_color: [0.5, 0.5, 0.5, 1.0],
@@ -115,8 +113,6 @@ impl<'l> Document<'l> {
             .get(&layer_index)
             .expect("Invalid layer index passed to document!")
     }
-    
-    
 
     pub fn mutate_layer<F: FnMut(&mut Layer)>(
         &mut self,
@@ -188,51 +184,66 @@ impl<'l> Document<'l> {
         }
     }
 
-    pub(crate) fn render<'tex>(&mut self, renderer: &mut Renderer)
+    pub(crate) fn render<'tex>(&mut self, renderer: &mut Renderer, shader_to_use: ShaderId)
     where
         'l: 'tex,
     {
-        let final_layer = self.advance_final_layer().texture().clone();
-        let unused_layer = self.unused_layer().texture().clone();
+        let draw_sequence = self.generate_draw_sequence();
 
-        renderer.begin(&Camera2d::default(), Some(wgpu::Color::TRANSPARENT));
-        renderer.end_on_texture(&final_layer);
-        renderer.begin(&Camera2d::default(), Some(wgpu::Color::TRANSPARENT));
-        renderer.end_on_texture(&unused_layer);
+        self.execute_draw_sequence_double_buffered(renderer, draw_sequence, shader_to_use)
+    }
 
+    fn execute_draw_sequence_double_buffered(
+        &mut self,
+        renderer: &mut Renderer,
+        draw_sequence: Vec<LayerIndex>,
+        shader_to_use: ShaderId,
+    ) {
+        let first_layer = self.advance_final_layer().texture().clone();
+        renderer.begin(&Camera2d::default(), Some(wgpu::Color::TRANSPARENT));
+        renderer.end_on_texture(&first_layer);
+        let mut previous_layer = first_layer;
         let mut draw_layer = |index| {
-            let layer = self.layers.get(index).expect("Nonexistent layer");
-            layer.draw(renderer, &final_layer);
+            let target = self.advance_final_layer().texture().clone();
+            renderer.begin(&Camera2d::default(), Some(wgpu::Color::TRANSPARENT));
+            renderer.end_on_texture(&target);
+            let layer = self.layers.get(&index).expect("Nonexistent layer");
+            layer.draw(renderer, &previous_layer, &target, shader_to_use.clone());
+            previous_layer = target;
         };
+        for index in draw_sequence {
+            draw_layer(index);
+        }
+    }
+
+    fn generate_draw_sequence(&self) -> Vec<LayerIndex> {
+        let mut draw_sequence = Vec::new();
         for layer_node in self.tree_root.0.iter() {
             match layer_node {
                 LayerTree::SingleLayer(index) => {
-                    draw_layer(index);
+                    draw_sequence.push(index.clone());
                 }
                 LayerTree::Group(indices) => {
                     for index in indices {
-                        draw_layer(index);
+                        draw_sequence.push(index.clone());
                     }
                 }
             };
         }
+        draw_sequence
     }
 
     pub fn final_layer(&self) -> &BitmapLayer {
         match self.buffering_step {
-            BufferingStep::First =>
-                &self.final_layer_1,
-            BufferingStep::Second =>
-                &self.final_layer_2,
+            BufferingStep::First => &self.final_layer_2,
+            BufferingStep::Second => &self.final_layer_1,
         }
     }
 
-    pub fn unused_layer(&self) -> &BitmapLayer {
+    pub fn previous_buffer_layer(&self) -> &BitmapLayer {
         match self.buffering_step {
-            BufferingStep::First =>
-                &self.final_layer_2,
-            BufferingStep::Second =>
-                &self.final_layer_1,
+            BufferingStep::First => &self.final_layer_1,
+            BufferingStep::Second => &self.final_layer_2,
         }
     }
 
@@ -240,13 +251,12 @@ impl<'l> Document<'l> {
         match self.buffering_step {
             BufferingStep::First => {
                 self.buffering_step = BufferingStep::Second;
-                &self.final_layer_2
             }
             BufferingStep::Second => {
                 self.buffering_step = BufferingStep::First;
-                &self.final_layer_1
             }
-        }
+        };
+        self.previous_buffer_layer()
     }
 
     pub fn document_size(&self) -> Vector2<u32> {

@@ -22,7 +22,7 @@ async fn run_app() -> anyhow::Result<()> {
         })
         .build(&event_loop)?;
 
-    let framework = Box::leak(Box::new({
+    let mut framework = Box::leak(Box::new({
         let framework = Framework::new(&wgpu::DeviceDescriptor {
             label: Some("Image Editor framework"),
             features: wgpu::Features::empty(),
@@ -39,6 +39,7 @@ async fn run_app() -> anyhow::Result<()> {
             }
         }
     }));
+    framework.shader_compiler.define("blend_modes", include_str!("blend_modes.wgsl")).unwrap();
     let app_state = Box::leak(Box::new(ImageApplication::new(window, framework)));
 
     event_loop.run(move |event, _, control_flow| {

@@ -144,7 +144,7 @@ impl Shader {
             framework
                 .device
                 .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                    label: Some("StampingEngine pipeline"),
+                    label: Some("Shader pipeline"),
                     layout: Some(&render_pipeline_layout),
                     depth_stencil: None,
                     vertex: VertexState {

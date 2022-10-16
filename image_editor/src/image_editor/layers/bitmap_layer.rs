@@ -7,6 +7,7 @@ use framework::{
     },
     Camera2d, Framework, MeshInstance2D, Texture2dConfiguration, Transform2d,
 };
+use framework::framework::ShaderId;
 
 pub struct BitmapLayerConfiguration {
     pub label: String,
@@ -84,6 +85,7 @@ impl BitmapLayer {
         rotation_radians: f32,
         opacity: f32,
         output: &TextureId,
+        shader_to_use: Option<ShaderId>
     ) {
         let real_scale = Vector2 {
             x: scale.x * self.size().x * 0.5,
@@ -111,7 +113,7 @@ impl BitmapLayer {
                 },
             },
             draw_mode: DrawMode::Single,
-            additional_data: OptionalDrawData::default(),
+            additional_data: OptionalDrawData::just_shader(shader_to_use),
         });
         renderer.end_on_texture(output);
     }

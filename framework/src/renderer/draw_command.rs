@@ -1,3 +1,4 @@
+use std::default;
 use crate::{
     framework::{BufferId, ShaderId, TextureId},
     Transform2d,
@@ -36,6 +37,15 @@ pub struct OptionalDrawData {
 
     // If none, an appropriate shader will be picked by the renderer based on the draw_type
     pub shader: Option<ShaderId>,
+}
+
+impl OptionalDrawData {
+    pub fn just_shader(shader: Option<ShaderId>) -> Self {
+        Self {
+            shader,
+            ..Default::default()
+        }
+    }
 }
 
 pub struct DrawCommand {
