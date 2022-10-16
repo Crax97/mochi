@@ -46,9 +46,9 @@ impl Tool for DebugSelectRegionTool {
             (Some(begin), Some(end)) => {
                 let layer = context.image_editor.document().current_layer();
                 match layer.layer_type {
-                    image_editor::layers::LayerType::Bitmap(ref bm) => {
+                    image_editor::layers::LayerType::Bitmap => {
                         let framework = context.image_editor.framework();
-                        let (width, height) = framework.texture2d_dimensions(bm.texture());
+                        let (width, height) = framework.texture2d_dimensions(layer.bitmap.texture());
                         let half_dims = Point2 {
                             x: width / 2,
                             y: height / 2,
@@ -67,7 +67,7 @@ impl Tool for DebugSelectRegionTool {
                         let region_height = end_y - begin_y;
 
                         let new_subregion_texture = framework.texture2d_copy_subregion(
-                            bm.texture(),
+                            layer.bitmap.texture(),
                             begin_x,
                             begin_y,
                             region_width,

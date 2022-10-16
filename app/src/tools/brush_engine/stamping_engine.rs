@@ -27,17 +27,14 @@ impl LayerReplaceCommand {
 
 impl EditorCommand for LayerReplaceCommand {
     fn undo(&self, context: &mut EditorContext) -> Box<dyn EditorCommand> {
-        let new_texture_id = match context
+        let new_texture_id = context
             .image_editor
             .document()
             .get_layer(&self.modified_layer)
-            .layer_type
-        {
-            LayerType::Bitmap(ref bm) => bm.texture().clone(),
-        };
+            .bitmap.texture().clone();
         context.image_editor.mutate_document(|doc| {
             doc.mutate_layer(&self.modified_layer, |lay| match &mut lay.layer_type {
-                LayerType::Bitmap(bm) => bm.replace_texture(self.old_layer_texture_id.clone()),
+                LayerType::Bitmap=> lay.bitmap.replace_texture(self.old_layer_texture_id.clone()),
             })
         });
         Box::new(LayerReplaceCommand::new(
@@ -193,9 +190,7 @@ impl StrokingEngine {
     ) -> (TextureId, TextureId) {
         let modified_layer = context.image_editor.document().current_layer_index();
         let layer = context.image_editor.document().get_layer(&modified_layer);
-        let old_layer_texture_id = match layer.layer_type {
-            LayerType::Bitmap(ref bm) => bm.texture().clone(),
-        };
+        let old_layer_texture_id = layer.bitmap.texture().clone();
         let (width, height) = context
             .image_editor
             .framework()
@@ -222,7 +217,7 @@ impl BrushEngine for StrokingEngine {
         let layer = context.editor.document().current_layer();
         match layer.layer_type {
             // TODO: Deal with difference between current_layer and buffer_layer size
-            LayerType::Bitmap(ref current_layer) => {
+            LayerType::Bitmap => {
                 // 1. Create draw info
 
                 let current_layer_transform = layer.transform();
@@ -248,7 +243,7 @@ impl BrushEngine for StrokingEngine {
                     // 2. Do draw
 
                     let stamp = self.current_stamp().brush_texture.texture();
-                    context.renderer.begin(&current_layer.camera(), None);
+                    context.renderer.begin(&layer.bitmap.camera(), None);
                     context.renderer.draw(DrawCommand {
                         primitives: PrimitiveType::Texture2D {
                             texture_id: stamp.clone(),
@@ -266,7 +261,7 @@ impl BrushEngine for StrokingEngine {
                             ..Default::default()
                         },
                     });
-                    context.renderer.end_on_texture(current_layer.texture());
+                    context.renderer.end_on_texture(layer.bitmap.texture());
                 }
             }
         }
@@ -279,7 +274,7 @@ impl BrushEngine for StrokingEngine {
             StrokingEngine::create_clone_of_current_layer_texture(context);
         context.image_editor.mutate_document(|doc| {
             doc.mutate_layer(&modified_layer, |lay| match &mut lay.layer_type {
-                LayerType::Bitmap(bm) => bm.replace_texture(new_texture_id.clone()),
+                LayerType::Bitmap => lay.bitmap.replace_texture(new_texture_id.clone()),
             })
         });
         let cmd = LayerReplaceCommand::new(

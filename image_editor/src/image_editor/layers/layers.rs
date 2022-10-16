@@ -21,6 +21,7 @@ pub struct ShaderLayerSettings {
 
 pub struct Layer<'framework> {
     framework: &'framework Framework,
+    pub bitmap: BitmapLayer,
     pub settings: LayerSettings,
     pub layer_type: LayerType,
     pub position: Point2<f32>,
@@ -37,12 +38,12 @@ pub struct LayerCreationInfo {
 }
 
 pub enum LayerType {
-    Bitmap(bitmap_layer::BitmapLayer),
+    Bitmap,
 }
 
 impl<'framework> Layer<'framework> {
     pub fn new_bitmap(
-        bitmap_layer: BitmapLayer,
+        bitmap: BitmapLayer,
         creation_info: LayerCreationInfo,
         framework: &'framework Framework,
     ) -> Self {
@@ -57,12 +58,13 @@ impl<'framework> Layer<'framework> {
 
         Self {
             framework,
+            bitmap,
             settings: LayerSettings {
                 name: creation_info.name,
                 is_enabled: true,
                 opacity: 1.0,
             },
-            layer_type: LayerType::Bitmap(bitmap_layer),
+            layer_type: LayerType::Bitmap,
             position: creation_info.position,
             scale: creation_info.scale,
             rotation_radians: creation_info.rotation_radians,
@@ -80,24 +82,7 @@ impl<'framework> Layer<'framework> {
     }
 
     pub(crate) fn update(&mut self, framework: &Framework) {
-        match &self.layer_type {
-            LayerType::Bitmap(bitmap_layer) => {
-                let real_scale = Vector2 {
-                    x: self.scale.x * bitmap_layer.size().x * 0.5,
-                    y: self.scale.y * bitmap_layer.size().y * 0.5,
-                };
-                framework.buffer_write_sync(
-                    &self.instance_buffer_id,
-                    vec![MeshInstance2D::new(
-                        self.position.clone(),
-                        real_scale,
-                        self.rotation_radians,
-                        true,
-                        self.wgpu_color(),
-                    )],
-                );
-            }
-        }
+        
     }
     pub(crate) fn draw<'library, 'pass, 'l>(&'l self, renderer: &mut Renderer, target: &TextureId)
     where
@@ -108,8 +93,8 @@ impl<'framework> Layer<'framework> {
             return;
         }
         match &self.layer_type {
-            LayerType::Bitmap(ref bm) => {
-                bm.draw(
+            LayerType::Bitmap => {
+                self.bitmap.draw(
                     renderer,
                     self.position,
                     self.scale,

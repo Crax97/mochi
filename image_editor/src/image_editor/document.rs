@@ -167,7 +167,7 @@ impl<'l> Document<'l> {
         }
     }
 
-    pub(crate) fn render<'tex>(&mut self, renderer: &mut Renderer, shader_to_use: ShaderId)
+    pub(crate) fn render<'tex>(&mut self, renderer: &mut Renderer)
     where
         'l: 'tex,
     {
@@ -178,7 +178,7 @@ impl<'l> Document<'l> {
 
         let mut draw_layer = |index| {
             let layer = self.layers.get(index).expect("Nonexistent layer");
-            layer.draw(renderer, final_layer, shader_to_use.clone());
+            layer.draw(renderer, final_layer);
         };
         for layer_node in self.tree_root.0.iter() {
             match layer_node {
@@ -194,6 +194,7 @@ impl<'l> Document<'l> {
         }
     }
 
+    
     pub fn final_layer(&self) -> &BitmapLayer {
         &self.final_layer
     }
