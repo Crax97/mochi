@@ -11,6 +11,12 @@ use image::{DynamicImage, ImageBuffer};
 use std::collections::HashMap;
 use framework::framework::ShaderId;
 
+
+enum BufferingStep {
+    First,
+    Second,
+}
+
 pub struct Document<'framework> {
     framework: &'framework Framework,
     layers_created: u16,
@@ -19,7 +25,9 @@ pub struct Document<'framework> {
     layers: HashMap<LayerIndex, Layer<'framework>>,
     tree_root: RootLayer,
 
-    final_layer: BitmapLayer,
+    final_layer_1: BitmapLayer,
+    final_layer_2: BitmapLayer,
+    buffering_step: BufferingStep,
 
     current_layer_index: LayerIndex,
 }
@@ -32,7 +40,16 @@ pub struct DocumentCreationInfo {
 
 impl<'l> Document<'l> {
     pub fn new(config: DocumentCreationInfo, framework: &'l Framework) -> Self {
-        let final_layer = BitmapLayer::new(
+        let final_layer_1 = BitmapLayer::new(
+            framework,
+            BitmapLayerConfiguration {
+                label: "Final Rendering Layer".to_owned(),
+                width: config.width,
+                height: config.height,
+                initial_background_color: [0.5, 0.5, 0.5, 1.0],
+            },
+        );
+        let final_layer_2  = BitmapLayer::new(
             framework,
             BitmapLayerConfiguration {
                 label: "Final Rendering Layer".to_owned(),
@@ -50,10 +67,12 @@ impl<'l> Document<'l> {
             document_size: vec2(config.width, config.height),
             current_layer_index: first_layer_index,
 
-            final_layer,
+            final_layer_1,
+            final_layer_2,
 
             layers: HashMap::new(),
             tree_root: RootLayer(vec![]),
+            buffering_step: BufferingStep::First,
         };
 
         document.add_layer(
@@ -79,7 +98,7 @@ impl<'l> Document<'l> {
     }
 
     pub fn outer_size(&self) -> Vector2<f32> {
-        self.final_layer.size()
+        self.final_layer().size()
     }
 
     pub fn current_layer(&self) -> &Layer {
@@ -96,6 +115,8 @@ impl<'l> Document<'l> {
             .get(&layer_index)
             .expect("Invalid layer index passed to document!")
     }
+    
+    
 
     pub fn mutate_layer<F: FnMut(&mut Layer)>(
         &mut self,
@@ -171,14 +192,17 @@ impl<'l> Document<'l> {
     where
         'l: 'tex,
     {
-        let final_layer = self.final_layer.texture();
+        let final_layer = self.advance_final_layer().texture().clone();
+        let unused_layer = self.unused_layer().texture().clone();
 
         renderer.begin(&Camera2d::default(), Some(wgpu::Color::TRANSPARENT));
-        renderer.end_on_texture(final_layer);
+        renderer.end_on_texture(&final_layer);
+        renderer.begin(&Camera2d::default(), Some(wgpu::Color::TRANSPARENT));
+        renderer.end_on_texture(&unused_layer);
 
         let mut draw_layer = |index| {
             let layer = self.layers.get(index).expect("Nonexistent layer");
-            layer.draw(renderer, final_layer);
+            layer.draw(renderer, &final_layer);
         };
         for layer_node in self.tree_root.0.iter() {
             match layer_node {
@@ -194,9 +218,35 @@ impl<'l> Document<'l> {
         }
     }
 
-    
     pub fn final_layer(&self) -> &BitmapLayer {
-        &self.final_layer
+        match self.buffering_step {
+            BufferingStep::First =>
+                &self.final_layer_1,
+            BufferingStep::Second =>
+                &self.final_layer_2,
+        }
+    }
+
+    pub fn unused_layer(&self) -> &BitmapLayer {
+        match self.buffering_step {
+            BufferingStep::First =>
+                &self.final_layer_2,
+            BufferingStep::Second =>
+                &self.final_layer_1,
+        }
+    }
+
+    fn advance_final_layer(&mut self) -> &BitmapLayer {
+        match self.buffering_step {
+            BufferingStep::First => {
+                self.buffering_step = BufferingStep::Second;
+                &self.final_layer_2
+            }
+            BufferingStep::Second => {
+                self.buffering_step = BufferingStep::First;
+                &self.final_layer_1
+            }
+        }
     }
 
     pub fn document_size(&self) -> Vector2<u32> {
@@ -210,7 +260,7 @@ impl<'l> Document<'l> {
     pub fn final_image_bytes(&self) -> DynamicImage {
         let bytes = self
             .framework
-            .texture2d_read_data(self.final_layer.texture());
+            .texture2d_read_data(self.final_layer().texture());
         let width = bytes.width;
         let height = bytes.height;
         let data = bytes.to_bytes(true);
