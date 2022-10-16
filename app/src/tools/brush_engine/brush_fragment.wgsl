@@ -1,13 +1,6 @@
 //@include :common_definitions
 //@include :2d_definitions
 
-struct FragmentInput {
-    @builtin(position) coordinates_position: vec4<f32>,
-    @location(0) position: vec3<f32>,
-    @location(1) tex_uv: vec2<f32>,
-    @location(2) multiply_color: vec4<f32>,
-}
-
 @group(2) @binding(0) var diffuse: texture_2d<f32>;
 @group(2) @binding(1) var s_diffuse: sampler;
 

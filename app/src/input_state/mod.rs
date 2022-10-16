@@ -118,7 +118,11 @@ impl InputState {
                             );
                         }
                         winit::event::TouchPhase::Moved => {
-                            self.current_cursor_position = location.cast::<f32>();
+                            let location = location.cast::<f32>();
+                            self.current_cursor_position = PhysicalPosition {
+                                x: location.x,
+                                y: self.window_size.height as f32 - location.y
+                            };
                         }
                         winit::event::TouchPhase::Ended | winit::event::TouchPhase::Cancelled => {
                             self.set_cursor_button_state(
