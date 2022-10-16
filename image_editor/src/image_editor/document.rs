@@ -9,6 +9,7 @@ use framework::{renderer::renderer::Renderer, scene::Camera2d};
 use image::{DynamicImage, ImageBuffer};
 
 use std::collections::HashMap;
+use framework::framework::ShaderId;
 
 pub struct Document<'framework> {
     framework: &'framework Framework,
@@ -19,7 +20,6 @@ pub struct Document<'framework> {
     tree_root: RootLayer,
 
     final_layer: BitmapLayer,
-    buffer_layer: BitmapLayer,
 
     current_layer_index: LayerIndex,
 }
@@ -41,15 +41,6 @@ impl<'l> Document<'l> {
                 initial_background_color: [0.5, 0.5, 0.5, 1.0],
             },
         );
-        let buffer_layer = BitmapLayer::new(
-            framework,
-            BitmapLayerConfiguration {
-                label: "Buffer Layer".to_owned(),
-                width: config.width,
-                height: config.height,
-                initial_background_color: [0.0; 4],
-            },
-        );
 
         let first_layer_index = LayerIndex(1);
 
@@ -60,7 +51,6 @@ impl<'l> Document<'l> {
             current_layer_index: first_layer_index,
 
             final_layer,
-            buffer_layer,
 
             layers: HashMap::new(),
             tree_root: RootLayer(vec![]),
@@ -177,7 +167,7 @@ impl<'l> Document<'l> {
         }
     }
 
-    pub(crate) fn render<'tex>(&mut self, renderer: &mut Renderer)
+    pub(crate) fn render<'tex>(&mut self, renderer: &mut Renderer, shader_to_use: ShaderId)
     where
         'l: 'tex,
     {
@@ -188,17 +178,7 @@ impl<'l> Document<'l> {
 
         let mut draw_layer = |index| {
             let layer = self.layers.get(index).expect("Nonexistent layer");
-            layer.draw(renderer, final_layer);
-            if index == &self.current_layer_index {
-                self.buffer_layer.draw(
-                    renderer,
-                    point2(0.0, 0.0),
-                    vec2(1.0, 1.0),
-                    0.0,
-                    1.0,
-                    final_layer,
-                );
-            }
+            layer.draw(renderer, final_layer, shader_to_use.clone());
         };
         for layer_node in self.tree_root.0.iter() {
             match layer_node {
@@ -216,10 +196,6 @@ impl<'l> Document<'l> {
 
     pub fn final_layer(&self) -> &BitmapLayer {
         &self.final_layer
-    }
-
-    pub fn buffer_layer(&self) -> &BitmapLayer {
-        &self.buffer_layer
     }
 
     pub fn document_size(&self) -> Vector2<u32> {
