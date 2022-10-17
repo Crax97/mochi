@@ -88,7 +88,6 @@ impl<'framework> Layer<'framework> {
         renderer: &mut Renderer,
         bottom_layer: &TextureId,
         target: &TextureId,
-        shader_to_use: ShaderId,
     ) where
         'framework: 'pass,
         'l: 'pass,
@@ -105,7 +104,6 @@ impl<'framework> Layer<'framework> {
                     self.rotation_radians,
                     self.settings.opacity,
                     target,
-                    None,
                 );
             }
         }

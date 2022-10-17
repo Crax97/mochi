@@ -1,8 +1,8 @@
 use cgmath::{point2, point3, vec2};
 use wgpu::{
-    BindGroup, BindGroupDescriptor, BindGroupLayoutDescriptor, Color,
-    CommandEncoder, CommandEncoderDescriptor, LoadOp, Operations, RenderPass,
-    RenderPassColorAttachment, RenderPassDescriptor, TextureView,
+    BindGroup, BindGroupDescriptor, BindGroupLayoutDescriptor, Color, CommandEncoder,
+    CommandEncoderDescriptor, LoadOp, Operations, RenderPass, RenderPassColorAttachment,
+    RenderPassDescriptor, TextureView,
 };
 
 use crate::{
@@ -232,8 +232,8 @@ impl<'f> Renderer<'f> {
                 ResolvedDrawType::Separate(buffers) => {
                     for buffer in buffers {
                         self.bind_resource(Mesh::MESH_INFO_UNIFORM_SLOT, buffer, &mut render_pass);
-                        command.mesh.draw(&mut render_pass);
                     }
+                    command.mesh.draw(&mut render_pass);
                 }
             }
         }
@@ -351,9 +351,7 @@ impl<'f> Renderer<'f> {
 
     fn resolve_draw_type<'a>(&self, command: &DrawCommand) -> ResolvedDrawType {
         match command.draw_mode {
-            DrawMode::Instanced => {
-                self.build_instance_buffer_for_primitive_type(&command)
-            }
+            DrawMode::Instanced => self.build_instance_buffer_for_primitive_type(&command),
             DrawMode::Single => self.build_uniform_buffers_for_primitive_type(&command),
         }
     }

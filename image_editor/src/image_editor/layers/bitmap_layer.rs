@@ -1,4 +1,6 @@
 use cgmath::{num_traits::ToPrimitive, Point3, Rad, Vector2};
+use framework::framework::{BufferId, ShaderId};
+use framework::renderer::draw_command::BindableResource;
 use framework::{
     framework::TextureId,
     renderer::{
@@ -7,7 +9,6 @@ use framework::{
     },
     Camera2d, Framework, MeshInstance2D, Texture2dConfiguration, Transform2d,
 };
-use framework::framework::ShaderId;
 
 pub struct BitmapLayerConfiguration {
     pub label: String,
@@ -85,7 +86,6 @@ impl BitmapLayer {
         rotation_radians: f32,
         opacity: f32,
         output: &TextureId,
-        shader_to_use: Option<ShaderId>
     ) {
         let real_scale = Vector2 {
             x: scale.x * self.size().x * 0.5,
@@ -113,7 +113,53 @@ impl BitmapLayer {
                 },
             },
             draw_mode: DrawMode::Single,
-            additional_data: OptionalDrawData::just_shader(shader_to_use),
+            additional_data: OptionalDrawData::default(),
+        });
+        renderer.end_on_texture(output);
+    }
+
+    pub fn draw_blended(
+        &self,
+        renderer: &mut Renderer,
+        shader_to_use: ShaderId,
+        bottom_layer: TextureId,
+        blend_settings_buffer: BufferId,
+        output: &TextureId,
+    ) {
+        let real_scale = Vector2 {
+            x: self.size().x * 0.5,
+            y: self.size().y * 0.5,
+        };
+        renderer.begin(&self.camera(), None);
+        renderer.draw(DrawCommand {
+            primitives: PrimitiveType::Texture2D {
+                texture_id: self.texture().clone(),
+                instances: vec![Transform2d {
+                    position: Point3 {
+                        x: 0.0,
+                        y: 0.0,
+                        z: 0.0,
+                    },
+                    scale: real_scale,
+                    rotation_radians: Rad(0.0),
+                }],
+                flip_uv_y: true,
+                multiply_color: wgpu::Color {
+                    r: 1.0,
+                    g: 1.0,
+                    b: 1.0,
+                    a: 1.0,
+                },
+            },
+            draw_mode: DrawMode::Single,
+            additional_data: OptionalDrawData {
+                additional_vertex_buffers: vec![],
+                additional_bindable_resource: vec![
+                    BindableResource::Texture(bottom_layer),
+                    BindableResource::UniformBuffer(blend_settings_buffer),
+                ],
+                shader: Some(shader_to_use),
+            },
         });
         renderer.end_on_texture(output);
     }

@@ -1,10 +1,11 @@
 use super::layers::{Layer, LayerIndex, RootLayer};
 use crate::{
+    blend_settings::{BlendSettings, BlendSettingsUniform},
     layers::{BitmapLayer, BitmapLayerConfiguration, LayerCreationInfo, LayerTree, LayerType},
     LayerConstructionInfo,
 };
 use cgmath::{point2, vec2, Vector2};
-use framework::{renderer::renderer::Renderer, scene::Camera2d};
+use framework::{renderer::renderer::Renderer, scene::Camera2d, BufferConfiguration};
 use framework::{AssetId, Framework, Texture2d};
 use image::{DynamicImage, ImageBuffer};
 
@@ -25,6 +26,7 @@ pub struct Document<'framework> {
     tree_root: RootLayer,
     final_layer_1: BitmapLayer,
     final_layer_2: BitmapLayer,
+    buffer_layer: BitmapLayer,
     buffering_step: BufferingStep,
 
     current_layer_index: LayerIndex,
@@ -56,6 +58,15 @@ impl<'l> Document<'l> {
                 initial_background_color: [0.5, 0.5, 0.5, 1.0],
             },
         );
+        let buffer_layer = BitmapLayer::new(
+            framework,
+            BitmapLayerConfiguration {
+                label: "Draw Buffer Layer".to_owned(),
+                width: config.width,
+                height: config.height,
+                initial_background_color: [0.5, 0.5, 0.5, 1.0],
+            },
+        );
 
         let first_layer_index = LayerIndex(1);
 
@@ -67,6 +78,7 @@ impl<'l> Document<'l> {
 
             final_layer_1,
             final_layer_2,
+            buffer_layer,
 
             layers: HashMap::new(),
             tree_root: RootLayer(vec![]),
@@ -199,20 +211,55 @@ impl<'l> Document<'l> {
         draw_sequence: Vec<LayerIndex>,
         shader_to_use: ShaderId,
     ) {
-        let first_layer = self.advance_final_layer().texture().clone();
+        let blend_settings = self.framework.allocate_typed_buffer(BufferConfiguration::<
+            BlendSettingsUniform,
+        > {
+            initial_setup: framework::buffer::BufferInitialSetup::Count(1),
+            buffer_type: framework::BufferType::Uniform,
+            allow_write: true,
+            allow_read: false,
+        });
+        // Clear first layer
+        let final_layer = self.final_layer().texture().clone();
         renderer.begin(&Camera2d::default(), Some(wgpu::Color::TRANSPARENT));
-        renderer.end_on_texture(&first_layer);
-        let mut previous_layer = first_layer;
+        renderer.end_on_texture(&final_layer);
+
+        // Actually draw shit
+        let buffer_layer = self.buffer_layer.texture().clone();
         let mut draw_layer = |index| {
-            let target = self.advance_final_layer().texture().clone();
+            let final_layer = self.advance_final_layer().texture().clone();
+            let previous_layer = self.previous_buffer_layer().texture().clone();
             renderer.begin(&Camera2d::default(), Some(wgpu::Color::TRANSPARENT));
-            renderer.end_on_texture(&target);
-            let layer = self.layers.get(&index).expect("Nonexistent layer");
-            layer.draw(renderer, &previous_layer, &target, shader_to_use.clone());
-            previous_layer = target;
+            renderer.end_on_texture(&final_layer);
+
+            // 1. Draw current layer onto buffer layer
+            renderer.begin(&Camera2d::default(), Some(wgpu::Color::TRANSPARENT));
+            renderer.end_on_texture(&buffer_layer);
+            let layer = self.get_layer(&index);
+            layer.bitmap.draw(
+                renderer,
+                layer.position,
+                layer.scale,
+                layer.rotation_radians,
+                layer.settings.opacity,
+                &buffer_layer,
+            );
+
+            // 2. Blend buffer layer with final layer
+            self.framework.buffer_write_sync(
+                &blend_settings,
+                vec![BlendSettingsUniform::from(BlendSettings { blend_mode: 0 })],
+            );
+            self.buffer_layer.draw_blended(
+                renderer,
+                shader_to_use.clone(),
+                previous_layer.clone(),
+                blend_settings.clone(),
+                &final_layer,
+            );
         };
-        for index in draw_sequence {
-            draw_layer(index);
+        for layer_index in draw_sequence {
+            draw_layer(layer_index);
         }
     }
 
@@ -221,10 +268,18 @@ impl<'l> Document<'l> {
         for layer_node in self.tree_root.0.iter() {
             match layer_node {
                 LayerTree::SingleLayer(index) => {
+                    let layer = self.get_layer(&index);
+                    if !layer.settings.is_enabled {
+                        continue;
+                    }
                     draw_sequence.push(index.clone());
                 }
                 LayerTree::Group(indices) => {
                     for index in indices {
+                        let layer = self.get_layer(&index);
+                        if !layer.settings.is_enabled {
+                            continue;
+                        }
                         draw_sequence.push(index.clone());
                     }
                 }
@@ -256,7 +311,7 @@ impl<'l> Document<'l> {
                 self.buffering_step = BufferingStep::First;
             }
         };
-        self.previous_buffer_layer()
+        self.final_layer()
     }
 
     pub fn document_size(&self) -> Vector2<u32> {
