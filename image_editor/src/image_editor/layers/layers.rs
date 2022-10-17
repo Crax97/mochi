@@ -105,7 +105,7 @@ impl<'framework> Layer<'framework> {
                     self.rotation_radians,
                     self.settings.opacity,
                     target,
-                    Some(shader_to_use),
+                    None,
                 );
             }
         }

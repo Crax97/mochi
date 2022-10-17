@@ -26,7 +26,10 @@ async fn run_app() -> anyhow::Result<()> {
         let framework = Framework::new(&wgpu::DeviceDescriptor {
             label: Some("Image Editor framework"),
             features: wgpu::Features::empty(),
-            limits: wgpu::Limits::downlevel_defaults(),
+            limits: wgpu::Limits {
+                max_bind_groups: 5,
+                ..Default::default()
+            },
         });
 
         match framework {
@@ -39,7 +42,10 @@ async fn run_app() -> anyhow::Result<()> {
             }
         }
     }));
-    framework.shader_compiler.define("blend_modes", include_str!("blend_modes.wgsl")).unwrap();
+    framework
+        .shader_compiler
+        .define("blend_modes", include_str!("blend_modes.wgsl"))
+        .unwrap();
     let app_state = Box::leak(Box::new(ImageApplication::new(window, framework)));
 
     event_loop.run(move |event, _, control_flow| {

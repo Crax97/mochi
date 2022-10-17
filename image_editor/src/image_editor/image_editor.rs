@@ -63,8 +63,19 @@ impl<'framework> ImageEditor<'framework> {
         println!("Initial scale: {initial_camera_scale}");
         //pan_camera.set_scale(initial_camera_scale);
 
-        let layer_draw_shader = framework.shader_compiler.compile_into_shader_description("Layer draw shader", include_str!("layers/layer_fragment.wgsl")).unwrap();
-        let layer_draw_shader = framework.create_shader(ShaderCreationInfo::using_default_vertex(framework, layer_draw_shader).with_bind_element(BindElement::Texture).with_bind_element(BindElement::Texture).with_bind_element(BindElement::UniformBuffer));
+        let layer_draw_shader = framework
+            .shader_compiler
+            .compile_into_shader_description(
+                "Layer draw shader",
+                include_str!("layers/layer_fragment.wgsl"),
+            )
+            .unwrap();
+        let fucking_shader_info =
+            ShaderCreationInfo::using_default_vertex(framework, layer_draw_shader)
+                .with_bind_element(BindElement::Texture) // Bottom layer
+                .with_bind_element(BindElement::Texture) // Top layer
+                .with_bind_element(BindElement::UniformBuffer); // Blend settings
+        let layer_draw_shader = framework.create_shader(fucking_shader_info);
         ImageEditor {
             framework,
             pan_camera,
@@ -122,10 +133,11 @@ impl<'framework> ImageEditor<'framework> {
     }
 
     pub fn render_document<'s, 't>(&'s mut self, renderer: &mut Renderer)
-        where
-            'framework: 't,
+    where
+        'framework: 't,
     {
-        self.document.render(renderer, self.layer_draw_shader.clone());
+        self.document
+            .render(renderer, self.layer_draw_shader.clone());
     }
 
     pub fn render_canvas(&mut self, renderer: &mut Renderer, output_canvas: &TextureView) {

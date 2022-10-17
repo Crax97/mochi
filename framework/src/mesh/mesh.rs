@@ -41,7 +41,7 @@ impl ShaderLayout for Mesh {
 
 impl Mesh {
     pub(crate) fn reserved_buffer_count() -> u32 {
-        5
+        2
     }
 }
 

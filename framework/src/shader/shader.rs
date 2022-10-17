@@ -124,7 +124,7 @@ pub struct Shader {
 
 impl Shader {
     pub fn reserved_buffer_count() -> u32 {
-        5
+        3
     }
     pub(crate) fn new(framework: &Framework, info: ShaderCreationInfo) -> Self {
         let bind_group_layouts =
