@@ -4,6 +4,8 @@ use framework::renderer::renderer::Renderer;
 use framework::scene::Transform2d;
 use framework::{framework::BufferId, BufferConfiguration, Framework, MeshInstance2D};
 
+use crate::blend_settings::BlendMode;
+
 use super::{bitmap_layer, BitmapLayer};
 
 #[derive(Clone, PartialEq)]
@@ -11,10 +13,11 @@ pub struct LayerSettings {
     pub name: String,
     pub is_enabled: bool,
     pub opacity: f32,
+    pub blend_mode: BlendMode,
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, PartialEq, bytemuck::Zeroable, bytemuck::Pod)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct ShaderLayerSettings {
     pub opacity: f32,
 }
@@ -63,6 +66,7 @@ impl<'framework> Layer<'framework> {
                 name: creation_info.name,
                 is_enabled: true,
                 opacity: 1.0,
+                blend_mode: BlendMode::Normal,
             },
             layer_type: LayerType::Bitmap,
             position: creation_info.position,

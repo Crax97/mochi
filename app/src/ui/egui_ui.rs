@@ -4,6 +4,7 @@ use egui_wgpu_backend::{RenderPass, ScreenDescriptor};
 use egui_winit_platform::PlatformDescriptor;
 use framework::Framework;
 use image_editor::{
+    blend_settings::BlendMode,
     layers::{LayerIndex, LayerSettings},
     LayerConstructionInfo,
 };
@@ -217,36 +218,50 @@ impl EguiUI {
 
         let mut lay_layer_ui = |idx: &LayerIndex| {
             let original_settings = document.get_layer(idx).settings();
-            let color = if *idx == document.current_layer_index() {
-                Color32::LIGHT_BLUE
-            } else {
-                Color32::WHITE
-            };
-            let mut settings = original_settings.clone();
 
-            ui.horizontal(|ui| {
-                if ui
-                    .add(Label::new(RichText::from(&settings.name).color(color)).sense(sense))
-                    .clicked()
-                {
-                    action = LayerAction::SelectLayer(idx.clone());
+            ui.push_id(&original_settings.name, |ui| {
+                let color = if *idx == document.current_layer_index() {
+                    Color32::LIGHT_BLUE
+                } else {
+                    Color32::WHITE
+                };
+                let mut settings = original_settings.clone();
+
+                ui.horizontal(|ui| {
+                    if ui
+                        .add(Label::new(RichText::from(&settings.name).color(color)).sense(sense))
+                        .clicked()
+                    {
+                        action = LayerAction::SelectLayer(idx.clone());
+                    }
+
+                    ui.add(egui::Checkbox::new(&mut settings.is_enabled, ""));
+
+                    if ui
+                        .add(egui::Button::new("Delete layer").sense(sense))
+                        .clicked()
+                    {
+                        action = LayerAction::DeleteLayer(idx.clone());
+                    }
+                });
+
+                ui.add(egui::Slider::new(&mut settings.opacity, 0.0..=1.0).text("Opacity"));
+                egui::ComboBox::from_label("Blend mode")
+                    .selected_text(format!("{:?}", settings.blend_mode))
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(&mut settings.blend_mode, BlendMode::Normal, "Normal");
+                        ui.selectable_value(
+                            &mut settings.blend_mode,
+                            BlendMode::Multiply,
+                            "Multiply",
+                        );
+                        ui.selectable_value(&mut settings.blend_mode, BlendMode::Screen, "Screen");
+                    });
+
+                if settings != original_settings {
+                    action = LayerAction::SetLayerSettings(idx.clone(), settings);
                 }
-
-                ui.add(egui::Checkbox::new(&mut settings.is_enabled, ""));
-
-                if ui
-                    .add(egui::Button::new("Delete layer").sense(sense))
-                    .clicked()
-                {
-                    action = LayerAction::DeleteLayer(idx.clone());
-                }
-            });
-
-            ui.add(egui::Slider::new(&mut settings.opacity, 0.0..=1.0).text("Opacity"));
-
-            if settings != original_settings {
-                action = LayerAction::SetLayerSettings(idx.clone(), settings);
-            }
+            })
         };
 
         document.for_each_layer(|_, idx| {

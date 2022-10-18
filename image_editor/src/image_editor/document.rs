@@ -1,6 +1,6 @@
 use super::layers::{Layer, LayerIndex, RootLayer};
 use crate::{
-    blend_settings::{BlendSettings, BlendSettingsUniform},
+    blend_settings::{BlendMode, BlendSettings, BlendSettingsUniform},
     layers::{BitmapLayer, BitmapLayerConfiguration, LayerCreationInfo, LayerTree, LayerType},
     LayerConstructionInfo,
 };
@@ -224,13 +224,11 @@ impl<'l> Document<'l> {
         renderer.begin(&Camera2d::default(), Some(wgpu::Color::TRANSPARENT));
         renderer.end_on_texture(&final_layer);
 
+        let mut previous_layer = final_layer.clone();
         // Actually draw shit
         let buffer_layer = self.buffer_layer.texture().clone();
         let mut draw_layer = |index| {
             let final_layer = self.advance_final_layer().texture().clone();
-            let previous_layer = self.previous_buffer_layer().texture().clone();
-            renderer.begin(&Camera2d::default(), Some(wgpu::Color::TRANSPARENT));
-            renderer.end_on_texture(&final_layer);
 
             // 1. Draw current layer onto buffer layer
             renderer.begin(&Camera2d::default(), Some(wgpu::Color::TRANSPARENT));
@@ -246,10 +244,11 @@ impl<'l> Document<'l> {
             );
 
             // 2. Blend buffer layer with final layer
-            self.framework.buffer_write_sync(
-                &blend_settings,
-                vec![BlendSettingsUniform::from(BlendSettings { blend_mode: 0 })],
-            );
+            let settings = BlendSettingsUniform::from(BlendSettings {
+                blend_mode: layer.settings.blend_mode,
+            });
+            self.framework
+                .buffer_write_sync(&blend_settings, vec![settings]);
             self.buffer_layer.draw_blended(
                 renderer,
                 shader_to_use.clone(),
@@ -257,6 +256,7 @@ impl<'l> Document<'l> {
                 blend_settings.clone(),
                 &final_layer,
             );
+            previous_layer = layer.bitmap.texture().clone();
         };
         for layer_index in draw_sequence {
             draw_layer(layer_index);
