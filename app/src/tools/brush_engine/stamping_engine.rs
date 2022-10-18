@@ -31,10 +31,14 @@ impl EditorCommand for LayerReplaceCommand {
             .image_editor
             .document()
             .get_layer(&self.modified_layer)
-            .bitmap.texture().clone();
+            .bitmap
+            .texture()
+            .clone();
         context.image_editor.mutate_document(|doc| {
             doc.mutate_layer(&self.modified_layer, |lay| match &mut lay.layer_type {
-                LayerType::Bitmap=> lay.bitmap.replace_texture(self.old_layer_texture_id.clone()),
+                LayerType::Bitmap => lay
+                    .bitmap
+                    .replace_texture(self.old_layer_texture_id.clone()),
             })
         });
         Box::new(LayerReplaceCommand::new(
@@ -115,12 +119,15 @@ pub struct StrokingEngine {
 
 impl StrokingEngine {
     pub fn new(initial_stamp: Stamp, framework: &Framework) -> Self {
-        let brush_fragment = framework.shader_compiler.compile(include_str!("brush_fragment.wgsl")).unwrap();
+        let brush_fragment = framework
+            .shader_compiler
+            .compile(include_str!("brush_fragment.wgsl"))
+            .unwrap();
         let brush_shader_info = ShaderCreationInfo::using_default_vertex_instanced(
             framework,
             ShaderModuleDescriptor {
                 label: Some("Brush shader"),
-                source: ShaderSource::Naga(brush_fragment)
+                source: ShaderSource::Naga(brush_fragment),
             },
         )
         .with_bind_element(BindElement::Texture); // 2: texture + sampler
@@ -138,12 +145,15 @@ impl StrokingEngine {
             },
         };
 
-        let brush_fragment = framework.shader_compiler.compile(include_str!("brush_fragment.wgsl")).unwrap();
+        let brush_fragment = framework
+            .shader_compiler
+            .compile(include_str!("brush_fragment.wgsl"))
+            .unwrap();
         let eraser_shader_info = ShaderCreationInfo::using_default_vertex_instanced(
             framework,
             ShaderModuleDescriptor {
                 label: Some("Eraser shader"),
-                source: ShaderSource::Naga(brush_fragment)
+                source: ShaderSource::Naga(brush_fragment),
             },
         )
         .with_bind_element(BindElement::Texture)
@@ -244,6 +254,12 @@ impl BrushEngine for StrokingEngine {
 
                     let stamp = self.current_stamp().brush_texture.texture();
                     context.renderer.begin(&layer.bitmap.camera(), None);
+                    context.renderer.set_viewport(Some((
+                        0.0,
+                        0.0,
+                        layer.bitmap.size().x,
+                        layer.bitmap.size().y,
+                    )));
                     context.renderer.draw(DrawCommand {
                         primitives: PrimitiveType::Texture2D {
                             texture_id: stamp.clone(),

@@ -96,21 +96,6 @@ impl<'framework> Layer<'framework> {
         'framework: 'pass,
         'l: 'pass,
     {
-        if !self.settings.is_enabled {
-            return;
-        }
-        match &self.layer_type {
-            LayerType::Bitmap => {
-                self.bitmap.draw(
-                    renderer,
-                    self.position,
-                    self.scale,
-                    self.rotation_radians,
-                    self.settings.opacity,
-                    target,
-                );
-            }
-        }
     }
 
     pub fn settings(&self) -> LayerSettings {

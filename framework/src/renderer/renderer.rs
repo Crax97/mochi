@@ -43,6 +43,7 @@ pub struct Renderer<'f> {
     draw_queue: Vec<DrawCommand>,
     camera_buffer_id: BufferId,
     clear_color: Option<Color>,
+    viewport: Option<(f32, f32, f32, f32)>,
     empty_bind_group: BindGroup,
 
     texture2d_instanced_shader_id: ShaderId,
@@ -119,6 +120,7 @@ impl<'f> Renderer<'f> {
             camera_buffer_id,
             draw_queue: vec![],
             clear_color: None,
+            viewport: None,
             empty_bind_group,
 
             texture2d_instanced_shader_id,
@@ -131,6 +133,10 @@ impl<'f> Renderer<'f> {
         self.clear_color = clear_color;
         self.framework
             .buffer_write_sync::<Camera2dUniformBlock>(&self.camera_buffer_id, vec![camera.into()]);
+    }
+
+    pub fn set_viewport(&mut self, viewport: Option<(f32, f32, f32, f32)>) {
+        self.viewport = viewport;
     }
 
     pub fn draw(&mut self, draw_command: DrawCommand) {
@@ -172,7 +178,10 @@ impl<'f> Renderer<'f> {
             depth_stencil_attachment: None,
         };
 
-        let render_pass = command_encoder.begin_render_pass(&render_pass_description);
+        let mut render_pass = command_encoder.begin_render_pass(&render_pass_description);
+        if let Some(viewport) = self.viewport.take() {
+            render_pass.set_viewport(viewport.0, viewport.1, viewport.2, viewport.3, 0.0, 1.0);
+        }
         let commands = self.resolve_draw_commands();
         let camera_buffer =
             ResolvedResourceType::UniformBuffer(self.framework.buffer(&self.camera_buffer_id));

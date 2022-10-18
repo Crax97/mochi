@@ -226,6 +226,7 @@ impl<'l> Document<'l> {
 
         let mut previous_layer = final_layer.clone();
         // Actually draw shit
+        let buffer_camera = self.buffer_layer.camera();
         let buffer_layer = self.buffer_layer.texture().clone();
         let mut draw_layer = |index| {
             let final_layer = self.advance_final_layer().texture().clone();
@@ -236,6 +237,7 @@ impl<'l> Document<'l> {
             let layer = self.get_layer(&index);
             layer.bitmap.draw(
                 renderer,
+                Some(buffer_camera),
                 layer.position,
                 layer.scale,
                 layer.rotation_radians,
