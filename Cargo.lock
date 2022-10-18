@@ -943,6 +943,8 @@ dependencies = [
  "image",
  "log",
  "rfd",
+ "strum",
+ "strum_macros",
  "wgpu",
 ]
 

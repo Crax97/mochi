@@ -28,7 +28,8 @@ features = ["naga"]
 [dependencies.naga]
 version="0.9"
 features = ["span", "validate", "wgsl-in"]
-
+strum = "0.24"
+strum_macros = "0.24"
 
 [dependencies.uuid]
 version = "1.1.2"

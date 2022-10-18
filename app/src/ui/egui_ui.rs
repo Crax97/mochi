@@ -9,6 +9,7 @@ use image_editor::{
     LayerConstructionInfo,
 };
 use log::warn;
+use strum::IntoEnumIterator;
 use wgpu::{CommandBuffer, SurfaceConfiguration, TextureView};
 use winit::window::Window;
 
@@ -249,13 +250,9 @@ impl EguiUI {
                 egui::ComboBox::from_label("Blend mode")
                     .selected_text(format!("{:?}", settings.blend_mode))
                     .show_ui(ui, |ui| {
-                        ui.selectable_value(&mut settings.blend_mode, BlendMode::Normal, "Normal");
-                        ui.selectable_value(
-                            &mut settings.blend_mode,
-                            BlendMode::Multiply,
-                            "Multiply",
-                        );
-                        ui.selectable_value(&mut settings.blend_mode, BlendMode::Screen, "Screen");
+                        for key in BlendMode::iter() {
+                            ui.selectable_value(&mut settings.blend_mode, key, key.to_string());
+                        }
                     });
 
                 if settings != original_settings {

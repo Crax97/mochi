@@ -15,6 +15,8 @@ wgpu = "0.13"
 bytemuck = {version = "1.12.1", features = [ "derive" ] }
 cgmath="0.18.0"
 rfd = "0.10.0"
+strum = "0.24.1"
+strum_macros = "0.24.1"
 
 
 framework={path="../framework"}
