@@ -211,25 +211,17 @@ impl<'l> Document<'l> {
         draw_sequence: Vec<LayerIndex>,
         shader_to_use: ShaderId,
     ) {
-        let blend_settings = self.framework.allocate_typed_buffer(BufferConfiguration::<
-            BlendSettingsUniform,
-        > {
-            initial_setup: framework::buffer::BufferInitialSetup::Count(1),
-            buffer_type: framework::BufferType::Uniform,
-            allow_write: true,
-            allow_read: false,
-        });
         // Clear first layer
         let final_layer = self.final_layer().texture().clone();
         renderer.begin(&Camera2d::default(), Some(wgpu::Color::TRANSPARENT));
         renderer.end_on_texture(&final_layer);
 
-        let mut previous_layer = final_layer.clone();
         // Actually draw shit
         let buffer_camera = self.buffer_layer.camera();
         let buffer_layer = self.buffer_layer.texture().clone();
         let mut draw_layer = |index| {
             let final_layer = self.advance_final_layer().texture().clone();
+            let previous_layer = self.previous_buffer_layer().texture().clone();
 
             // 1. Draw current layer onto buffer layer
             renderer.begin(&Camera2d::default(), Some(wgpu::Color::TRANSPARENT));
@@ -249,8 +241,15 @@ impl<'l> Document<'l> {
             let settings = BlendSettingsUniform::from(BlendSettings {
                 blend_mode: layer.settings.blend_mode,
             });
-            self.framework
-                .buffer_write_sync(&blend_settings, vec![settings]);
+
+            let blend_settings = self.framework.allocate_typed_buffer(BufferConfiguration::<
+                BlendSettingsUniform,
+            > {
+                initial_setup: framework::buffer::BufferInitialSetup::Data(&vec![settings]),
+                buffer_type: framework::BufferType::Uniform,
+                allow_write: true,
+                allow_read: false,
+            });
             self.buffer_layer.draw_blended(
                 renderer,
                 shader_to_use.clone(),
@@ -258,7 +257,8 @@ impl<'l> Document<'l> {
                 blend_settings.clone(),
                 &final_layer,
             );
-            previous_layer = layer.bitmap.texture().clone();
+            renderer.begin(&Camera2d::default(), Some(wgpu::Color::TRANSPARENT));
+            renderer.end_on_texture(&previous_layer);
         };
         for layer_index in draw_sequence {
             draw_layer(layer_index);

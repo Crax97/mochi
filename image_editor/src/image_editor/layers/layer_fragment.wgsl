@@ -18,6 +18,7 @@ struct BlendSettings {
 fn fragment(in: FragmentInput) -> @location(0) vec4<f32> {
     let top_sample = textureSample(top, s_top, in.tex_uv);
     let bottom_sample = textureSample(bottom, s_bottom, in.tex_uv);
-    let color = select_blend_mode(blend_settings.blend_mode, bottom_sample, top_sample);
+    let blend = select_blend_mode(blend_settings.blend_mode, bottom_sample, top_sample);
+    let color = mix(bottom_sample, blend, top_sample.a);
     return color * in.multiply_color;
 }

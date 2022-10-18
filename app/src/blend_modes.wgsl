@@ -1,5 +1,5 @@
 fn blend_normal(bottom: vec4<f32>,  top: vec4<f32>) -> vec4<f32> {
-    return mix(bottom, top, top.a);
+    return top;
 }
 
 fn blend_multiply(bottom: vec4<f32>,  top: vec4<f32>) -> vec4<f32> {
