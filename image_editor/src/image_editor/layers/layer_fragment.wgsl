@@ -14,11 +14,16 @@ struct BlendSettings {
 
 @group(4) @binding(0) var<uniform> blend_settings: BlendSettings;
 
+fn over(color: vec4<f32>, blend: vec4<f32>) -> vec4<f32> {
+    let alpha = blend.a + color.a * (1.0 - blend.a);
+    return (blend * blend.a +color * color.a * (1.0 - blend.a)) / alpha;
+}
+
 @fragment
 fn fragment(in: FragmentInput) -> @location(0) vec4<f32> {
     let top_sample = textureSample(top, s_top, in.tex_uv);
     let bottom_sample = textureSample(bottom, s_bottom, in.tex_uv);
     let blend = select_blend_mode(blend_settings.blend_mode, bottom_sample, top_sample);
-    let color = mix(bottom_sample, blend, top_sample.a);
+    let color = over(bottom_sample, blend);
     return color * in.multiply_color;
 }
