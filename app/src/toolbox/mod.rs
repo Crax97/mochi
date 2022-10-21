@@ -11,9 +11,7 @@ use crate::{
 };
 use cgmath::point2;
 use framework::Framework;
-use image_editor::{
-    layers::{BitmapLayer, BitmapLayerConfiguration},
-};
+use image_editor::layers::{BitmapLayer, BitmapLayerConfiguration};
 use winit::event::MouseButton;
 
 #[derive(Clone, Copy, Hash, Eq, PartialEq)]
@@ -69,6 +67,7 @@ impl<'framework> Toolbox<'framework> {
     }
 
     // Panics if id is not a valid index
+    #[allow(dead_code)]
     pub fn get_tool(&self, id: &ToolId) -> RefMut<dyn Tool + 'framework> {
         self.tools.get(id).expect("Not a valid id!").borrow_mut()
     }

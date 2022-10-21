@@ -36,6 +36,7 @@ impl GpuImageData {
 pub struct Texture2d {
     pub(crate) texture: wgpu::Texture,
     pub(crate) texture_view: wgpu::TextureView,
+    #[allow(dead_code)]
     pub(crate) sampler: wgpu::Sampler,
     pub(crate) bind_group: wgpu::BindGroup,
     pub(crate) format: wgpu::TextureFormat,

@@ -76,12 +76,14 @@ pub struct ImageApplication<'framework> {
     ui: Box<dyn Ui>,
     stamping_engine: Rc<RefCell<StrokingEngine>>,
     brush_tool: Rc<RefCell<BrushTool<'framework>>>,
+    #[allow(dead_code)]
     hand_tool: Rc<RefCell<HandTool>>,
     undo_stack: UndoStack,
     action_map: ActionMap<String>,
 
     brush_id: ToolId,
     move_tool_id: ToolId,
+    #[allow(dead_code)]
     color_picker_id: ToolId,
 }
 impl<'framework> ImageApplication<'framework> {
@@ -107,7 +109,7 @@ impl<'framework> ImageApplication<'framework> {
         let move_tool = Rc::new(RefCell::new(TransformLayerTool::new()));
         let test_tool = Rc::new(RefCell::new(DebugSelectRegionTool::new()));
 
-        let (mut toolbox, brush_id, hand_id) = Toolbox::new(brush_tool.clone(), hand_tool.clone());
+        let (mut toolbox, brush_id, _) = Toolbox::new(brush_tool.clone(), hand_tool.clone());
         let color_picker_id = toolbox.add_tool(color_picker.clone());
         let move_tool_id = toolbox.add_tool(move_tool);
         toolbox.add_tool(test_tool);

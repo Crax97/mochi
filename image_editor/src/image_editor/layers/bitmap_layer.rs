@@ -7,7 +7,7 @@ use framework::{
         draw_command::{DrawCommand, DrawMode, OptionalDrawData, PrimitiveType},
         renderer::Renderer,
     },
-    Camera2d, Framework, MeshInstance2D, Texture2dConfiguration, Transform2d,
+    Camera2d, Framework, Texture2dConfiguration, Transform2d,
 };
 
 pub struct BitmapLayerConfiguration {
@@ -85,7 +85,6 @@ impl BitmapLayer {
         scale: Vector2<f32>,
         rotation_radians: f32,
         opacity: f32,
-        output: &TextureId,
     ) {
         let real_scale = Vector2 {
             x: scale.x * self.size().x * 0.5,

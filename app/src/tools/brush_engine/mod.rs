@@ -33,7 +33,7 @@ impl std::fmt::Display for StrokePath {
 }
 
 pub struct StrokeContext<'editor, 'stroke, 'f> {
-    pub layer: &'editor Layer<'editor>,
+    pub layer: &'editor Layer,
     pub editor: &'stroke ImageEditor<'editor>,
     pub renderer: &'stroke mut Renderer<'f>,
 }

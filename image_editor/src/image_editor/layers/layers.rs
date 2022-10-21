@@ -2,7 +2,6 @@ use cgmath::{Point2, Point3, Vector2};
 use framework::framework::TextureId;
 use framework::renderer::renderer::Renderer;
 use framework::scene::Transform2d;
-use framework::Framework;
 use uuid::Uuid;
 
 use crate::blend_settings::BlendMode;
@@ -23,9 +22,7 @@ pub struct ShaderLayerSettings {
     pub opacity: f32,
 }
 
-pub struct Layer<'framework> {
-    framework: &'framework Framework,
-
+pub struct Layer {
     uuid: Uuid,
     needs_settings_update: bool,
     needs_bitmap_update: bool,
@@ -49,14 +46,9 @@ pub enum LayerType {
     Bitmap,
 }
 
-impl<'framework> Layer<'framework> {
-    pub fn new_bitmap(
-        bitmap: BitmapLayer,
-        creation_info: LayerCreationInfo,
-        framework: &'framework Framework,
-    ) -> Self {
+impl Layer {
+    pub fn new_bitmap(bitmap: BitmapLayer, creation_info: LayerCreationInfo) -> Self {
         Self {
-            framework,
             uuid: Uuid::new_v4(),
             bitmap,
             settings: LayerSettings {
@@ -107,7 +99,6 @@ impl<'framework> Layer<'framework> {
                     self.scale,
                     self.rotation_radians,
                     self.settings.opacity,
-                    canvas.texture(),
                 );
             }
         }

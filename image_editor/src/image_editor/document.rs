@@ -30,12 +30,13 @@ pub struct Document<'framework> {
     layers_created: u16,
 
     document_size: Vector2<u32>,
-    layers: HashMap<LayerIndex, Layer<'framework>>,
+    layers: HashMap<LayerIndex, Layer>,
     layer_canvases: HashMap<Uuid, LayerDrawInfo>,
     tree_root: RootLayer,
     final_layer_1: BitmapLayer,
     final_layer_2: BitmapLayer,
-    buffer_layer: BitmapLayer,
+    #[allow(dead_code)]
+    buffer_layer: BitmapLayer, // Imma keep it here just in case, too many times i removed it just to need it later again
     buffering_step: BufferingStep,
 
     current_layer_index: LayerIndex,
@@ -195,7 +196,6 @@ impl<'l> Document<'l> {
                 scale: vec2(1.0, 1.0),
                 rotation_radians: 0.0,
             },
-            framework,
         );
         let bitmap_canvas = BitmapLayer::new(
             self.framework,

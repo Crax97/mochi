@@ -121,7 +121,7 @@ impl InputState {
                             let location = location.cast::<f32>();
                             self.current_cursor_position = PhysicalPosition {
                                 x: location.x,
-                                y: self.window_size.height as f32 - location.y
+                                y: self.window_size.height as f32 - location.y,
                             };
                         }
                         winit::event::TouchPhase::Ended | winit::event::TouchPhase::Cancelled => {
@@ -152,6 +152,7 @@ impl InputState {
             y: self.current_cursor_position.y,
         }
     }
+    #[allow(dead_code)]
     pub(crate) fn last_position(&self) -> PhysicalPosition<f32> {
         self.last_update_cursor_position
     }
@@ -161,18 +162,21 @@ impl InputState {
             y: ((self.current_cursor_position.y / self.window_size.height as f32) * 2.0 - 1.0),
         }
     }
+    #[allow(dead_code)]
     pub(crate) fn normalized_last_mouse_position(&self) -> Point2<f32> {
         Point2 {
             x: (self.last_update_cursor_position.x / self.window_size.width as f32) * 2.0 - 1.0,
             y: ((self.last_update_cursor_position.y / self.window_size.height as f32) * 2.0 - 1.0),
         }
     }
+    #[allow(dead_code)]
     pub(crate) fn mouse_delta(&self) -> Vector2<f32> {
         Vector2 {
             x: self.current_cursor_position.x - self.last_update_cursor_position.x,
             y: self.current_cursor_position.y - self.last_update_cursor_position.y,
         }
     }
+    #[allow(dead_code)]
     pub(crate) fn normalized_mouse_delta(&self) -> Vector2<f32> {
         self.normalized_mouse_position() - self.normalized_last_mouse_position()
     }
@@ -201,11 +205,13 @@ impl InputState {
             _ => false,
         }
     }
+    #[allow(dead_code)]
     pub(crate) fn is_mouse_button_pressed(&self, button: MouseButton) -> bool {
         self.pointer_button_state
             .get(&button)
             .map_or(false, |btn| btn == &ElementState::Pressed)
     }
+    #[allow(dead_code)]
     pub(crate) fn is_mouse_button_released(&self, button: MouseButton) -> bool {
         self.pointer_button_state
             .get(&button)
@@ -235,10 +241,12 @@ impl InputState {
         !self.key_states[key as usize] && self.last_key_states[key as usize]
     }
 
+    #[allow(dead_code)]
     pub(crate) fn is_key_pressed(&self, key: Key) -> bool {
         self.key_states[key as usize]
     }
 
+    #[allow(dead_code)]
     pub(crate) fn is_key_released(&self, key: Key) -> bool {
         !self.is_key_pressed(key)
     }
@@ -279,6 +287,7 @@ mod tests {
                     scancode: 0,
                     state: ElementState::Pressed,
                     virtual_keycode: Some(VirtualKeyCode::W),
+
                     modifiers: ModifiersState::empty(),
                 },
                 is_synthetic: false,
