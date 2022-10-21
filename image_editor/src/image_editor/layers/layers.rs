@@ -130,6 +130,7 @@ impl<'framework> Layer<'framework> {
     pub fn set_settings(&mut self, new_settings: LayerSettings) {
         self.settings = new_settings;
         self.mark_dirty();
+        self.needs_settings_update = true;
     }
 
     pub fn transform(&self) -> Transform2d {
@@ -147,7 +148,7 @@ impl<'framework> Layer<'framework> {
         }
     }
 
-    pub(crate) fn uuid(&self) -> &Uuid {
+    pub fn uuid(&self) -> &Uuid {
         &self.uuid
     }
 }

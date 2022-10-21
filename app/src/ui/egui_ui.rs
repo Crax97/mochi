@@ -218,9 +218,10 @@ impl EguiUI {
         }
 
         let mut lay_layer_ui = |idx: &LayerIndex| {
-            let original_settings = document.get_layer(idx).settings();
+            let layer = document.get_layer(idx);
+            let original_settings = layer.settings();
 
-            ui.push_id(&original_settings.name, |ui| {
+            ui.push_id(&layer.uuid(), |ui| {
                 let color = if *idx == document.current_layer_index() {
                     Color32::LIGHT_BLUE
                 } else {
