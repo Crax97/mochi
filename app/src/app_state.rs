@@ -12,7 +12,7 @@ use crate::{ActionState, Key, KeyBinding, ModifierSet};
 use framework::renderer::renderer::Renderer;
 use framework::Framework;
 use image_editor::ImageEditor;
-use log::info;
+use log::{info, warn};
 use wgpu::{CommandBuffer, Surface, SurfaceConfiguration};
 use winit::dpi::LogicalSize;
 use winit::event::WindowEvent;
@@ -263,6 +263,9 @@ impl<'framework> ImageApplication<'framework> {
     }
 
     fn read_action_bindings(action_map: &mut ActionMap<String>) {
+        // TODO: Action bindings aren't actually read from a file yet.
+        // In the future add something like an action_bindings.json file to read stuff
+        // + an ui to allow users to change the bindings
         action_map.add_action_binding(
             KeyBinding {
                 key: (Key::S, ActionState::Pressed),
@@ -286,6 +289,7 @@ impl<'framework> ImageApplication<'framework> {
         );
         action_map.add_action_binding((Key::B, ActionState::Pressed), "pick_brush");
         action_map.add_action_binding((Key::M, ActionState::Pressed), "pick_move");
+        action_map.add_action_binding((Key::E, ActionState::Pressed), "toggle_eraser");
     }
 
     fn dispatch_actions(&mut self, actions: Vec<String>) {
@@ -308,7 +312,12 @@ impl<'framework> ImageApplication<'framework> {
                 }
                 "pick_brush" => self.toolbox.set_primary_tool(&self.brush_id),
                 "pick_move" => self.toolbox.set_primary_tool(&self.move_tool_id),
-                _ => {}
+                "toggle_eraser" => {
+                    self.stamping_engine.borrow_mut().toggle_eraser();
+                }
+                _ => {
+                    warn!("Unrecognised input action! {}", action);
+                }
             }
         }
     }

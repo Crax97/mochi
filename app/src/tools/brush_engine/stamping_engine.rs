@@ -216,6 +216,10 @@ impl StrokingEngine {
 
         (old_layer_texture_id, new_texture_id)
     }
+
+    pub fn toggle_eraser(&mut self) {
+        self.stamp_configuration.is_eraser = !self.stamp_configuration.is_eraser;
+    }
 }
 
 impl BrushEngine for StrokingEngine {
