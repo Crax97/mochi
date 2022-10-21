@@ -168,14 +168,12 @@ impl EguiUI {
         ui.separator();
         ui.label("Brush tool settings");
         ui.horizontal(|ui| {
-            let max = brush_tool.max_size;
-            ui.label("Min brush size");
-            ui.add(egui::DragValue::new(&mut brush_tool.min_size).clamp_range(1.0..=max));
+            ui.label("Brush size");
+            ui.add(egui::DragValue::new(&mut brush_tool.size).clamp_range(1.0..=1000.0));
         });
         ui.horizontal(|ui| {
-            let min = brush_tool.min_size;
-            ui.label("Max brush size");
-            ui.add(egui::DragValue::new(&mut brush_tool.max_size).clamp_range(min..=1000.0));
+            ui.label("Pressure delta");
+            ui.add(egui::DragValue::new(&mut brush_tool.pressure_delta).clamp_range(0.0..=1000.0));
         });
         ui.horizontal(|ui| {
             ui.label("Step");

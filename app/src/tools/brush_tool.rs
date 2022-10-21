@@ -15,8 +15,8 @@ pub struct BrushTool<'framework> {
     is_active: bool,
     last_mouse_position: Point2<f32>,
     last_pressure: f32,
-    pub min_size: f32,
-    pub max_size: f32,
+    pub size: f32,
+    pub pressure_delta: f32,
     pub step: f32,
 }
 
@@ -28,8 +28,8 @@ impl<'framework> BrushTool<'framework> {
             is_active: false,
             last_mouse_position: point2(0.0, 0.0),
             last_pressure: 0.0,
-            min_size: 5.0,
-            max_size: 8.0,
+            size: 5.0,
+            pressure_delta: 5.0,
         }
     }
 
@@ -88,9 +88,8 @@ impl<'framework> Tool for BrushTool<'framework> {
                 return None;
             }
 
-            let size_delta = self.max_size - self.min_size;
-            let start_size = self.min_size + size_delta * self.last_pressure;
-            let end_size = self.min_size + size_delta * pointer_motion.pressure;
+            let start_size = self.size + self.pressure_delta * self.last_pressure;
+            let end_size = self.size + self.pressure_delta * pointer_motion.pressure;
 
             let start = StrokePoint {
                 position: self.last_mouse_position,
