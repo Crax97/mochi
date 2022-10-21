@@ -153,7 +153,7 @@ impl EguiUI {
 
         ui.horizontal(|ui| {
             ui.label("Brush smoothness");
-            ui.add(egui::Slider::new(&mut new_config.softness, 0.0..=1.0));
+            ui.add(egui::Slider::new(&mut new_config.softness, 0.0..=10.0));
         });
 
         ui.horizontal(|ui| {

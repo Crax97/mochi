@@ -1,9 +1,11 @@
 use cgmath::{point3, vec2, Rad, SquareMatrix, Transform};
-use framework::framework::{ShaderId, TextureId};
-use framework::renderer::draw_command::{DrawCommand, DrawMode, OptionalDrawData, PrimitiveType};
+use framework::framework::{BufferId, ShaderId, TextureId};
+use framework::renderer::draw_command::{
+    BindableResource, DrawCommand, DrawMode, OptionalDrawData, PrimitiveType,
+};
 use framework::shader::{BindElement, ShaderCreationInfo};
-use framework::Transform2d;
 use framework::{Buffer, Framework};
+use framework::{BufferConfiguration, Transform2d};
 use image_editor::layers::{BitmapLayer, LayerIndex, LayerType};
 use wgpu::{BlendComponent, ShaderModuleDescriptor, ShaderSource};
 
@@ -85,24 +87,14 @@ impl StampConfiguration {
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct StampUniformData {
-    pub color: [f32; 4],
-    pub flow: f32,
+pub struct BrushUniformData {
     pub softness: f32,
     pub padding: [f32; 3],
 }
 
-impl From<StampConfiguration> for StampUniformData {
+impl From<StampConfiguration> for BrushUniformData {
     fn from(cfg: StampConfiguration) -> Self {
-        let color = [
-            cfg.color_srgb[0] as f32 / 255.0,
-            cfg.color_srgb[1] as f32 / 255.0,
-            cfg.color_srgb[2] as f32 / 255.0,
-            cfg.opacity as f32 / 255.0,
-        ];
         Self {
-            color,
-            flow: cfg.flow,
             softness: cfg.softness,
             padding: cfg.padding,
         }
@@ -113,8 +105,10 @@ pub struct StrokingEngine {
     current_stamp: usize,
     stamps: Vec<Stamp>,
     stamp_configuration: StampConfiguration,
+    wants_update_brush_settings: bool,
     brush_shader_id: ShaderId,
     eraser_shader_id: ShaderId,
+    brush_settings_buffer_id: BufferId,
 }
 
 impl StrokingEngine {
@@ -130,7 +124,8 @@ impl StrokingEngine {
                 source: ShaderSource::Naga(brush_fragment),
             },
         )
-        .with_bind_element(BindElement::Texture); // 2: texture + sampler
+        .with_bind_element(BindElement::Texture) // 2: texture + sampler
+        .with_bind_element(BindElement::UniformBuffer); // 3: brush settings
 
         let eraser_blend_state = wgpu::BlendState {
             color: BlendComponent {
@@ -156,23 +151,38 @@ impl StrokingEngine {
                 source: ShaderSource::Naga(brush_fragment),
             },
         )
-        .with_bind_element(BindElement::Texture)
-        .with_blend_state(eraser_blend_state); // 2: texture + sampler
+        .with_bind_element(BindElement::Texture) // 2: texture + sampler
+        .with_bind_element(BindElement::UniformBuffer) // 3: brush settings
+        .with_blend_state(eraser_blend_state);
+
+        let stamp_config = StampConfiguration {
+            color_srgb: [0, 0, 0],
+            opacity: 255,
+            flow: 1.0,
+            softness: 0.2,
+            padding: [0.0; 3],
+            is_eraser: false,
+        };
+
         let brush_shader_id = framework.create_shader(brush_shader_info);
         let eraser_shader_id = framework.create_shader(eraser_shader_info);
+        let brush_settings_buffer_id =
+            framework.allocate_typed_buffer(BufferConfiguration::<BrushUniformData> {
+                initial_setup: framework::buffer::BufferInitialSetup::Data(&vec![
+                    BrushUniformData::from(stamp_config.clone()),
+                ]),
+                buffer_type: framework::BufferType::Uniform,
+                allow_write: true,
+                allow_read: false,
+            });
 
         Self {
             stamps: vec![initial_stamp],
             current_stamp: 0,
-            stamp_configuration: StampConfiguration {
-                color_srgb: [0, 0, 0],
-                opacity: 255,
-                flow: 1.0,
-                softness: 0.2,
-                padding: [0.0; 3],
-                is_eraser: false,
-            },
+            stamp_configuration: stamp_config,
+            wants_update_brush_settings: true,
             brush_shader_id,
+            brush_settings_buffer_id,
             eraser_shader_id,
         }
     }
@@ -187,6 +197,7 @@ impl StrokingEngine {
 
     pub fn set_new_settings(&mut self, settings: StampConfiguration) {
         self.stamp_configuration = settings;
+        self.wants_update_brush_settings = true; // Defer updating brush settings until stroke
     }
 
     fn current_stamp(&self) -> &Stamp {
@@ -220,6 +231,13 @@ impl StrokingEngine {
     pub fn toggle_eraser(&mut self) {
         self.stamp_configuration.is_eraser = !self.stamp_configuration.is_eraser;
     }
+
+    fn update_brush_settings(&self, framework: &Framework) {
+        framework.buffer_write_sync(
+            &self.brush_settings_buffer_id,
+            vec![BrushUniformData::from(self.stamp_configuration)],
+        );
+    }
 }
 
 impl BrushEngine for StrokingEngine {
@@ -228,6 +246,11 @@ impl BrushEngine for StrokingEngine {
         path: StrokePath,
         context: StrokeContext,
     ) -> Option<Box<dyn EditorCommand>> {
+        if self.wants_update_brush_settings {
+            self.update_brush_settings(context.editor.framework());
+            self.wants_update_brush_settings = false;
+        }
+
         let layer = context.editor.document().current_layer();
         match layer.layer_type {
             // TODO: Deal with difference between current_layer and buffer_layer size
@@ -278,6 +301,9 @@ impl BrushEngine for StrokingEngine {
                             } else {
                                 self.brush_shader_id.clone()
                             }),
+                            additional_bindable_resource: vec![BindableResource::UniformBuffer(
+                                self.brush_settings_buffer_id.clone(),
+                            )],
                             ..Default::default()
                         },
                     });
