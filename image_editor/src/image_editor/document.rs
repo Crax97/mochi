@@ -207,7 +207,7 @@ impl<'l> Document<'l> {
             },
         );
         let settings = BlendSettingsUniform::from(BlendSettings {
-            blend_mode: new_layer.settings.blend_mode,
+            blend_mode: new_layer.settings().blend_mode,
         });
         let layer_settings_buffer = self.framework.allocate_typed_buffer(BufferConfiguration::<
             BlendSettingsUniform,
@@ -229,9 +229,20 @@ impl<'l> Document<'l> {
         self.tree_root.0.push(LayerTree::SingleLayer(layer_index));
     }
 
-    pub(crate) fn update_layers(&mut self) {
+    pub(crate) fn update_layers(&mut self, renderer: &mut Renderer) {
         for (_, layer) in self.layers.iter_mut() {
-            layer.update(self.framework);
+            let layer_info = self.layer_canvases.get(layer.uuid()).unwrap();
+            if layer.needs_settings_update() {
+                Self::update_layer_settings(
+                    self.framework,
+                    layer,
+                    &layer_info.layer_settings_buffer,
+                );
+            }
+
+            if layer.needs_bitmap_update() {
+                Self::update_layer_bitmap(renderer, layer, &layer_info.bitmap_canvas);
+            }
         }
     }
 
@@ -252,7 +263,7 @@ impl<'l> Document<'l> {
     ) {
         // Clear first layer
         let final_layer = self.final_layer().texture().clone();
-        self.clear_texture(renderer, &final_layer, wgpu::Color::TRANSPARENT);
+        Self::clear_texture(renderer, &final_layer, wgpu::Color::TRANSPARENT);
 
         // Actually draw shit
         let mut draw_layer = |index| {
@@ -262,20 +273,6 @@ impl<'l> Document<'l> {
             // 1. Draw current layer onto buffer layer
             let layer = self.get_layer(&index);
             let layer_draw_info = self.layer_canvases.get(layer.uuid()).unwrap();
-
-            /*
-            self.clear_texture(renderer, &buffer_layer, wgpu::Color::TRANSPARENT);
-            layer.lay_on_canvas(renderer, &self.buffer_layer);
-
-            self.buffer_layer.draw_blended(
-                renderer,
-                shader_to_use.clone(),
-                previous_layer.clone(),
-                blend_settings.clone(),
-                &final_layer,
-            );
-            */
-
             // 2. Blend buffer layer with final layer
 
             layer_draw_info.bitmap_canvas.draw_blended(
@@ -285,14 +282,14 @@ impl<'l> Document<'l> {
                 layer_draw_info.layer_settings_buffer.clone(),
                 &final_layer,
             );
-            self.clear_texture(renderer, &previous_layer, wgpu::Color::TRANSPARENT);
+            Self::clear_texture(renderer, &previous_layer, wgpu::Color::TRANSPARENT);
         };
         for layer_index in draw_sequence {
             draw_layer(layer_index);
         }
     }
 
-    pub fn clear_texture(&self, renderer: &mut Renderer, texture: &TextureId, color: wgpu::Color) {
+    pub fn clear_texture(renderer: &mut Renderer, texture: &TextureId, color: wgpu::Color) {
         renderer.begin(&Camera2d::default(), Some(color));
         renderer.end_on_texture(texture);
     }
@@ -303,7 +300,7 @@ impl<'l> Document<'l> {
             match layer_node {
                 LayerTree::SingleLayer(index) => {
                     let layer = self.get_layer(&index);
-                    if !layer.settings.is_enabled {
+                    if !layer.settings().is_enabled {
                         continue;
                     }
                     draw_sequence.push(index.clone());
@@ -311,7 +308,7 @@ impl<'l> Document<'l> {
                 LayerTree::Group(indices) => {
                     for index in indices {
                         let layer = self.get_layer(&index);
-                        if !layer.settings.is_enabled {
+                        if !layer.settings().is_enabled {
                             continue;
                         }
                         draw_sequence.push(index.clone());
@@ -382,5 +379,19 @@ impl<'l> Document<'l> {
                 }
             }
         }
+    }
+
+    fn update_layer_settings(framework: &Framework, layer: &mut Layer, target: &BufferId) {
+        framework.buffer_write_sync(
+            target,
+            vec![BlendSettingsUniform::from(BlendSettings {
+                blend_mode: layer.settings().blend_mode,
+            })],
+        )
+    }
+
+    fn update_layer_bitmap(renderer: &mut Renderer, layer: &mut Layer, target: &BitmapLayer) {
+        Self::clear_texture(renderer, target.texture(), wgpu::Color::TRANSPARENT);
+        layer.lay_on_canvas(renderer, &target);
     }
 }

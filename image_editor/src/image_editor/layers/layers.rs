@@ -27,13 +27,15 @@ pub struct Layer<'framework> {
     framework: &'framework Framework,
 
     uuid: Uuid,
-    pub bitmap: BitmapLayer,
-    pub settings: LayerSettings,
+    needs_settings_update: bool,
+    needs_bitmap_update: bool,
+    settings: LayerSettings,
+    position: Point2<f32>,
+    scale: Vector2<f32>,
+    rotation_radians: f32,
+
     pub layer_type: LayerType,
-    pub position: Point2<f32>,
-    pub scale: Vector2<f32>,
-    pub rotation_radians: f32,
-    pub instance_buffer_id: BufferId,
+    pub bitmap: BitmapLayer,
 }
 
 pub struct LayerCreationInfo {
@@ -53,15 +55,6 @@ impl<'framework> Layer<'framework> {
         creation_info: LayerCreationInfo,
         framework: &'framework Framework,
     ) -> Self {
-        let instance_buffer_id = framework.allocate_typed_buffer(BufferConfiguration {
-            initial_setup: framework::buffer::BufferInitialSetup::Data(
-                &Vec::<MeshInstance2D>::new(),
-            ),
-            buffer_type: framework::BufferType::Vertex,
-            allow_write: true,
-            allow_read: false,
-        });
-
         Self {
             framework,
             uuid: Uuid::new_v4(),
@@ -72,11 +65,14 @@ impl<'framework> Layer<'framework> {
                 opacity: 1.0,
                 blend_mode: BlendMode::Normal,
             },
+
+            needs_settings_update: true,
+            needs_bitmap_update: true,
+
             layer_type: LayerType::Bitmap,
             position: creation_info.position,
             scale: creation_info.scale,
             rotation_radians: creation_info.rotation_radians,
-            instance_buffer_id,
         }
     }
 
@@ -89,7 +85,26 @@ impl<'framework> Layer<'framework> {
         }
     }
 
-    pub(crate) fn update(&mut self, framework: &Framework) {}
+    pub fn needs_settings_update(&mut self) -> bool {
+        let ret = self.needs_settings_update;
+        self.needs_settings_update = false;
+        ret
+    }
+
+    pub fn needs_bitmap_update(&mut self) -> bool {
+        let ret = self.needs_bitmap_update;
+        self.needs_bitmap_update = false;
+        ret
+    }
+
+    pub fn mark_dirty(&mut self) {
+        self.needs_bitmap_update = true;
+    }
+
+    pub fn translate(&mut self, delta: Vector2<f32>) {
+        self.position += delta;
+        self.mark_dirty();
+    }
 
     pub(crate) fn lay_on_canvas(&self, renderer: &mut Renderer, canvas: &BitmapLayer) {
         renderer.begin(&canvas.camera(), None);
@@ -108,23 +123,13 @@ impl<'framework> Layer<'framework> {
         renderer.end_on_texture(canvas.texture());
     }
 
-    pub fn settings(&self) -> LayerSettings {
-        self.settings.clone()
+    pub fn settings(&self) -> &LayerSettings {
+        &self.settings
     }
 
     pub fn set_settings(&mut self, new_settings: LayerSettings) {
         self.settings = new_settings;
-
-        self.framework.buffer_write_sync(
-            &self.instance_buffer_id,
-            vec![MeshInstance2D::new(
-                self.position,
-                self.scale,
-                self.rotation_radians,
-                true,
-                wgpu::Color::WHITE,
-            )],
-        );
+        self.mark_dirty();
     }
 
     pub fn transform(&self) -> Transform2d {

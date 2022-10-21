@@ -216,7 +216,7 @@ impl<'framework> ImageApplication<'framework> {
                 };
                 let block_editor = self.ui.do_ui(ui_ctx);
                 self.toolbox.set_is_blocked(block_editor);
-                self.image_editor.update_layers();
+                self.image_editor.update_layers(&mut self.renderer);
 
                 let current_texture = match self.final_surface.get_current_texture() {
                     Ok(surface) => surface,

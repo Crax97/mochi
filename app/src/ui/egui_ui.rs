@@ -255,7 +255,7 @@ impl EguiUI {
                         }
                     });
 
-                if settings != original_settings {
+                if &settings != original_settings {
                     action = LayerAction::SetLayerSettings(idx.clone(), settings);
                 }
             })

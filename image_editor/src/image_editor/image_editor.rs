@@ -128,8 +128,8 @@ impl<'framework> ImageEditor<'framework> {
         self.pan_camera.set_new_bounds(new_bounds);
     }
 
-    pub fn update_layers(&mut self) {
-        self.mutate_document(|d| d.update_layers());
+    pub fn update_layers(&mut self, renderer: &mut Renderer) {
+        self.mutate_document(|d| d.update_layers(renderer));
     }
 
     pub fn render_document<'s, 't>(&'s mut self, renderer: &mut Renderer)

@@ -47,7 +47,7 @@ impl Tool for TransformLayerTool {
         if delta.magnitude2() > 0.5 {
             context.image_editor.mutate_document(|doc| {
                 doc.mutate_layer(&doc.current_layer_index(), |layer| {
-                    layer.position += delta;
+                    layer.translate(delta);
                 })
             });
         }
