@@ -5,7 +5,7 @@ use crate::{
     LayerConstructionInfo,
 };
 use cgmath::{point2, vec2, Vector2};
-use framework::Framework;
+use framework::{framework::BufferId, Framework};
 use framework::{
     framework::TextureId, renderer::renderer::Renderer, scene::Camera2d, BufferConfiguration,
 };
@@ -13,10 +13,16 @@ use image::{DynamicImage, ImageBuffer};
 
 use framework::framework::ShaderId;
 use std::collections::HashMap;
+use uuid::Uuid;
 
 enum BufferingStep {
     First,
     Second,
+}
+
+struct LayerDrawInfo {
+    bitmap_canvas: BitmapLayer,
+    layer_settings_buffer: BufferId,
 }
 
 pub struct Document<'framework> {
@@ -25,6 +31,7 @@ pub struct Document<'framework> {
 
     document_size: Vector2<u32>,
     layers: HashMap<LayerIndex, Layer<'framework>>,
+    layer_canvases: HashMap<Uuid, LayerDrawInfo>,
     tree_root: RootLayer,
     final_layer_1: BitmapLayer,
     final_layer_2: BitmapLayer,
@@ -83,6 +90,7 @@ impl<'l> Document<'l> {
             buffer_layer,
 
             layers: HashMap::new(),
+            layer_canvases: HashMap::new(),
             tree_root: RootLayer(vec![]),
             buffering_step: BufferingStep::First,
         };
@@ -152,7 +160,7 @@ impl<'l> Document<'l> {
                 .unwrap();
             self.select_layer(new_layer.clone());
         }
-        self.layers.remove(&layer_idx);
+        let removed_layer = self.layers.remove(&layer_idx).unwrap();
         let mut erase_which = 0usize;
         for (i, layer) in self.tree_root.0.iter().enumerate() {
             match layer {
@@ -164,6 +172,7 @@ impl<'l> Document<'l> {
             }
         }
         self.tree_root.0.remove(erase_which);
+        self.layer_canvases.remove(removed_layer.uuid()).unwrap();
     }
 
     pub(crate) fn add_layer(&mut self, framework: &'l Framework, config: LayerConstructionInfo) {
@@ -181,13 +190,41 @@ impl<'l> Document<'l> {
         let new_layer = Layer::new_bitmap(
             new_layer,
             LayerCreationInfo {
-                name: config.name,
+                name: config.name.clone(),
                 position: point2(0.0, 0.0),
                 scale: vec2(1.0, 1.0),
                 rotation_radians: 0.0,
             },
             framework,
         );
+        let bitmap_canvas = BitmapLayer::new(
+            self.framework,
+            BitmapLayerConfiguration {
+                label: config.name,
+                width: self.document_size.x,
+                height: self.document_size.y,
+                initial_background_color: [0.0; 4],
+            },
+        );
+        let settings = BlendSettingsUniform::from(BlendSettings {
+            blend_mode: new_layer.settings.blend_mode,
+        });
+        let layer_settings_buffer = self.framework.allocate_typed_buffer(BufferConfiguration::<
+            BlendSettingsUniform,
+        > {
+            initial_setup: framework::buffer::BufferInitialSetup::Data(&vec![settings]),
+            buffer_type: framework::BufferType::Uniform,
+            allow_write: true,
+            allow_read: false,
+        });
+
+        let layer_draw_info = LayerDrawInfo {
+            bitmap_canvas,
+            layer_settings_buffer,
+        };
+
+        self.layer_canvases
+            .insert(new_layer.uuid().clone(), layer_draw_info);
         self.layers.insert(layer_index.clone(), new_layer);
         self.tree_root.0.push(LayerTree::SingleLayer(layer_index));
     }
@@ -218,34 +255,34 @@ impl<'l> Document<'l> {
         self.clear_texture(renderer, &final_layer, wgpu::Color::TRANSPARENT);
 
         // Actually draw shit
-        let buffer_layer = self.buffer_layer.texture().clone();
         let mut draw_layer = |index| {
             let final_layer = self.advance_final_layer().texture().clone();
             let previous_layer = self.previous_buffer_layer().texture().clone();
 
             // 1. Draw current layer onto buffer layer
             let layer = self.get_layer(&index);
+            let layer_draw_info = self.layer_canvases.get(layer.uuid()).unwrap();
+
+            /*
             self.clear_texture(renderer, &buffer_layer, wgpu::Color::TRANSPARENT);
             layer.lay_on_canvas(renderer, &self.buffer_layer);
 
-            // 2. Blend buffer layer with final layer
-            let settings = BlendSettingsUniform::from(BlendSettings {
-                blend_mode: layer.settings.blend_mode,
-            });
-
-            let blend_settings = self.framework.allocate_typed_buffer(BufferConfiguration::<
-                BlendSettingsUniform,
-            > {
-                initial_setup: framework::buffer::BufferInitialSetup::Data(&vec![settings]),
-                buffer_type: framework::BufferType::Uniform,
-                allow_write: true,
-                allow_read: false,
-            });
             self.buffer_layer.draw_blended(
                 renderer,
                 shader_to_use.clone(),
                 previous_layer.clone(),
                 blend_settings.clone(),
+                &final_layer,
+            );
+            */
+
+            // 2. Blend buffer layer with final layer
+
+            layer_draw_info.bitmap_canvas.draw_blended(
+                renderer,
+                shader_to_use.clone(),
+                previous_layer.clone(),
+                layer_draw_info.layer_settings_buffer.clone(),
                 &final_layer,
             );
             self.clear_texture(renderer, &previous_layer, wgpu::Color::TRANSPARENT);

@@ -141,4 +141,8 @@ impl<'framework> Layer<'framework> {
             rotation_radians: cgmath::Rad(self.rotation_radians),
         }
     }
+
+    pub(crate) fn uuid(&self) -> &Uuid {
+        &self.uuid
+    }
 }
