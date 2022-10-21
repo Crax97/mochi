@@ -87,15 +87,21 @@ impl<'framework> Layer<'framework> {
 
     pub(crate) fn update(&mut self, framework: &Framework) {}
 
-    pub(crate) fn draw<'library, 'pass, 'l>(
-        &'l self,
-        renderer: &mut Renderer,
-        bottom_layer: &TextureId,
-        target: &TextureId,
-    ) where
-        'framework: 'pass,
-        'l: 'pass,
-    {
+    pub(crate) fn lay_on_canvas(&self, renderer: &mut Renderer, canvas: &BitmapLayer) {
+        renderer.begin(&canvas.camera(), None);
+        match self.layer_type {
+            LayerType::Bitmap => {
+                self.bitmap.draw(
+                    renderer,
+                    self.position,
+                    self.scale,
+                    self.rotation_radians,
+                    self.settings.opacity,
+                    canvas.texture(),
+                );
+            }
+        }
+        renderer.end_on_texture(canvas.texture());
     }
 
     pub fn settings(&self) -> LayerSettings {

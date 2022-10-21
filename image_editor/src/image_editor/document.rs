@@ -1,12 +1,14 @@
 use super::layers::{Layer, LayerIndex, RootLayer};
 use crate::{
-    blend_settings::{BlendMode, BlendSettings, BlendSettingsUniform},
-    layers::{BitmapLayer, BitmapLayerConfiguration, LayerCreationInfo, LayerTree, LayerType},
+    blend_settings::{BlendSettings, BlendSettingsUniform},
+    layers::{BitmapLayer, BitmapLayerConfiguration, LayerCreationInfo, LayerTree},
     LayerConstructionInfo,
 };
 use cgmath::{point2, vec2, Vector2};
-use framework::{renderer::renderer::Renderer, scene::Camera2d, BufferConfiguration};
-use framework::{AssetId, Framework, Texture2d};
+use framework::Framework;
+use framework::{
+    framework::TextureId, renderer::renderer::Renderer, scene::Camera2d, BufferConfiguration,
+};
 use image::{DynamicImage, ImageBuffer};
 
 use framework::framework::ShaderId;
@@ -213,29 +215,18 @@ impl<'l> Document<'l> {
     ) {
         // Clear first layer
         let final_layer = self.final_layer().texture().clone();
-        renderer.begin(&Camera2d::default(), Some(wgpu::Color::TRANSPARENT));
-        renderer.end_on_texture(&final_layer);
+        self.clear_texture(renderer, &final_layer, wgpu::Color::TRANSPARENT);
 
         // Actually draw shit
-        let buffer_camera = self.buffer_layer.camera();
         let buffer_layer = self.buffer_layer.texture().clone();
         let mut draw_layer = |index| {
             let final_layer = self.advance_final_layer().texture().clone();
             let previous_layer = self.previous_buffer_layer().texture().clone();
 
             // 1. Draw current layer onto buffer layer
-            renderer.begin(&Camera2d::default(), Some(wgpu::Color::TRANSPARENT));
-            renderer.end_on_texture(&buffer_layer);
             let layer = self.get_layer(&index);
-            layer.bitmap.draw(
-                renderer,
-                Some(buffer_camera),
-                layer.position,
-                layer.scale,
-                layer.rotation_radians,
-                layer.settings.opacity,
-                &buffer_layer,
-            );
+            self.clear_texture(renderer, &buffer_layer, wgpu::Color::TRANSPARENT);
+            layer.lay_on_canvas(renderer, &self.buffer_layer);
 
             // 2. Blend buffer layer with final layer
             let settings = BlendSettingsUniform::from(BlendSettings {
@@ -257,12 +248,16 @@ impl<'l> Document<'l> {
                 blend_settings.clone(),
                 &final_layer,
             );
-            renderer.begin(&Camera2d::default(), Some(wgpu::Color::TRANSPARENT));
-            renderer.end_on_texture(&previous_layer);
+            self.clear_texture(renderer, &previous_layer, wgpu::Color::TRANSPARENT);
         };
         for layer_index in draw_sequence {
             draw_layer(layer_index);
         }
+    }
+
+    pub fn clear_texture(&self, renderer: &mut Renderer, texture: &TextureId, color: wgpu::Color) {
+        renderer.begin(&Camera2d::default(), Some(color));
+        renderer.end_on_texture(texture);
     }
 
     fn generate_draw_sequence(&self) -> Vec<LayerIndex> {

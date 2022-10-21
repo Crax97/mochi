@@ -81,7 +81,6 @@ impl BitmapLayer {
     pub fn draw(
         &self,
         renderer: &mut Renderer,
-        camera_override: Option<Camera2d>,
         position: cgmath::Point2<f32>,
         scale: Vector2<f32>,
         rotation_radians: f32,
@@ -92,7 +91,6 @@ impl BitmapLayer {
             x: scale.x * self.size().x * 0.5,
             y: scale.y * self.size().y * 0.5,
         };
-        renderer.begin(&camera_override.unwrap_or(self.camera()), None);
         renderer.draw(DrawCommand {
             primitives: PrimitiveType::Texture2D {
                 texture_id: self.texture().clone(),
@@ -116,7 +114,6 @@ impl BitmapLayer {
             draw_mode: DrawMode::Single,
             additional_data: OptionalDrawData::default(),
         });
-        renderer.end_on_texture(output);
     }
 
     pub fn draw_blended(
