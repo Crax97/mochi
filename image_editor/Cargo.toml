@@ -25,3 +25,7 @@ framework={path="../framework"}
 version = "0.24"
 default-features = false
 features = ["png", "jpeg"]
+
+[dependencies.uuid]
+version = "1.2.1"
+features = ["v4"]

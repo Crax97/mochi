@@ -3,6 +3,7 @@ use framework::framework::{ShaderId, TextureId};
 use framework::renderer::renderer::Renderer;
 use framework::scene::Transform2d;
 use framework::{framework::BufferId, BufferConfiguration, Framework, MeshInstance2D};
+use uuid::Uuid;
 
 use crate::blend_settings::BlendMode;
 
@@ -24,6 +25,8 @@ pub struct ShaderLayerSettings {
 
 pub struct Layer<'framework> {
     framework: &'framework Framework,
+
+    uuid: Uuid,
     pub bitmap: BitmapLayer,
     pub settings: LayerSettings,
     pub layer_type: LayerType,
@@ -61,6 +64,7 @@ impl<'framework> Layer<'framework> {
 
         Self {
             framework,
+            uuid: Uuid::new_v4(),
             bitmap,
             settings: LayerSettings {
                 name: creation_info.name,
