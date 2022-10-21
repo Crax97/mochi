@@ -5,7 +5,7 @@ use framework::shader::{BindElement, ShaderCreationInfo};
 use framework::Transform2d;
 use framework::{Buffer, Framework};
 use image_editor::layers::{BitmapLayer, LayerIndex, LayerType};
-use wgpu::{include_wgsl, BlendComponent, ShaderModuleDescriptor, ShaderSource};
+use wgpu::{BlendComponent, ShaderModuleDescriptor, ShaderSource};
 
 use crate::tools::{EditorCommand, EditorContext};
 use crate::{StrokeContext, StrokePath};

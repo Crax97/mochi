@@ -75,7 +75,7 @@ impl BitmapLayer {
     }
 
     pub fn replace_texture(&mut self, new_texture: TextureId) {
-        self.texture = new_texture
+        self.texture = new_texture;
     }
 
     pub fn draw(

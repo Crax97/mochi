@@ -22,7 +22,7 @@ async fn run_app() -> anyhow::Result<()> {
         })
         .build(&event_loop)?;
 
-    let mut framework = Box::leak(Box::new({
+    let framework = Box::leak(Box::new({
         let framework = Framework::new(&wgpu::DeviceDescriptor {
             label: Some("Image Editor framework"),
             features: wgpu::Features::empty(),

@@ -1,10 +1,10 @@
-use cgmath::{ElementWise, Point2, Vector4};
-use framework::framework::{BufferId, ShaderId};
+use cgmath::{ElementWise, Point2};
+use framework::framework::ShaderId;
 use framework::renderer::draw_command::{DrawCommand, DrawMode, OptionalDrawData, PrimitiveType};
 use framework::renderer::renderer::Renderer;
 use framework::scene::Camera2d;
 use framework::shader::{BindElement, ShaderCreationInfo};
-use framework::{BufferConfiguration, Framework, Transform2d};
+use framework::{Framework, Transform2d};
 use wgpu::{TextureFormat, TextureView};
 
 use crate::document::DocumentCreationInfo;

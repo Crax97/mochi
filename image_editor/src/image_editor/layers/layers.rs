@@ -1,13 +1,12 @@
 use cgmath::{Point2, Point3, Vector2};
-use framework::framework::{ShaderId, TextureId};
 use framework::renderer::renderer::Renderer;
 use framework::scene::Transform2d;
-use framework::{framework::BufferId, BufferConfiguration, Framework, MeshInstance2D};
+use framework::Framework;
 use uuid::Uuid;
 
 use crate::blend_settings::BlendMode;
 
-use super::{bitmap_layer, BitmapLayer};
+use super::BitmapLayer;
 
 #[derive(Clone, PartialEq)]
 pub struct LayerSettings {
@@ -73,15 +72,6 @@ impl<'framework> Layer<'framework> {
             position: creation_info.position,
             scale: creation_info.scale,
             rotation_radians: creation_info.rotation_radians,
-        }
-    }
-
-    fn wgpu_color(&self) -> wgpu::Color {
-        wgpu::Color {
-            r: 1.0,
-            g: 1.0,
-            b: 1.0,
-            a: self.settings.opacity as f64,
         }
     }
 
