@@ -1,4 +1,5 @@
 use cgmath::{Point2, Point3, Vector2};
+use framework::framework::TextureId;
 use framework::renderer::renderer::Renderer;
 use framework::scene::Transform2d;
 use framework::Framework;
@@ -113,14 +114,19 @@ impl<'framework> Layer<'framework> {
         renderer.end_on_texture(canvas.texture());
     }
 
+    pub fn replace_texture(&mut self, new_texture: TextureId) {
+        self.bitmap.replace_texture(new_texture);
+        self.mark_dirty();
+    }
+
     pub fn settings(&self) -> &LayerSettings {
         &self.settings
     }
 
     pub fn set_settings(&mut self, new_settings: LayerSettings) {
         self.settings = new_settings;
-        self.mark_dirty();
         self.needs_settings_update = true;
+        self.mark_dirty();
     }
 
     pub fn transform(&self) -> Transform2d {

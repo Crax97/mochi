@@ -36,9 +36,9 @@ impl EditorCommand for LayerReplaceCommand {
             .clone();
         context.image_editor.mutate_document(|doc| {
             doc.mutate_layer(&self.modified_layer, |lay| match &mut lay.layer_type {
-                LayerType::Bitmap => lay
-                    .bitmap
-                    .replace_texture(self.old_layer_texture_id.clone()),
+                LayerType::Bitmap => {
+                    lay.replace_texture(self.old_layer_texture_id.clone());
+                }
             })
         });
         Box::new(LayerReplaceCommand::new(
@@ -294,7 +294,7 @@ impl BrushEngine for StrokingEngine {
             StrokingEngine::create_clone_of_current_layer_texture(context);
         context.image_editor.mutate_document(|doc| {
             doc.mutate_layer(&modified_layer, |lay| match &mut lay.layer_type {
-                LayerType::Bitmap => lay.bitmap.replace_texture(new_texture_id.clone()),
+                LayerType::Bitmap => lay.replace_texture(new_texture_id.clone()),
             })
         });
         let cmd = LayerReplaceCommand::new(
