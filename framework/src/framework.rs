@@ -137,8 +137,13 @@ impl<'a> Framework {
         tex_info: Texture2dConfiguration,
         initial_data: Option<&[u8]>,
     ) -> TextureId {
+        let allow_cpu_write = tex_info.allow_cpu_write;
         let tex = Texture2d::new(&self, tex_info);
         if let Some(data) = initial_data {
+            debug_assert!(
+                allow_cpu_write,
+                "Having initial data set to Some(...) implies allow_cpu_write = true"
+            );
             tex.write_data(data, &self);
         }
         self.allocated_textures.borrow_mut().insert(tex)
