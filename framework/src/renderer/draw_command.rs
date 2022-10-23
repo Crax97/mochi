@@ -1,6 +1,6 @@
 use crate::{
     framework::{BufferId, ShaderId, TextureId},
-    Transform2d,
+    Box2d, Transform2d,
 };
 
 pub enum DrawMode {
@@ -20,6 +20,10 @@ pub enum PrimitiveType {
         texture_id: TextureId,
         instances: Vec<Transform2d>,
         flip_uv_y: bool,
+        multiply_color: wgpu::Color,
+    },
+    Rect {
+        rects: Vec<Box2d>,
         multiply_color: wgpu::Color,
     },
 }

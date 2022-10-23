@@ -10,7 +10,7 @@ use crate::{
     framework::{BufferId, MeshId, ShaderId, TextureId},
     shader::{Shader, ShaderCreationInfo},
     AssetRef, Buffer, BufferConfiguration, BufferType, Camera2d, Camera2dUniformBlock, Framework,
-    Mesh, MeshConstructionDetails, MeshInstance2D, Texture2d, Vertex,
+    Mesh, MeshConstructionDetails, MeshInstance2D, Texture2d, Texture2dConfiguration, Vertex,
 };
 
 use super::draw_command::{BindableResource, DrawCommand, DrawMode, PrimitiveType};
@@ -48,6 +48,8 @@ pub struct Renderer<'f> {
 
     texture2d_instanced_shader_id: ShaderId,
     texture2d_single_shader_id: ShaderId,
+
+    white_texture_id: TextureId,
 
     quad_mesh_id: MeshId,
 }
@@ -115,6 +117,20 @@ impl<'f> Renderer<'f> {
 
         let quad_mesh_id = Renderer::construct_initial_quad(framework);
         let empty_bind_group = Renderer::empty_bind_group(framework);
+
+        let white_texture_id = framework.allocate_texture2d(
+            Texture2dConfiguration {
+                debug_name: Some("White texture".to_string()),
+                width: 1,
+                height: 1,
+                format: wgpu::TextureFormat::Rgba8Unorm,
+                allow_cpu_write: true,
+                allow_cpu_read: false,
+                allow_use_as_render_target: false,
+            },
+            Some(&[255, 255, 255, 255]),
+        );
+
         Self {
             framework,
             camera_buffer_id,
@@ -125,6 +141,7 @@ impl<'f> Renderer<'f> {
 
             texture2d_instanced_shader_id,
             texture2d_single_shader_id,
+            white_texture_id,
             quad_mesh_id,
         }
     }
@@ -273,8 +290,8 @@ impl<'f> Renderer<'f> {
 
     fn pick_mesh_from_draw_type<'a>(&'a self, draw_type: &PrimitiveType) -> AssetRef<'a, Mesh> {
         let mesh_id = match draw_type {
-            PrimitiveType::Texture2D { .. } => &self.quad_mesh_id, // Pick quad mesh
-            _ => unreachable!(),
+            PrimitiveType::Noop => unreachable!(),
+            PrimitiveType::Texture2D { .. } | PrimitiveType::Rect { .. } => &self.quad_mesh_id, // Pick quad mesh
         };
         self.framework.mesh(&mesh_id)
     }
@@ -284,11 +301,13 @@ impl<'f> Renderer<'f> {
             &shader_id
         } else {
             match command.primitives {
-                PrimitiveType::Texture2D { .. } => match command.draw_mode {
-                    DrawMode::Instanced => &self.texture2d_instanced_shader_id,
-                    DrawMode::Single => &self.texture2d_single_shader_id,
-                }, // Pick quad mesh
-                _ => unreachable!(),
+                PrimitiveType::Noop => unreachable!(),
+                PrimitiveType::Texture2D { .. } | PrimitiveType::Rect { .. } => {
+                    match command.draw_mode {
+                        DrawMode::Instanced => &self.texture2d_instanced_shader_id,
+                        DrawMode::Single => &self.texture2d_single_shader_id,
+                    }
+                } // Pick quad mesh
             }
         };
 
@@ -345,6 +364,7 @@ impl<'f> Renderer<'f> {
         command: &DrawCommand,
     ) -> Vec<(u32, ResolvedResourceType<'a>)> {
         match &command.primitives {
+            PrimitiveType::Noop => unreachable!(),
             PrimitiveType::Texture2D { texture_id, .. } => {
                 vec![
                     (1, ResolvedResourceType::EmptyBindGroup),
@@ -354,7 +374,17 @@ impl<'f> Renderer<'f> {
                     ),
                 ]
             }
-            _ => unreachable!(),
+            PrimitiveType::Rect { .. } => {
+                vec![
+                    (1, ResolvedResourceType::EmptyBindGroup),
+                    (
+                        Renderer::DIFFUSE_BIND_GROUP_LOCATION,
+                        ResolvedResourceType::Texture(
+                            self.framework.texture2d(&self.white_texture_id),
+                        ),
+                    ),
+                ]
+            }
         }
     }
 
@@ -401,6 +431,33 @@ impl<'f> Renderer<'f> {
                     elements: instances.len() as u32,
                 }
             }
+            PrimitiveType::Rect {
+                rects,
+                multiply_color,
+            } => {
+                let mesh_instances_2d = rects
+                    .iter()
+                    .map(|rect| {
+                        MeshInstance2D::new(
+                            rect.center(),
+                            rect.extents,
+                            0.0,
+                            false,
+                            multiply_color.clone(),
+                        )
+                    })
+                    .collect();
+                let buffer_id = self.framework.allocate_typed_buffer(BufferConfiguration {
+                    initial_setup: BufferInitialSetup::Data(&mesh_instances_2d),
+                    buffer_type: BufferType::Vertex,
+                    allow_write: false,
+                    allow_read: true,
+                });
+                ResolvedDrawType::Instanced {
+                    buffer: self.framework.buffer(&buffer_id),
+                    elements: rects.len() as u32,
+                }
+            }
         }
     }
 
@@ -422,6 +479,34 @@ impl<'f> Renderer<'f> {
                             inst.rotation_radians.0,
                             *flip_uv_y,
                             *multiply_color,
+                        )
+                    })
+                    .map(|instance| {
+                        self.framework.allocate_typed_buffer(BufferConfiguration {
+                            initial_setup: BufferInitialSetup::Data(&vec![instance]),
+                            buffer_type: BufferType::Uniform,
+                            allow_write: false,
+                            allow_read: true,
+                        })
+                    })
+                    .map(|buffer_id| {
+                        ResolvedResourceType::UniformBuffer(self.framework.buffer(&buffer_id))
+                    });
+                ResolvedDrawType::Separate(instances.collect())
+            }
+            PrimitiveType::Rect {
+                rects,
+                multiply_color,
+            } => {
+                let instances = rects
+                    .iter()
+                    .map(|rect| {
+                        MeshInstance2D::new(
+                            rect.center(),
+                            rect.extents,
+                            0.0,
+                            false,
+                            multiply_color.clone(),
                         )
                     })
                     .map(|instance| {

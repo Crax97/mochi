@@ -678,6 +678,8 @@ dependencies = [
  "log",
  "naga",
  "pollster",
+ "strum",
+ "strum_macros",
  "uuid",
  "wgpu",
  "winit",

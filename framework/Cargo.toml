@@ -20,6 +20,8 @@ as-slice="0.2.1"
 anyhow="1.0.63"
 futures-intrusive = "0.4.0"
 pollster = "0.2"
+strum = "0.24"
+strum_macros = "0.24"
 
 [dependencies.wgpu]
 version = "0.13.1"
@@ -28,8 +30,7 @@ features = ["naga"]
 [dependencies.naga]
 version="0.9"
 features = ["span", "validate", "wgsl-in"]
-strum = "0.24"
-strum_macros = "0.24"
+
 
 [dependencies.uuid]
 version = "1.1.2"
