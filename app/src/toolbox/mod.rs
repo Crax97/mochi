@@ -10,7 +10,7 @@ use crate::{
     tools::{EditorContext, PointerEvent, Tool},
 };
 use cgmath::point2;
-use framework::Framework;
+use framework::{renderer::renderer::Renderer, Framework};
 use image_editor::layers::{BitmapLayer, BitmapLayerConfiguration};
 use winit::event::MouseButton;
 
@@ -137,6 +137,11 @@ impl<'framework> Toolbox<'framework> {
                 .image_editor
                 .scale_view(input_state.mouse_wheel_delta());
         }
+    }
+
+    pub fn draw(&self, renderer: &mut Renderer) {
+        self.primary_tool().draw(renderer);
+        self.secondary_tool().draw(renderer);
     }
 
     pub(crate) fn set_primary_tool(&mut self, new_tool_id: &ToolId) {

@@ -46,4 +46,6 @@ pub trait Tool {
     ) -> Option<Box<dyn EditorCommand>> {
         None
     }
+
+    fn draw(&self, _renderer: &mut Renderer) {}
 }

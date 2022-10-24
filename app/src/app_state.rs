@@ -69,7 +69,10 @@ pub struct ImageApplication<'framework> {
     pub(crate) window: Window,
     pub(crate) final_surface: Surface,
     pub(crate) final_surface_configuration: SurfaceConfiguration,
-    renderer: Renderer<'framework>,
+    instant_renderer: Renderer<'framework>,
+    // This has nothing to do with deferred rendering: deferred in this context means that end will be called
+    // at the end of layer rendering, and that tools must not call end (place a check for this)
+    deferred_renderer: Renderer<'framework>,
     image_editor: ImageEditor<'framework>,
     input_state: InputState,
     toolbox: Toolbox<'framework>,
@@ -122,12 +125,14 @@ impl<'framework> ImageApplication<'framework> {
 
         let ui = ui::create_ui(&framework, &final_surface_configuration, &window);
 
-        let renderer = Renderer::new(framework);
+        let instant_renderer = Renderer::new(framework);
+        let deferred_renderer = Renderer::new(framework);
 
         Self {
             framework,
             window,
-            renderer,
+            instant_renderer,
+            deferred_renderer,
             final_surface,
             final_surface_configuration,
             image_editor,
@@ -185,7 +190,7 @@ impl<'framework> ImageApplication<'framework> {
         self.dispatch_actions(actions);
         let context = EditorContext {
             image_editor: &mut self.image_editor,
-            renderer: &mut self.renderer,
+            renderer: &mut self.instant_renderer,
         };
         self.toolbox
             .update(&self.input_state, &mut self.undo_stack, context);
@@ -216,11 +221,12 @@ impl<'framework> ImageApplication<'framework> {
                     stamping_engine: self.stamping_engine.clone(),
                     brush_tool: self.brush_tool.clone(),
                     undo_stack: &mut self.undo_stack,
-                    renderer: &mut self.renderer,
+                    renderer: &mut self.instant_renderer,
+                    deferred_renderer: &mut self.deferred_renderer,
                 };
                 let block_editor = self.ui.do_ui(ui_ctx);
                 self.toolbox.set_is_blocked(block_editor);
-                self.image_editor.update_layers(&mut self.renderer);
+                self.image_editor.update_layers(&mut self.instant_renderer);
 
                 let current_texture = match self.final_surface.get_current_texture() {
                     Ok(surface) => surface,
@@ -241,9 +247,17 @@ impl<'framework> ImageApplication<'framework> {
                     .texture
                     .create_view(&wgpu::TextureViewDescriptor::default());
 
-                self.image_editor.render_document(&mut self.renderer);
                 self.image_editor
-                    .render_canvas(&mut self.renderer, &app_surface_view);
+                    .render_document(&mut self.instant_renderer);
+
+                self.deferred_renderer
+                    .begin(&self.image_editor.document().final_layer().camera(), None);
+                self.toolbox.draw(&mut self.deferred_renderer);
+                self.deferred_renderer
+                    .end_on_texture(&self.image_editor.document().final_layer().texture());
+
+                self.image_editor
+                    .render_canvas(&mut self.instant_renderer, &app_surface_view);
 
                 let surface_configuration = self.final_surface_configuration.clone();
 
@@ -305,13 +319,13 @@ impl<'framework> ImageApplication<'framework> {
                 "undo" => {
                     self.undo_stack.try_undo(&mut EditorContext {
                         image_editor: &mut self.image_editor,
-                        renderer: &mut self.renderer,
+                        renderer: &mut self.instant_renderer,
                     });
                 }
                 "redo" => {
                     self.undo_stack.try_redo(&mut EditorContext {
                         image_editor: &mut self.image_editor,
-                        renderer: &mut self.renderer,
+                        renderer: &mut self.instant_renderer,
                     });
                 }
                 "pick_brush" => self.toolbox.set_primary_tool(&self.brush_id),

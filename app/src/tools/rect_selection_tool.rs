@@ -1,5 +1,9 @@
 use crate::tools::{EditorContext, PointerEvent};
 use cgmath::{EuclideanSpace, Point2};
+use framework::{
+    renderer::draw_command::{DrawCommand, DrawMode, OptionalDrawData, PrimitiveType},
+    Box2d,
+};
 
 use super::{tool::Tool, EditorCommand};
 
@@ -69,16 +73,26 @@ impl Tool for RectSelectionTool {
             }
             _ => {}
         }
+        None
+    }
+
+    fn draw(&self, renderer: &mut framework::renderer::renderer::Renderer) {
         match (self.min_point, self.max_point) {
             (Some(min), Some(max)) => {
                 let center = (max + min.to_vec()) * 0.5;
                 let extents = (max - min) * 0.5;
 
-                println!("Center {:?},  extents {:?}", center, extents);
+                renderer.draw(DrawCommand {
+                    primitives: PrimitiveType::Rect {
+                        rects: vec![Box2d { center, extents }],
+                        multiply_color: wgpu::Color::RED,
+                    },
+                    draw_mode: DrawMode::Single,
+                    additional_data: OptionalDrawData::default(),
+                });
             }
             _ => {}
         }
-        None
     }
     fn name(&self) -> &'static str {
         "Rect Selection tool"

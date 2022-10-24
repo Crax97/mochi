@@ -17,6 +17,7 @@ mod egui_ui;
 pub struct UiContext<'app, 'framework> {
     pub image_editor: &'app mut ImageEditor<'framework>,
     pub renderer: &'app mut Renderer<'framework>,
+    pub deferred_renderer: &'app mut Renderer<'framework>,
     pub toolbox: &'app mut Toolbox<'framework>,
     pub input_state: &'app InputState,
     pub undo_stack: &'app mut UndoStack,
