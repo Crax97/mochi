@@ -5,7 +5,7 @@ use crate::toolbox::{ToolId, Toolbox};
 use crate::tools::brush_engine::stamping_engine::StrokingEngine;
 use crate::tools::{
     BrushTool, ColorPicker, DebugSelectRegionTool, EditorCommand, EditorContext, HandTool,
-    TransformLayerTool,
+    RectSelectionTool, TransformLayerTool,
 };
 use crate::ui::{self, Ui, UiContext};
 use crate::{ActionState, Key, KeyBinding, ModifierSet};
@@ -108,11 +108,13 @@ impl<'framework> ImageApplication<'framework> {
         let color_picker = Rc::new(RefCell::new(ColorPicker::new(stamping_engine.clone())));
         let move_tool = Rc::new(RefCell::new(TransformLayerTool::new()));
         let test_tool = Rc::new(RefCell::new(DebugSelectRegionTool::new()));
+        let rect_select_tool = Rc::new(RefCell::new(RectSelectionTool::new()));
 
         let (mut toolbox, brush_id, _) = Toolbox::new(brush_tool.clone(), hand_tool.clone());
         let color_picker_id = toolbox.add_tool(color_picker.clone());
         let move_tool_id = toolbox.add_tool(move_tool);
         toolbox.add_tool(test_tool);
+        toolbox.add_tool(rect_select_tool);
 
         let mut action_map = ActionMap::default();
 
