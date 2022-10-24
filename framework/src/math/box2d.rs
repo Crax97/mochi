@@ -1,4 +1,4 @@
-use cgmath::{Point2, Vector2};
+use cgmath::{point2, EuclideanSpace, Point2, Vector2, Zero};
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -104,6 +104,18 @@ impl Box2d {
                 y: height,
             },
         };
+    }
+
+    pub fn contains_point(&self, point: Point2<f32>) -> bool {
+        (self.left() <= point.x && self.right() >= point.x)
+            && (self.top() >= point.y && self.bottom() <= point.y)
+    }
+
+    pub fn expand_with_point(&mut self, point: Point2<f32>) {
+        let min_point = point2(self.left().min(point.x), self.bottom().min(point.y));
+        let max_point = point2(self.right().max(point.x), self.top().max(point.y));
+        self.center = (max_point + min_point.to_vec()) * 0.5;
+        self.extents = (max_point - min_point) * 0.5;
     }
 }
 
