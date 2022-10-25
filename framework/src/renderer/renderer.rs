@@ -2,7 +2,7 @@ use cgmath::{point2, point3, vec2};
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupLayoutDescriptor, Color, CommandEncoder,
     CommandEncoderDescriptor, LoadOp, Operations, RenderPass, RenderPassColorAttachment,
-    RenderPassDescriptor, TextureView,
+    RenderPassDepthStencilAttachment, RenderPassDescriptor, TextureView,
 };
 
 use crate::{
@@ -48,6 +48,8 @@ pub struct Renderer<'f> {
 
     texture2d_instanced_shader_id: ShaderId,
     texture2d_single_shader_id: ShaderId,
+
+    depth_stencil_target: Option<TextureId>,
 
     white_texture_id: TextureId,
 
@@ -138,6 +140,7 @@ impl<'f> Renderer<'f> {
             clear_color: None,
             viewport: None,
             empty_bind_group,
+            depth_stencil_target: None,
 
             texture2d_instanced_shader_id,
             texture2d_single_shader_id,
@@ -156,18 +159,24 @@ impl<'f> Renderer<'f> {
         self.viewport = viewport;
     }
 
+    pub fn set_depth_stencil_target(&mut self, new_target: Option<TextureId>) {
+        self.depth_stencil_target = new_target;
+    }
+
     pub fn draw(&mut self, draw_command: DrawCommand) {
         self.draw_queue.push(draw_command)
     }
 
-    pub fn end_on_texture(&mut self, output: &TextureId) {
+    pub fn end_on_texture(&mut self, output: &TextureId, depth_stencil_output: Option<&TextureId>) {
         let texture = self.framework.texture2d(output);
-        self.end(&texture.texture_view);
+        let depth_texture_view =
+            depth_stencil_output.map(|tex_id| self.framework.texture2d(tex_id));
+        self.end(&texture.texture_view, depth_texture_view.as_deref());
     }
 
-    pub fn end(&mut self, output: &TextureView) {
+    pub fn end(&mut self, output: &TextureView, depth_stencil_output: Option<&Texture2d>) {
         let mut command_encoder = self.create_command_encoder();
-        self.execute_draw_queue(&mut command_encoder, output);
+        self.execute_draw_queue(&mut command_encoder, output, depth_stencil_output);
         self.submit_frame(command_encoder);
     }
 
@@ -180,7 +189,28 @@ impl<'f> Renderer<'f> {
             .create_command_encoder(&command_encoder_description)
     }
 
-    fn execute_draw_queue(&mut self, command_encoder: &mut CommandEncoder, output: &TextureView) {
+    fn execute_draw_queue(
+        &mut self,
+        command_encoder: &mut CommandEncoder,
+        output: &TextureView,
+        depth_output: Option<&Texture2d>,
+    ) {
+        let depth_load = Operations {
+            load: if self.clear_color.is_some() {
+                LoadOp::Clear(0.0)
+            } else {
+                LoadOp::Load
+            },
+            store: true,
+        };
+        let stencil_load = Operations {
+            load: if self.clear_color.is_some() {
+                LoadOp::Clear(0u32)
+            } else {
+                LoadOp::Load
+            },
+            store: true,
+        };
         let load = match self.clear_color.take() {
             Some(color) => LoadOp::Clear(color),
             None => LoadOp::Load,
@@ -192,7 +222,15 @@ impl<'f> Renderer<'f> {
                 resolve_target: None,
                 ops: Operations { load, store: true },
             })],
-            depth_stencil_attachment: None,
+            depth_stencil_attachment: if let Some(texture) = depth_output {
+                Some(RenderPassDepthStencilAttachment {
+                    view: &texture.texture_view,
+                    depth_ops: Some(depth_load.clone()),
+                    stencil_ops: Some(stencil_load),
+                })
+            } else {
+                None
+            },
         };
 
         let mut render_pass = command_encoder.begin_render_pass(&render_pass_description);

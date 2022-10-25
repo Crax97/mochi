@@ -1,7 +1,7 @@
 use wgpu::{
-    BindGroupLayout, BindGroupLayoutDescriptor, BlendState, ColorTargetState, FragmentState,
-    RenderPipeline, ShaderModule, ShaderModuleDescriptor, TextureFormat, VertexBufferLayout,
-    VertexState,
+    BindGroupLayout, BindGroupLayoutDescriptor, BlendState, ColorTargetState, DepthStencilState,
+    FragmentState, RenderPipeline, ShaderModule, ShaderModuleDescriptor, TextureFormat,
+    VertexBufferLayout, VertexState,
 };
 
 use crate::{Buffer, Framework, Mesh, MeshInstance2D, Texture2d};
@@ -22,6 +22,7 @@ pub struct ShaderCreationInfo<'a> {
     output_format: Option<TextureFormat>,
     bind_elements: Vec<BindElement>,
     blend_state: Option<BlendState>,
+    depth_state: Option<DepthStencilState>,
     layouts: Vec<VertexBufferLayout<'a>>,
 }
 
@@ -48,6 +49,7 @@ impl<'a> ShaderCreationInfo<'a> {
             output_format: None,
             bind_elements: vec![],
             blend_state: None,
+            depth_state: None,
             layouts: vec![],
         }
         .with_layout::<Mesh>()
@@ -71,6 +73,7 @@ impl<'a> ShaderCreationInfo<'a> {
             output_format: None,
             bind_elements: vec![],
             blend_state: None,
+            depth_state: None,
             layouts: vec![],
         }
         .with_layout::<Mesh>()
@@ -146,7 +149,7 @@ impl Shader {
                 .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                     label: Some("Shader pipeline"),
                     layout: Some(&render_pipeline_layout),
-                    depth_stencil: None,
+                    depth_stencil: info.depth_state,
                     vertex: VertexState {
                         module: &info.vertex_module,
                         entry_point: "vertex",

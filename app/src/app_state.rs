@@ -254,7 +254,7 @@ impl<'framework> ImageApplication<'framework> {
                     .begin(&self.image_editor.document().final_layer().camera(), None);
                 self.toolbox.draw(&mut self.deferred_renderer);
                 self.deferred_renderer
-                    .end_on_texture(&self.image_editor.document().final_layer().texture());
+                    .end_on_texture(&self.image_editor.document().final_layer().texture(), None);
 
                 self.image_editor
                     .render_canvas(&mut self.instant_renderer, &app_surface_view);

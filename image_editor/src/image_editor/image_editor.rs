@@ -159,7 +159,7 @@ impl<'framework> ImageEditor<'framework> {
                 shader: Some(self.final_present_shader.clone()),
             },
         });
-        renderer.end(output_canvas);
+        renderer.end(output_canvas, None);
     }
 
     pub fn get_full_image_texture(&self) -> &BitmapLayer {

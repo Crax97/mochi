@@ -307,7 +307,9 @@ impl BrushEngine for StrokingEngine {
                             ..Default::default()
                         },
                     });
-                    context.renderer.end_on_texture(layer.bitmap.texture());
+                    context
+                        .renderer
+                        .end_on_texture(layer.bitmap.texture(), None);
                 }
             }
         }

@@ -291,7 +291,7 @@ impl<'l> Document<'l> {
 
     pub fn clear_texture(renderer: &mut Renderer, texture: &TextureId, color: wgpu::Color) {
         renderer.begin(&Camera2d::default(), Some(color));
-        renderer.end_on_texture(texture);
+        renderer.end_on_texture(texture, None);
     }
 
     fn generate_draw_sequence(&self) -> Vec<LayerIndex> {

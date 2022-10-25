@@ -1,5 +1,5 @@
 use crate::tools::{EditorContext, PointerEvent};
-use cgmath::{EuclideanSpace, Point2, Vector2, Zero};
+use cgmath::{EuclideanSpace, Point2};
 use framework::{
     renderer::draw_command::{DrawCommand, DrawMode, OptionalDrawData, PrimitiveType},
     Box2d,
@@ -65,6 +65,12 @@ impl Tool for RectSelectionTool {
     ) -> Option<Box<dyn EditorCommand>> {
         self.is_active = false;
         self.first_click_position = None;
+
+        // 1. Draw the selection rect on the stencil buffer
+        // 2. Draw layer using the rect stencil buffer, this is the selection. Store it into a new texture
+        // 3. Invert the stencil buffer
+        // 4. Draw the layer using the  inverted stencil buffer: this is the remaining part of the texture
+
         None
     }
 
