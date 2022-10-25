@@ -9,14 +9,16 @@ use super::{tool::Tool, EditorCommand};
 
 pub struct RectSelectionTool {
     is_active: bool,
-    box_to_draw: Option<Box2d>,
+    first_click_position: Option<Point2<f32>>,
+    last_click_position: Point2<f32>,
 }
 
 impl RectSelectionTool {
     pub fn new() -> Self {
         Self {
             is_active: false,
-            box_to_draw: None,
+            first_click_position: None,
+            last_click_position: Point2::origin(),
         }
     }
 }
@@ -29,13 +31,12 @@ impl Tool for RectSelectionTool {
     ) -> Option<Box<dyn EditorCommand>> {
         self.is_active = true;
 
-        self.box_to_draw = context
+        self.first_click_position = context
             .image_editor
-            .transform_point_into_pixel_position(event.new_pointer_location_normalized)
-            .map(|pt| Box2d {
-                center: pt,
-                extents: Vector2::zero(),
-            });
+            .transform_point_into_pixel_position(event.new_pointer_location_normalized);
+        if let Some(pos) = self.first_click_position {
+            self.last_click_position = pos.clone();
+        }
         None
     }
 
@@ -48,9 +49,9 @@ impl Tool for RectSelectionTool {
         let new_position = context
             .image_editor
             .transform_point_into_pixel_position(new_position);
-        match (new_position, &mut self.box_to_draw) {
-            (Some(new_pos), Some(box_to_draw)) => {
-                box_to_draw.expand_with_point(new_pos);
+        match new_position {
+            Some(new_pos) => {
+                self.last_click_position = new_pos;
             }
             _ => {}
         }
@@ -63,16 +64,17 @@ impl Tool for RectSelectionTool {
         _context: &mut EditorContext,
     ) -> Option<Box<dyn EditorCommand>> {
         self.is_active = false;
-        self.box_to_draw = None;
+        self.first_click_position = None;
         None
     }
 
     fn draw(&self, renderer: &mut framework::renderer::renderer::Renderer) {
-        match self.box_to_draw {
-            Some(rect) => {
+        match self.first_click_position {
+            Some(pos) => {
+                let rect = Box2d::from_points(pos, self.last_click_position);
                 renderer.draw(DrawCommand {
                     primitives: PrimitiveType::Rect {
-                        rects: vec![rect.clone()],
+                        rects: vec![rect],
                         multiply_color: wgpu::Color::RED,
                     },
                     draw_mode: DrawMode::Single,

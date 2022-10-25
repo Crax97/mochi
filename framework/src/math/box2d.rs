@@ -1,4 +1,4 @@
-use cgmath::{point2, EuclideanSpace, Point2, Vector2, Zero};
+use cgmath::{point2, EuclideanSpace, Point2, Vector2};
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -20,6 +20,15 @@ impl Box2d {
         } else {
             Box2d::origin()
         }
+    }
+
+    pub fn from_points(a: Point2<f32>, b: Point2<f32>) -> Self {
+        let center = (a + b.to_vec()) * 0.5;
+        let mut extents = (a - b) * 0.5;
+        extents.x = extents.x.abs();
+        extents.y = extents.y.abs();
+
+        Self { center, extents }
     }
 }
 
