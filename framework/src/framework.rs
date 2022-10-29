@@ -8,14 +8,18 @@ use wgpu::*;
 use crate::{
     shader::{Shader, ShaderCompiler, ShaderCreationInfo},
     texture2d::GpuImageData,
-    AssetId, AssetMap, AssetRef, AssetRefMut, AssetsLibrary, InnerAssetMap, Mesh,
-    MeshConstructionDetails, Texture2d, Texture2dConfiguration,
+    AssetId, AssetMap, AssetRef, AssetRefMut, AssetsLibrary, DepthStencilTexture,
+    DepthStencilTextureConfiguration, InnerAssetMap, Mesh, MeshConstructionDetails, Texture2d,
+    Texture2dConfiguration,
 };
 
 use super::buffer::{Buffer, BufferConfiguration};
 
 pub type TextureId = AssetId<Texture2d>;
 type TextureMap = AssetMap<Texture2d>;
+
+pub type DepthStencilTextureId = AssetId<DepthStencilTexture>;
+type DepthStencilTextureMap = AssetMap<DepthStencilTexture>;
 
 pub type BufferId = AssetId<Buffer>;
 type BufferMap = AssetMap<Buffer>;
@@ -35,6 +39,7 @@ pub struct Framework {
     pub shader_compiler: ShaderCompiler,
 
     allocated_textures: TextureMap,
+    allocated_depth_stencil_textures: DepthStencilTextureMap,
     allocated_buffers: BufferMap,
     allocated_shaders: ShaderMap,
     allocated_meshes: MeshMap,
@@ -102,6 +107,7 @@ impl<'a> Framework {
             queue,
             asset_library,
             allocated_textures: Rc::new(RefCell::new(InnerAssetMap::new())),
+            allocated_depth_stencil_textures: Rc::new(RefCell::new(InnerAssetMap::new())),
             allocated_buffers: Rc::new(RefCell::new(InnerAssetMap::new())),
             allocated_shaders: Rc::new(RefCell::new(InnerAssetMap::new())),
             allocated_meshes: Rc::new(RefCell::new(InnerAssetMap::new())),
@@ -263,5 +269,28 @@ impl<'a> Framework {
         self.texture2d(id)
             .read_subregion_texture2d(x, y, width, height, &output_texture, self);
         output_texture
+    }
+}
+
+// DepthStencilTexture
+impl<'a> Framework {
+    pub fn allocate_depth_stencil_texture(
+        &self,
+        config: DepthStencilTextureConfiguration,
+    ) -> DepthStencilTextureId {
+        let depth_stencil = DepthStencilTexture::new(&self, config);
+        self.allocated_depth_stencil_textures
+            .borrow_mut()
+            .insert(depth_stencil)
+    }
+
+    pub fn depth_stencil_texture(
+        &self,
+        id: &DepthStencilTextureId,
+    ) -> AssetRef<DepthStencilTexture> {
+        AssetRef {
+            in_ref: self.allocated_depth_stencil_textures.borrow(),
+            id: id.clone(),
+        }
     }
 }
