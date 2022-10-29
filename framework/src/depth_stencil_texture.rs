@@ -8,21 +8,23 @@ pub struct DepthStencilTextureConfiguration<'a> {
     pub debug_name: Option<&'a str>,
     pub width: u32,
     pub height: u32,
+    pub is_stencil: bool,
 }
 
 pub struct DepthStencilTexture {
-    depth_stencil_texture: Texture,
+    pub(crate) depth_stencil_texture: Texture,
 
-    depth_view: TextureView,
-    depth_sampler: Sampler,
-    depth_bind_group: BindGroup,
+    pub(crate) depth_view: TextureView,
+    pub(crate) depth_sampler: Sampler,
+    pub(crate) depth_bind_group: BindGroup,
 
-    stencil_view: TextureView,
-    stencil_sampler: Sampler,
-    stencil_bind_group: BindGroup,
+    pub(crate) stencil_view: TextureView,
+    pub(crate) stencil_sampler: Sampler,
+    pub(crate) stencil_bind_group: BindGroup,
 
-    width: u32,
-    height: u32,
+    pub(crate) width: u32,
+    pub(crate) height: u32,
+    pub(crate) is_stencil: bool,
 }
 
 impl DepthStencilTexture {
@@ -44,7 +46,13 @@ impl DepthStencilTexture {
         });
         let make_view_and_bind_group = |aspect: TextureAspect| {
             let texture_view = depth_stencil_texture.create_view(&wgpu::TextureViewDescriptor {
-                label: Some("Framework Texture view"),
+                label: Some(
+                    format!(
+                        "Framework DepthStencil Texture view, aspect {:?} label {:?}",
+                        aspect, config.debug_name
+                    )
+                    .as_str(),
+                ),
                 format: Some(format),
                 dimension: Some(wgpu::TextureViewDimension::D2),
                 aspect,
@@ -54,7 +62,13 @@ impl DepthStencilTexture {
                 array_layer_count: None,
             });
             let sampler = framework.device.create_sampler(&wgpu::SamplerDescriptor {
-                label: Some("Framework Texture sampler"),
+                label: Some(
+                    format!(
+                        "Framework DepthStencil Sampler, aspect {:?} label {:?}",
+                        aspect, config.debug_name
+                    )
+                    .as_str(),
+                ),
                 address_mode_u: wgpu::AddressMode::ClampToEdge,
                 address_mode_v: wgpu::AddressMode::ClampToEdge,
                 address_mode_w: wgpu::AddressMode::ClampToEdge,
@@ -71,7 +85,13 @@ impl DepthStencilTexture {
             let bind_group = framework
                 .device
                 .create_bind_group(&wgpu::BindGroupDescriptor {
-                    label: Some("Final render texture bind group"),
+                    label: Some(
+                        format!(
+                            "Framework DepthStencil BindGroup, aspect {:?} label {:?}",
+                            aspect, config.debug_name
+                        )
+                        .as_str(),
+                    ),
                     layout: &texture_bind_group_layout,
                     entries: &[
                         wgpu::BindGroupEntry {
@@ -102,6 +122,7 @@ impl DepthStencilTexture {
             stencil_bind_group,
             width: config.width,
             height: config.height,
+            is_stencil: config.is_stencil,
         }
     }
 }

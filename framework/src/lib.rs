@@ -1,6 +1,8 @@
 pub mod asset_id;
 pub mod asset_library;
 pub mod buffer;
+pub mod depth_stencil_texture;
+pub mod framebuffer;
 pub mod framework;
 pub mod math;
 pub mod mesh;
@@ -12,6 +14,8 @@ pub mod texture2d;
 pub use asset_id::*;
 pub use asset_library::AssetsLibrary;
 pub use buffer::{Buffer, BufferConfiguration, BufferType};
+pub use depth_stencil_texture::*;
+pub use framebuffer::*;
 pub use framework::AdapterCreationError;
 pub use framework::Framework;
 pub use math::*;

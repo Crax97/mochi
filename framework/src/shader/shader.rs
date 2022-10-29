@@ -119,6 +119,10 @@ impl<'a> ShaderCreationInfo<'a> {
         self.output_format = Some(format);
         self
     }
+    pub fn with_depth_state(mut self, depth_state: Option<DepthStencilState>) -> Self {
+        self.depth_state = depth_state;
+        self
+    }
 }
 
 pub struct Shader {

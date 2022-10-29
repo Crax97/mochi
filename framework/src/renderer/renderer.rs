@@ -7,10 +7,11 @@ use wgpu::{
 
 use crate::{
     buffer::BufferInitialSetup,
-    framework::{BufferId, MeshId, ShaderId, TextureId},
+    framework::{BufferId, DepthStencilTextureId, MeshId, ShaderId, TextureId},
     shader::{Shader, ShaderCreationInfo},
-    AssetRef, Buffer, BufferConfiguration, BufferType, Camera2d, Camera2dUniformBlock, Framework,
-    Mesh, MeshConstructionDetails, MeshInstance2D, Texture2d, Texture2dConfiguration, Vertex,
+    AssetRef, Buffer, BufferConfiguration, BufferType, Camera2d, Camera2dUniformBlock,
+    DepthStencilTexture, Framework, Mesh, MeshConstructionDetails, MeshInstance2D, Texture2d,
+    Texture2dConfiguration, Vertex,
 };
 
 use super::draw_command::{BindableResource, DrawCommand, DrawMode, PrimitiveType};
@@ -167,14 +168,22 @@ impl<'f> Renderer<'f> {
         self.draw_queue.push(draw_command)
     }
 
-    pub fn end_on_texture(&mut self, output: &TextureId, depth_stencil_output: Option<&TextureId>) {
+    pub fn end_on_texture(
+        &mut self,
+        output: &TextureId,
+        depth_stencil_output: Option<&DepthStencilTextureId>,
+    ) {
         let texture = self.framework.texture2d(output);
         let depth_texture_view =
-            depth_stencil_output.map(|tex_id| self.framework.texture2d(tex_id));
+            depth_stencil_output.map(|tex_id| self.framework.depth_stencil_texture(tex_id));
         self.end(&texture.texture_view, depth_texture_view.as_deref());
     }
 
-    pub fn end(&mut self, output: &TextureView, depth_stencil_output: Option<&Texture2d>) {
+    pub fn end(
+        &mut self,
+        output: &TextureView,
+        depth_stencil_output: Option<&DepthStencilTexture>,
+    ) {
         let mut command_encoder = self.create_command_encoder();
         self.execute_draw_queue(&mut command_encoder, output, depth_stencil_output);
         self.submit_frame(command_encoder);
@@ -193,7 +202,7 @@ impl<'f> Renderer<'f> {
         &mut self,
         command_encoder: &mut CommandEncoder,
         output: &TextureView,
-        depth_output: Option<&Texture2d>,
+        depth_output: Option<&DepthStencilTexture>,
     ) {
         let depth_load = Operations {
             load: if self.clear_color.is_some() {
@@ -224,8 +233,12 @@ impl<'f> Renderer<'f> {
             })],
             depth_stencil_attachment: if let Some(texture) = depth_output {
                 Some(RenderPassDepthStencilAttachment {
-                    view: &texture.texture_view,
-                    depth_ops: Some(depth_load.clone()),
+                    view: if texture.is_stencil {
+                        &texture.stencil_view
+                    } else {
+                        &texture.depth_view
+                    },
+                    depth_ops: Some(depth_load),
                     stencil_ops: Some(stencil_load),
                 })
             } else {

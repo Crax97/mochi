@@ -5,3 +5,8 @@ members = [
     "image_editor",
     "app",
 ]
+
+[profile.release]
+strip = true
+opt-level = "z"
+lto = true
