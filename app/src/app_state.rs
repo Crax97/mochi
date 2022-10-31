@@ -113,11 +113,12 @@ impl<'framework> ImageApplication<'framework> {
         let test_tool = Rc::new(RefCell::new(DebugSelectRegionTool::new()));
         let rect_select_tool = Rc::new(RefCell::new(RectSelectionTool::new(framework)));
 
-        let (mut toolbox, brush_id, _) = Toolbox::new(brush_tool.clone(), hand_tool.clone());
+        let (mut toolbox, brush_id) = Toolbox::new(brush_tool.clone());
+        let _ = toolbox.add_tool(hand_tool.clone());
         let color_picker_id = toolbox.add_tool(color_picker.clone());
         let move_tool_id = toolbox.add_tool(move_tool);
-        toolbox.add_tool(test_tool);
-        toolbox.add_tool(rect_select_tool);
+        let _ = toolbox.add_tool(test_tool);
+        let _ = toolbox.add_tool(rect_select_tool);
 
         let mut action_map = ActionMap::default();
 

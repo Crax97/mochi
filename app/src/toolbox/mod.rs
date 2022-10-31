@@ -21,26 +21,20 @@ pub struct Toolbox<'framework> {
     tools: HashMap<ToolId, Rc<RefCell<dyn Tool + 'framework>>>,
     primary_tool_id: ToolId,
     primary_tool: Rc<RefCell<dyn Tool + 'framework>>,
-    secondary_tool: Rc<RefCell<dyn Tool + 'framework>>,
     blocked: bool,
 }
 
 impl<'framework> Toolbox<'framework> {
-    pub fn new(
-        primary_tool: Rc<RefCell<dyn Tool + 'framework>>,
-        secondary_tool: Rc<RefCell<dyn Tool + 'framework>>,
-    ) -> (Self, ToolId, ToolId) {
+    pub fn new(primary_tool: Rc<RefCell<dyn Tool + 'framework>>) -> (Self, ToolId) {
         let mut new_toolbox = Self {
             tools: HashMap::new(),
             primary_tool: primary_tool.clone(),
-            secondary_tool: secondary_tool.clone(),
             blocked: false,
             primary_tool_id: ToolId(0),
         };
         let primary_id = new_toolbox.add_tool(primary_tool);
-        let secondary_id = new_toolbox.add_tool(secondary_tool);
         new_toolbox.primary_tool_id = primary_id.clone();
-        (new_toolbox, primary_id, secondary_id)
+        (new_toolbox, primary_id)
     }
 
     pub fn create_test_stamp(framework: &'framework Framework) -> Stamp {
@@ -79,10 +73,6 @@ impl<'framework> Toolbox<'framework> {
         &self.primary_tool_id
     }
 
-    pub fn secondary_tool(&self) -> RefMut<dyn Tool + 'framework> {
-        self.secondary_tool.borrow_mut()
-    }
-
     pub fn for_each_tool<F: FnMut(&ToolId, Ref<dyn Tool + 'framework>)>(&self, mut f: F) {
         for (id, tool) in self.tools.iter() {
             f(id, tool.borrow());
@@ -118,14 +108,6 @@ impl<'framework> Toolbox<'framework> {
         if let Some(cmd) = cmd {
             undo_stack.push(cmd);
         }
-        if input_state.is_mouse_button_just_pressed(MouseButton::Right) {
-            self.secondary_tool().on_pointer_click(event, &mut context);
-        } else if input_state.is_mouse_button_just_released(MouseButton::Right) {
-            self.secondary_tool()
-                .on_pointer_release(event, &mut context);
-        } else {
-            self.secondary_tool().on_pointer_move(event, &mut context);
-        }
         if input_state.is_mouse_button_just_pressed(MouseButton::Middle) {
             context
                 .image_editor
@@ -141,7 +123,6 @@ impl<'framework> Toolbox<'framework> {
 
     pub fn draw(&self, renderer: &mut Renderer) {
         self.primary_tool().draw(renderer);
-        self.secondary_tool().draw(renderer);
     }
 
     pub(crate) fn set_primary_tool(&mut self, new_tool_id: &ToolId) {
