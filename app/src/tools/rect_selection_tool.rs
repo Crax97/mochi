@@ -4,18 +4,20 @@ use framework::{
     framework::{DepthStencilTextureId, ShaderId, TextureId},
     renderer::draw_command::{DrawCommand, DrawMode, OptionalDrawData, PrimitiveType},
     shader::ShaderCreationInfo,
-    Box2d, DepthStencilTextureConfiguration, Framework, Texture2dConfiguration,
+    Box2d, DepthStencilTextureConfiguration, Framework, Texture2dConfiguration, Transform2d,
 };
+use image::{DynamicImage, RgbaImage};
 use wgpu::{DepthBiasState, DepthStencilState, StencilFaceState, StencilState};
 
 use super::{tool::Tool, EditorCommand};
 
 pub struct RectSelectionTool {
     is_active: bool,
-    first_click_position: Option<Point2<f32>>,
+    first_click_position: Point2<f32>,
     last_click_position: Point2<f32>,
 
-    draw_with_stencil_buffer_shader_id: ShaderId,
+    draw_on_stencil_buffer_shader_id: ShaderId,
+    draw_masked_stencil_buffer_shader_id: ShaderId,
 }
 
 impl RectSelectionTool {
@@ -23,29 +25,60 @@ impl RectSelectionTool {
         let info = ShaderCreationInfo::using_default_vertex_fragment(framework).with_depth_state(
             Some(DepthStencilState {
                 format: wgpu::TextureFormat::Depth24PlusStencil8,
-                depth_write_enabled: true,
+                depth_write_enabled: false,
                 depth_compare: wgpu::CompareFunction::Never,
                 stencil: StencilState {
                     front: StencilFaceState {
                         compare: wgpu::CompareFunction::Always,
+                        pass_op: wgpu::StencilOperation::Replace,
                         fail_op: wgpu::StencilOperation::Keep,
                         depth_fail_op: wgpu::StencilOperation::Keep,
-                        pass_op: wgpu::StencilOperation::IncrementClamp,
                     },
-                    back: StencilFaceState::IGNORE,
+                    back: StencilFaceState {
+                        compare: wgpu::CompareFunction::Always,
+                        pass_op: wgpu::StencilOperation::Replace,
+                        fail_op: wgpu::StencilOperation::Keep,
+                        depth_fail_op: wgpu::StencilOperation::Keep,
+                    },
                     read_mask: 0xFFFFFFF,
                     write_mask: 0xFFFFFFF,
                 },
                 bias: DepthBiasState::default(),
             }),
         );
-        let draw_with_stencil_buffer_shader_id = framework.create_shader(info);
+        let draw_on_stencil_buffer_shader_id = framework.create_shader(info);
+        let info = ShaderCreationInfo::using_default_vertex_fragment(framework).with_depth_state(
+            Some(DepthStencilState {
+                format: wgpu::TextureFormat::Depth24PlusStencil8,
+                depth_write_enabled: false,
+                depth_compare: wgpu::CompareFunction::Never,
+                stencil: StencilState {
+                    front: StencilFaceState {
+                        compare: wgpu::CompareFunction::Equal,
+                        pass_op: wgpu::StencilOperation::Keep,
+                        fail_op: wgpu::StencilOperation::Keep,
+                        depth_fail_op: wgpu::StencilOperation::Keep,
+                    },
+                    back: StencilFaceState {
+                        compare: wgpu::CompareFunction::Equal,
+                        pass_op: wgpu::StencilOperation::Keep,
+                        fail_op: wgpu::StencilOperation::Keep,
+                        depth_fail_op: wgpu::StencilOperation::Keep,
+                    },
+                    read_mask: 0xFFFFFFF,
+                    write_mask: 0xFFFFFFF,
+                },
+                bias: DepthBiasState::default(),
+            }),
+        );
+        let draw_masked_stencil_buffer_shader_id = framework.create_shader(info);
 
         Self {
             is_active: false,
-            first_click_position: None,
+            first_click_position: Point2::origin(),
             last_click_position: Point2::origin(),
-            draw_with_stencil_buffer_shader_id,
+            draw_on_stencil_buffer_shader_id,
+            draw_masked_stencil_buffer_shader_id,
         }
     }
 }
@@ -60,10 +93,9 @@ impl Tool for RectSelectionTool {
 
         self.first_click_position = context
             .image_editor
-            .transform_point_into_pixel_position(event.new_pointer_location_normalized);
-        if let Some(pos) = self.first_click_position {
-            self.last_click_position = pos.clone();
-        }
+            .transform_point_into_pixel_position(event.new_pointer_location_normalized)
+            .unwrap();
+        self.last_click_position = self.first_click_position.clone();
         None
     }
 
@@ -91,7 +123,7 @@ impl Tool for RectSelectionTool {
         context: &mut EditorContext,
     ) -> Option<Box<dyn EditorCommand>> {
         self.is_active = false;
-        self.first_click_position = None;
+        self.first_click_position = Point2::origin();
 
         let current_layer = context.image_editor.document().current_layer();
         let framework = context.image_editor.framework();
@@ -128,47 +160,79 @@ impl Tool for RectSelectionTool {
             &current_layer.bitmap.camera(),
             Some(wgpu::Color::TRANSPARENT),
         );
-        match self.first_click_position {
-            Some(pos) => {
-                let rect = Box2d::from_points(pos, self.last_click_position);
-                context.renderer.draw(DrawCommand {
-                    primitives: PrimitiveType::Rect {
-                        rects: vec![rect],
-                        multiply_color: wgpu::Color::RED,
-                    },
-                    draw_mode: DrawMode::Single,
-                    additional_data: OptionalDrawData::just_shader(Some(
-                        self.draw_with_stencil_buffer_shader_id.clone(),
-                    )),
-                });
-            }
-            _ => {}
-        }
+        context.renderer.set_stencil_clear(Some(0));
+        context.renderer.set_stencil_reference(1);
+        let rect = Box2d::from_points(self.first_click_position, self.last_click_position);
+        context.renderer.draw(DrawCommand {
+            primitives: PrimitiveType::Rect {
+                rects: vec![rect],
+                multiply_color: wgpu::Color::RED,
+            },
+            draw_mode: DrawMode::Single,
+            additional_data: OptionalDrawData::just_shader(Some(
+                self.draw_on_stencil_buffer_shader_id.clone(),
+            )),
+        });
         context
             .renderer
             .end_on_texture(&new_texture, Some(&stencil_texture));
+
+        let subregion = framework.texture2d_read_data(&new_texture);
+        let width = subregion.width;
+        let height = subregion.height;
+
+        let data = subregion.to_bytes(true);
+        let dyn_image = DynamicImage::ImageRgba8(RgbaImage::from_vec(width, height, data).unwrap());
+        dyn_image
+            .save("selection1.png")
+            .unwrap_or_else(|err| println!("Error happened: {err}"));
         // 2. Draw layer using the rect stencil buffer, this is the selection. Store it into a new texture
+        context.renderer.begin(&current_layer.bitmap.camera(), None);
+        context.renderer.set_stencil_clear(None);
+        context.renderer.set_stencil_reference(1);
+        context.renderer.draw(DrawCommand {
+            primitives: PrimitiveType::Texture2D {
+                texture_id: current_layer.bitmap.texture().clone(),
+                instances: vec![current_layer.pixel_transform()],
+                flip_uv_y: false,
+                multiply_color: wgpu::Color::WHITE,
+            },
+            draw_mode: DrawMode::Single,
+            additional_data: OptionalDrawData::just_shader(Some(
+                self.draw_masked_stencil_buffer_shader_id.clone(),
+            )),
+        });
+        context
+            .renderer
+            .end_on_texture(&new_texture, Some(&stencil_texture));
         // 3. Invert the stencil buffer
+
+        // TODO implement
+        let subregion = framework.texture2d_read_data(&new_texture);
+        let width = subregion.width;
+        let height = subregion.height;
+
+        let data = subregion.to_bytes(true);
+        let dyn_image = DynamicImage::ImageRgba8(RgbaImage::from_vec(width, height, data).unwrap());
+        dyn_image
+            .save("selection.png")
+            .unwrap_or_else(|err| println!("Error happened: {err}"));
+
         // 4. Draw the layer using the  inverted stencil buffer: this is the remaining part of the texture
 
         None
     }
 
     fn draw(&self, renderer: &mut framework::renderer::renderer::Renderer) {
-        match self.first_click_position {
-            Some(pos) => {
-                let rect = Box2d::from_points(pos, self.last_click_position);
-                renderer.draw(DrawCommand {
-                    primitives: PrimitiveType::Rect {
-                        rects: vec![rect],
-                        multiply_color: wgpu::Color::RED,
-                    },
-                    draw_mode: DrawMode::Single,
-                    additional_data: OptionalDrawData::default(),
-                });
-            }
-            _ => {}
-        }
+        let rect = Box2d::from_points(self.first_click_position, self.last_click_position);
+        renderer.draw(DrawCommand {
+            primitives: PrimitiveType::Rect {
+                rects: vec![rect],
+                multiply_color: wgpu::Color::RED,
+            },
+            draw_mode: DrawMode::Single,
+            additional_data: OptionalDrawData::default(),
+        });
     }
     fn name(&self) -> &'static str {
         "Rect Selection tool"

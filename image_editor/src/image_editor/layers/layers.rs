@@ -1,4 +1,4 @@
-use cgmath::{Point2, Point3, Vector2};
+use cgmath::{point3, ElementWise, Point2, Point3, Vector2};
 use framework::framework::TextureId;
 use framework::renderer::renderer::Renderer;
 use framework::scene::Transform2d;
@@ -131,6 +131,14 @@ impl Layer {
                 x: self.scale.x,
                 y: self.scale.y,
             },
+            rotation_radians: cgmath::Rad(self.rotation_radians),
+        }
+    }
+
+    pub fn pixel_transform(&self) -> Transform2d {
+        Transform2d {
+            position: point3(self.position.x, self.position.y, 0.0),
+            scale: self.bitmap.size().mul_element_wise(self.scale),
             rotation_radians: cgmath::Rad(self.rotation_radians),
         }
     }

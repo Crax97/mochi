@@ -42,7 +42,10 @@ impl DepthStencilTexture {
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format,
-            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING
+                | wgpu::TextureUsages::RENDER_ATTACHMENT
+                | wgpu::TextureUsages::COPY_DST
+                | wgpu::TextureUsages::COPY_SRC,
         });
         let make_view_and_bind_group = |aspect: TextureAspect| {
             let texture_view = depth_stencil_texture.create_view(&wgpu::TextureViewDescriptor {

@@ -44,6 +44,8 @@ pub struct Renderer<'f> {
     draw_queue: Vec<DrawCommand>,
     camera_buffer_id: BufferId,
     clear_color: Option<Color>,
+    clear_depth: Option<f32>,
+    clear_stencil: Option<u32>,
     viewport: Option<(f32, f32, f32, f32)>,
     empty_bind_group: BindGroup,
 
@@ -51,6 +53,7 @@ pub struct Renderer<'f> {
     texture2d_single_shader_id: ShaderId,
 
     depth_stencil_target: Option<TextureId>,
+    stencil_value: Option<u32>,
 
     white_texture_id: TextureId,
 
@@ -139,9 +142,12 @@ impl<'f> Renderer<'f> {
             camera_buffer_id,
             draw_queue: vec![],
             clear_color: None,
+            clear_depth: None,
+            clear_stencil: None,
             viewport: None,
             empty_bind_group,
             depth_stencil_target: None,
+            stencil_value: None,
 
             texture2d_instanced_shader_id,
             texture2d_single_shader_id,
@@ -162,6 +168,17 @@ impl<'f> Renderer<'f> {
 
     pub fn set_depth_stencil_target(&mut self, new_target: Option<TextureId>) {
         self.depth_stencil_target = new_target;
+    }
+
+    pub fn set_stencil_reference(&mut self, new_value: u32) {
+        self.stencil_value = Some(new_value);
+    }
+    pub fn set_depth_clear(&mut self, new_depth: Option<f32>) {
+        self.clear_depth = new_depth;
+    }
+
+    pub fn set_stencil_clear(&mut self, new_value: Option<u32>) {
+        self.clear_stencil = new_value;
     }
 
     pub fn draw(&mut self, draw_command: DrawCommand) {
@@ -205,16 +222,16 @@ impl<'f> Renderer<'f> {
         depth_output: Option<&DepthStencilTexture>,
     ) {
         let depth_load = Operations {
-            load: if self.clear_color.is_some() {
-                LoadOp::Clear(0.0)
+            load: if let Some(depth) = self.clear_depth {
+                LoadOp::Clear(depth)
             } else {
                 LoadOp::Load
             },
             store: true,
         };
         let stencil_load = Operations {
-            load: if self.clear_color.is_some() {
-                LoadOp::Clear(0u32)
+            load: if let Some(stencil) = self.clear_stencil {
+                LoadOp::Clear(stencil)
             } else {
                 LoadOp::Load
             },
@@ -247,6 +264,11 @@ impl<'f> Renderer<'f> {
         };
 
         let mut render_pass = command_encoder.begin_render_pass(&render_pass_description);
+
+        if let Some(stencil_reference) = self.stencil_value.take() {
+            render_pass.set_stencil_reference(stencil_reference);
+        }
+
         if let Some(viewport) = self.viewport.take() {
             render_pass.set_viewport(viewport.0, viewport.1, viewport.2, viewport.3, 0.0, 1.0);
         }
