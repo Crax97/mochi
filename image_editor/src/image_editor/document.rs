@@ -176,7 +176,11 @@ impl<'l> Document<'l> {
         self.layer_canvases.remove(removed_layer.uuid()).unwrap();
     }
 
-    pub(crate) fn add_layer(&mut self, framework: &'l Framework, config: LayerConstructionInfo) {
+    pub(crate) fn add_layer(
+        &mut self,
+        framework: &'l Framework,
+        config: LayerConstructionInfo,
+    ) -> LayerIndex {
         let layer_index = LayerIndex(self.layers_created);
         self.layers_created += 1;
         let new_layer = BitmapLayer::new(
@@ -226,7 +230,10 @@ impl<'l> Document<'l> {
         self.layer_canvases
             .insert(new_layer.uuid().clone(), layer_draw_info);
         self.layers.insert(layer_index.clone(), new_layer);
-        self.tree_root.0.push(LayerTree::SingleLayer(layer_index));
+        self.tree_root
+            .0
+            .push(LayerTree::SingleLayer(layer_index.clone()));
+        layer_index
     }
 
     pub(crate) fn update_layers(&mut self, renderer: &mut Renderer) {

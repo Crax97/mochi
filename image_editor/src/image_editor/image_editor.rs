@@ -112,8 +112,8 @@ impl<'framework> ImageEditor<'framework> {
         mutate_fn(&mut self.document);
     }
 
-    pub fn add_layer_to_document(&mut self, config: LayerConstructionInfo) {
-        self.document.add_layer(self.framework, config);
+    pub fn add_layer_to_document(&mut self, config: LayerConstructionInfo) -> LayerIndex {
+        self.document.add_layer(self.framework, config)
     }
 
     pub fn select_new_layer(&mut self, layer_idx: LayerIndex) {

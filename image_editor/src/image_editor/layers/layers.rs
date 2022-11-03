@@ -27,9 +27,9 @@ pub struct Layer {
     needs_settings_update: bool,
     needs_bitmap_update: bool,
     settings: LayerSettings,
-    position: Point2<f32>,
-    scale: Vector2<f32>,
-    rotation_radians: f32,
+    pub position: Point2<f32>,
+    pub scale: Vector2<f32>,
+    pub rotation_radians: f32,
 
     pub layer_type: LayerType,
     pub bitmap: BitmapLayer,
@@ -138,7 +138,7 @@ impl Layer {
     pub fn pixel_transform(&self) -> Transform2d {
         Transform2d {
             position: point3(self.position.x, self.position.y, 0.0),
-            scale: self.bitmap.size().mul_element_wise(self.scale),
+            scale: self.bitmap.size().mul_element_wise(self.scale * 0.5),
             rotation_radians: cgmath::Rad(self.rotation_radians),
         }
     }
