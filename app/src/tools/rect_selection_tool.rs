@@ -23,7 +23,7 @@ pub struct RectSelectionTool {
 
     draw_on_stencil_buffer_shader_id: ShaderId,
     draw_masked_stencil_buffer_shader_id: ShaderId,
-    invert_stencil_buffer_shader_id: ShaderId,
+    draw_masked_inverted_stencil_buffer_shader_id: ShaderId,
 }
 
 impl RectSelectionTool {
@@ -86,14 +86,14 @@ impl RectSelectionTool {
                 depth_compare: wgpu::CompareFunction::Always,
                 stencil: StencilState {
                     front: StencilFaceState {
-                        compare: wgpu::CompareFunction::Equal,
-                        pass_op: wgpu::StencilOperation::Invert,
+                        compare: wgpu::CompareFunction::NotEqual,
+                        pass_op: wgpu::StencilOperation::Keep,
                         fail_op: wgpu::StencilOperation::Keep,
                         depth_fail_op: wgpu::StencilOperation::Keep,
                     },
                     back: StencilFaceState {
-                        compare: wgpu::CompareFunction::Equal,
-                        pass_op: wgpu::StencilOperation::Invert,
+                        compare: wgpu::CompareFunction::NotEqual,
+                        pass_op: wgpu::StencilOperation::Keep,
                         fail_op: wgpu::StencilOperation::Keep,
                         depth_fail_op: wgpu::StencilOperation::Keep,
                     },
@@ -103,7 +103,7 @@ impl RectSelectionTool {
                 bias: DepthBiasState::default(),
             }),
         );
-        let invert_stencil_buffer_shader_id = framework.create_shader(info);
+        let draw_masked_inverted_stencil_buffer_shader_id = framework.create_shader(info);
 
         Self {
             is_active: false,
@@ -111,7 +111,7 @@ impl RectSelectionTool {
             last_click_position: Point2::origin(),
             draw_on_stencil_buffer_shader_id,
             draw_masked_stencil_buffer_shader_id,
-            invert_stencil_buffer_shader_id,
+            draw_masked_inverted_stencil_buffer_shader_id,
         }
     }
 }
@@ -186,12 +186,17 @@ impl Tool for RectSelectionTool {
             },
             None,
         );
-        let old_texture_copy = context.image_editor.framework().texture2d_copy_subregion(
-            current_layer.bitmap.texture(),
-            0,
-            0,
-            width,
-            height,
+        let old_texture_copy = context.image_editor.framework().allocate_texture2d(
+            Texture2dConfiguration {
+                debug_name: None,
+                width,
+                height,
+                format,
+                allow_cpu_write: true,
+                allow_cpu_read: true,
+                allow_use_as_render_target: true,
+            },
+            None,
         );
 
         // 1. Draw the selection rect on the stencil buffer
@@ -237,30 +242,7 @@ impl Tool for RectSelectionTool {
         context
             .renderer
             .end_on_texture(&new_texture, Some(&stencil_texture));
-        // 3. Invert the stencil buffer
-
-        context
-            .renderer
-            .begin(&Camera2d::new(-0.1, 1000.0, [-1.0, 1.0, 1.0, -1.0]), None);
-        context.renderer.set_stencil_clear(None);
-        context.renderer.draw(DrawCommand {
-            primitives: PrimitiveType::Rect {
-                rects: vec![Box2d {
-                    center: Point2::origin(),
-                    extents: vec2(1.0, 1.0),
-                }],
-                multiply_color: wgpu::Color::WHITE,
-            },
-            draw_mode: DrawMode::Single,
-            additional_data: OptionalDrawData::just_shader(Some(
-                self.invert_stencil_buffer_shader_id.clone(),
-            )),
-        });
-        context
-            .renderer
-            .end_on_texture(&current_layer.bitmap.texture(), Some(&stencil_texture));
-
-        // 4. Draw the layer using the  inverted stencil buffer: this is the remaining part of the texture
+        // 3. Draw the layer using the inverted stencil buffer: this is the remaining part of the texture
 
         context.renderer.begin(
             &current_layer.bitmap.camera(),
@@ -270,19 +252,19 @@ impl Tool for RectSelectionTool {
         context.renderer.set_stencil_reference(255);
         context.renderer.draw(DrawCommand {
             primitives: PrimitiveType::Texture2D {
-                texture_id: old_texture_copy,
+                texture_id: current_layer.bitmap.texture().clone(),
                 instances: vec![current_layer.pixel_transform()],
                 flip_uv_y: true,
                 multiply_color: wgpu::Color::WHITE,
             },
             draw_mode: DrawMode::Single,
             additional_data: OptionalDrawData::just_shader(Some(
-                self.draw_masked_stencil_buffer_shader_id.clone(),
+                self.draw_masked_inverted_stencil_buffer_shader_id.clone(),
             )),
         });
         context
             .renderer
-            .end_on_texture(&current_layer.bitmap.texture(), Some(&stencil_texture));
+            .end_on_texture(&old_texture_copy, Some(&stencil_texture));
 
         //5. Now add the new layer
         let (width, height) = framework.texture2d_dimensions(&new_texture);
@@ -297,7 +279,11 @@ impl Tool for RectSelectionTool {
         context.image_editor.mutate_document(|doc| {
             doc.mutate_layer(&new_index, |layer| {
                 layer.replace_texture(new_texture.clone())
-            })
+            });
+            doc.mutate_layer(&doc.current_layer_index(), |layer| {
+                layer.replace_texture(old_texture_copy.clone())
+            });
+            doc.select_layer(new_index);
         });
         None
     }
