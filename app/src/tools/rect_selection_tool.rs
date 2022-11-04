@@ -1,9 +1,11 @@
+use std::borrow::Cow;
+
 use crate::tools::{EditorContext, PointerEvent};
 use cgmath::{vec2, EuclideanSpace, Point2};
 use framework::{
     framework::{DepthStencilTextureId, ShaderId, TextureId},
     renderer::draw_command::{DrawCommand, DrawMode, OptionalDrawData, PrimitiveType},
-    shader::ShaderCreationInfo,
+    shader::{BindElement, ShaderCreationInfo},
     Box2d, Camera2d, DepthStencilTextureConfiguration, Framework, Texture2dConfiguration,
     Transform2d,
 };
@@ -12,7 +14,9 @@ use image_editor::{
     layers::{BitmapLayer, BitmapLayerConfiguration, Layer, LayerCreationInfo},
     LayerConstructionInfo,
 };
-use wgpu::{DepthBiasState, DepthStencilState, StencilFaceState, StencilState};
+use wgpu::{
+    DepthBiasState, DepthStencilState, ShaderModuleDescriptor, StencilFaceState, StencilState,
+};
 
 use super::{tool::Tool, EditorCommand};
 
@@ -24,6 +28,7 @@ pub struct RectSelectionTool {
     draw_on_stencil_buffer_shader_id: ShaderId,
     draw_masked_stencil_buffer_shader_id: ShaderId,
     draw_masked_inverted_stencil_buffer_shader_id: ShaderId,
+    dotted_shader: ShaderId,
 }
 
 impl RectSelectionTool {
@@ -105,6 +110,14 @@ impl RectSelectionTool {
         );
         let draw_masked_inverted_stencil_buffer_shader_id = framework.create_shader(info);
 
+        let dotted_module_descriptor = framework
+            .shader_compiler
+            .compile_into_shader_description("Dotted shader", include_str!("dotted_selection.wgsl"))
+            .unwrap();
+        let dotted_info =
+            ShaderCreationInfo::using_default_vertex(framework, dotted_module_descriptor)
+                .with_bind_element(BindElement::Texture); // 2: diffuse texture + sampler
+        let dotted_shader = framework.create_shader(dotted_info);
         Self {
             is_active: false,
             first_click_position: Point2::origin(),
@@ -112,6 +125,7 @@ impl RectSelectionTool {
             draw_on_stencil_buffer_shader_id,
             draw_masked_stencil_buffer_shader_id,
             draw_masked_inverted_stencil_buffer_shader_id,
+            dotted_shader,
         }
     }
 }
@@ -299,7 +313,7 @@ impl Tool for RectSelectionTool {
                 multiply_color: wgpu::Color::RED,
             },
             draw_mode: DrawMode::Single,
-            additional_data: OptionalDrawData::default(),
+            additional_data: OptionalDrawData::just_shader(Some(self.dotted_shader.clone())),
         });
     }
     fn name(&self) -> &'static str {
