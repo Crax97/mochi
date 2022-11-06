@@ -8,13 +8,6 @@ var<uniform> uniform_data: PerFrameData;
 @group(1) @binding(0)
 var<uniform> instance_data: PerInstanceData;
 
-struct FragmentInput {
-    @builtin(position) coordinates_position: vec4<f32>,
-    @location(0) position: vec3<f32>,
-    @location(1) tex_uv: vec2<f32>,
-    @location(2) multiply_color: vec4<f32>,
-}
-
 @vertex
 fn vertex(in: VertexInput) -> FragmentInput {
     let OPENGL_CORRECT = mat4x4<f32>(
@@ -36,6 +29,7 @@ fn vertex(in: VertexInput) -> FragmentInput {
     let y = (1.0 - in.tex_uv.y) * flip_uv_y + (1.0 - flip_uv_y) * in.tex_uv.y;
     out.coordinates_position = vp * projected;
     out.position = in.position;
+    out.scale = scale;
     out.tex_uv = vec2<f32>(in.tex_uv.x, y);
     out.multiply_color = instance_data.multiply_color;
     return out;
