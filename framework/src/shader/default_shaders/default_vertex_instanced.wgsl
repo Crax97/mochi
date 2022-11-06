@@ -37,7 +37,7 @@ fn vertex(in: VertexInput, instance: PerInstanceData) -> FragmentInput {
     let y = flip * (1.0 - in.tex_uv.y) + (1.0 - flip) * in.tex_uv.y;
     out.coordinates_position = vp * projected;
     out.position = in.position;
-    out.scale = scale;
+    out.scale = vec3<f32>(instance.position_and_size.z, instance.position_and_size.w, 0.0);
     out.tex_uv = vec2<f32>(in.tex_uv.x, y);
     out.multiply_color = instance.multiply_color;
     return out;
