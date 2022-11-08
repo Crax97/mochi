@@ -1,12 +1,20 @@
-use super::layers::{Layer, LayerIndex, RootLayer};
+use super::{
+    image_editor,
+    layers::{Layer, LayerIndex, RootLayer},
+};
 use crate::{
     blend_settings::{BlendSettings, BlendSettingsUniform},
+    global_selection_data,
     layers::{BitmapLayer, BitmapLayerConfiguration, LayerCreationInfo, LayerTree},
     selection::Selection,
     LayerConstructionInfo,
 };
 use cgmath::{point2, vec2, Vector2};
-use framework::{framework::BufferId, Framework};
+use framework::{
+    framework::BufferId,
+    renderer::draw_command::{DrawCommand, DrawMode, OptionalDrawData, PrimitiveType},
+    Box2d, DepthStencilTextureConfiguration, Framework, Texture2dConfiguration,
+};
 use framework::{
     framework::TextureId, renderer::renderer::Renderer, scene::Camera2d, BufferConfiguration,
 };
@@ -159,6 +167,132 @@ impl<'l> Document<'l> {
 
     pub fn selection(&self) -> Option<&Selection> {
         self.selection.as_ref()
+    }
+
+    pub fn copy_layer_selection_to_new_layer(&mut self, renderer: &mut Renderer, rect: Box2d) {
+        let current_layer = self.current_layer();
+        let framework = self.framework;
+        let (width, height) = framework.texture2d_dimensions(current_layer.bitmap.texture());
+        let stencil_texture =
+            framework.allocate_depth_stencil_texture(DepthStencilTextureConfiguration {
+                debug_name: Some("Selection tool depth stencil texture"),
+                width,
+                height,
+                is_stencil: true,
+            });
+        let format = framework.texture2d_format(current_layer.bitmap.texture());
+        let new_texture = framework.allocate_texture2d(
+            Texture2dConfiguration {
+                debug_name: None,
+                width,
+                height,
+                format,
+                allow_cpu_write: true,
+                allow_cpu_read: true,
+                allow_use_as_render_target: true,
+            },
+            None,
+        );
+        let old_texture_copy = framework.allocate_texture2d(
+            Texture2dConfiguration {
+                debug_name: None,
+                width,
+                height,
+                format,
+                allow_cpu_write: true,
+                allow_cpu_read: true,
+                allow_use_as_render_target: true,
+            },
+            None,
+        );
+
+        // 1. Draw the selection rect on the stencil buffer
+        renderer.begin(
+            &current_layer.bitmap.camera(),
+            Some(wgpu::Color::TRANSPARENT),
+        );
+        renderer.set_stencil_clear(Some(0));
+        renderer.set_stencil_reference(255);
+        renderer.set_draw_debug_name("Selection tool: draw selection on stencil buffer");
+        renderer.draw(DrawCommand {
+            primitives: PrimitiveType::Rect {
+                rects: vec![rect],
+                multiply_color: wgpu::Color::GREEN,
+            },
+            draw_mode: DrawMode::Single,
+            additional_data: OptionalDrawData::just_shader(Some(
+                global_selection_data()
+                    .draw_on_stencil_buffer_shader_id
+                    .clone(),
+            )),
+        });
+        renderer.end_on_texture(&new_texture, Some(&stencil_texture));
+        // 2. Draw layer using the rect stencil buffer, this is the selection. Store it into a new texture
+        renderer.begin(
+            &current_layer.bitmap.camera(),
+            Some(wgpu::Color::TRANSPARENT),
+        );
+        renderer.set_draw_debug_name("Selection tool: draw layer with stencil buffer");
+        renderer.set_stencil_clear(None);
+        renderer.set_stencil_reference(255);
+        renderer.draw(DrawCommand {
+            primitives: PrimitiveType::Texture2D {
+                texture_id: current_layer.bitmap.texture().clone(),
+                instances: vec![current_layer.pixel_transform()],
+                flip_uv_y: true,
+                multiply_color: wgpu::Color::WHITE,
+            },
+            draw_mode: DrawMode::Single,
+            additional_data: OptionalDrawData::just_shader(Some(
+                global_selection_data()
+                    .draw_on_stencil_buffer_shader_id
+                    .clone(),
+            )),
+        });
+        renderer.end_on_texture(&new_texture, Some(&stencil_texture));
+        // 3. Draw the layer using the inverted stencil buffer: this is the remaining part of the texture
+
+        renderer.begin(
+            &current_layer.bitmap.camera(),
+            Some(wgpu::Color::TRANSPARENT),
+        );
+        renderer.set_draw_debug_name("Selection tool: draw layer with inverted stencil buffer");
+        renderer.set_stencil_clear(None);
+        renderer.set_stencil_reference(255);
+        renderer.draw(DrawCommand {
+            primitives: PrimitiveType::Texture2D {
+                texture_id: current_layer.bitmap.texture().clone(),
+                instances: vec![current_layer.pixel_transform()],
+                flip_uv_y: true,
+                multiply_color: wgpu::Color::WHITE,
+            },
+            draw_mode: DrawMode::Single,
+            additional_data: OptionalDrawData::just_shader(Some(
+                global_selection_data()
+                    .draw_on_stencil_buffer_shader_id
+                    .clone(),
+            )),
+        });
+        renderer.end_on_texture(&old_texture_copy, Some(&stencil_texture));
+
+        //5. Now add the new layer
+        let (width, height) = framework.texture2d_dimensions(&new_texture);
+        let new_index = self.add_layer(
+            framework,
+            LayerConstructionInfo {
+                initial_color: [0.0, 0.0, 0.0, 0.0],
+                name: current_layer.settings().name.clone() + " subregion",
+                width,
+                height,
+            },
+        );
+        self.mutate_layer(&new_index, |layer| {
+            layer.replace_texture(new_texture.clone())
+        });
+        self.mutate_layer(&self.current_layer_index(), |layer| {
+            layer.replace_texture(old_texture_copy.clone())
+        });
+        self.select_layer(new_index);
     }
 
     pub(crate) fn delete_layer(&mut self, layer_idx: LayerIndex) {
