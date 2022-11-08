@@ -12,6 +12,7 @@ use framework::{
 use image::{DynamicImage, RgbaImage};
 use image_editor::{
     layers::{BitmapLayer, BitmapLayerConfiguration, Layer, LayerCreationInfo},
+    selection::SelectionShape,
     LayerConstructionInfo,
 };
 use wgpu::{
@@ -80,7 +81,7 @@ impl Tool for RectSelectionTool {
         let rect = Box2d::from_points(self.first_click_position, self.last_click_position);
 
         context.image_editor.mutate_document(|doc| {
-            doc.copy_layer_selection_to_new_layer(context.renderer, rect);
+            doc.mutate_selection(|selection| selection.set(SelectionShape::Rectangle(rect)));
         });
         None
     }

@@ -49,7 +49,7 @@ pub struct Document<'framework> {
     buffering_step: BufferingStep,
 
     current_layer_index: LayerIndex,
-    selection: Option<Selection>,
+    selection: Selection,
 }
 
 pub struct DocumentCreationInfo {
@@ -104,7 +104,7 @@ impl<'l> Document<'l> {
             layer_canvases: HashMap::new(),
             tree_root: RootLayer(vec![]),
             buffering_step: BufferingStep::First,
-            selection: None,
+            selection: Selection::default(),
         };
 
         document.add_layer(
@@ -161,12 +161,12 @@ impl<'l> Document<'l> {
         mutate_fn(layer);
     }
 
-    pub fn mutate_selection<F: FnMut(Option<&mut Selection>)>(&mut self, mut callback: F) {
-        callback(self.selection.as_mut());
+    pub fn mutate_selection<F: FnMut(&mut Selection)>(&mut self, mut callback: F) {
+        callback(&mut self.selection);
     }
 
-    pub fn selection(&self) -> Option<&Selection> {
-        self.selection.as_ref()
+    pub fn selection(&self) -> &Selection {
+        &self.selection
     }
 
     pub fn copy_layer_selection_to_new_layer(&mut self, renderer: &mut Renderer, rect: Box2d) {
