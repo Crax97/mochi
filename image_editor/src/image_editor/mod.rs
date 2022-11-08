@@ -7,6 +7,8 @@ pub mod selection;
 
 use std::sync::Mutex;
 use std::sync::MutexGuard;
+use std::sync::RwLock;
+use std::sync::RwLockReadGuard;
 
 use framework::framework::ShaderId;
 use framework::shader::BindElement;
@@ -29,7 +31,7 @@ pub struct ImageEditorGlobals {
     pub dotted_shader: ShaderId,
 }
 
-static INSTANCE: OnceCell<Mutex<ImageEditorGlobals>> = OnceCell::new();
+static INSTANCE: OnceCell<ImageEditorGlobals> = OnceCell::new();
 fn make_globals(framework: &Framework) -> ImageEditorGlobals {
     let info = ShaderCreationInfo::using_default_vertex_fragment(framework).with_depth_state(Some(
         DepthStencilState {
@@ -129,10 +131,10 @@ fn make_globals(framework: &Framework) -> ImageEditorGlobals {
 
 pub(crate) fn init_globals(framework: &Framework) {
     if let None = INSTANCE.get() {
-        INSTANCE.set(Mutex::new(make_globals(framework))).unwrap();
+        INSTANCE.set(make_globals(framework)).unwrap();
     }
 }
 
-pub fn global_selection_data() -> MutexGuard<'static, ImageEditorGlobals> {
-    INSTANCE.get().unwrap().lock().unwrap()
+pub fn global_selection_data() -> &'static ImageEditorGlobals {
+    INSTANCE.get().unwrap()
 }
