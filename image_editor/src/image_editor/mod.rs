@@ -1,8 +1,9 @@
+pub mod blend_settings;
 pub mod document;
 pub mod image_editor;
 pub mod image_editor_event;
 pub mod layers;
-pub mod blend_settings;
+pub mod selection;
 
 pub use image_editor::ImageEditor;
 pub use image_editor::LayerConstructionInfo;
