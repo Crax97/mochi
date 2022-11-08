@@ -24,108 +24,14 @@ pub struct RectSelectionTool {
     is_active: bool,
     first_click_position: Point2<f32>,
     last_click_position: Point2<f32>,
-
-    draw_on_stencil_buffer_shader_id: ShaderId,
-    draw_masked_stencil_buffer_shader_id: ShaderId,
-    draw_masked_inverted_stencil_buffer_shader_id: ShaderId,
-    dotted_shader: ShaderId,
 }
 
 impl RectSelectionTool {
     pub fn new(framework: &Framework) -> Self {
-        let info = ShaderCreationInfo::using_default_vertex_fragment(framework).with_depth_state(
-            Some(DepthStencilState {
-                format: wgpu::TextureFormat::Depth24PlusStencil8,
-                depth_write_enabled: false,
-                depth_compare: wgpu::CompareFunction::Always,
-                stencil: StencilState {
-                    front: StencilFaceState {
-                        compare: wgpu::CompareFunction::Always,
-                        pass_op: wgpu::StencilOperation::Replace,
-                        fail_op: wgpu::StencilOperation::Keep,
-                        depth_fail_op: wgpu::StencilOperation::Keep,
-                    },
-                    back: StencilFaceState {
-                        compare: wgpu::CompareFunction::Always,
-                        pass_op: wgpu::StencilOperation::Replace,
-                        fail_op: wgpu::StencilOperation::Keep,
-                        depth_fail_op: wgpu::StencilOperation::Keep,
-                    },
-                    read_mask: 0xFFFFFFF,
-                    write_mask: 0xFFFFFFF,
-                },
-                bias: DepthBiasState::default(),
-            }),
-        );
-        let draw_on_stencil_buffer_shader_id = framework.create_shader(info);
-        let info = ShaderCreationInfo::using_default_vertex_fragment(framework).with_depth_state(
-            Some(DepthStencilState {
-                format: wgpu::TextureFormat::Depth24PlusStencil8,
-                depth_write_enabled: false,
-                depth_compare: wgpu::CompareFunction::Always,
-                stencil: StencilState {
-                    front: StencilFaceState {
-                        compare: wgpu::CompareFunction::Equal,
-                        pass_op: wgpu::StencilOperation::Keep,
-                        fail_op: wgpu::StencilOperation::Keep,
-                        depth_fail_op: wgpu::StencilOperation::Keep,
-                    },
-                    back: StencilFaceState {
-                        compare: wgpu::CompareFunction::Equal,
-                        pass_op: wgpu::StencilOperation::Keep,
-                        fail_op: wgpu::StencilOperation::Keep,
-                        depth_fail_op: wgpu::StencilOperation::Keep,
-                    },
-                    read_mask: 0xFFFFFFF,
-                    write_mask: 0xFFFFFFF,
-                },
-                bias: DepthBiasState::default(),
-            }),
-        );
-        let draw_masked_stencil_buffer_shader_id = framework.create_shader(info);
-
-        let info = ShaderCreationInfo::using_default_vertex_fragment(framework).with_depth_state(
-            Some(DepthStencilState {
-                format: wgpu::TextureFormat::Depth24PlusStencil8,
-                depth_write_enabled: false,
-                depth_compare: wgpu::CompareFunction::Always,
-                stencil: StencilState {
-                    front: StencilFaceState {
-                        compare: wgpu::CompareFunction::NotEqual,
-                        pass_op: wgpu::StencilOperation::Keep,
-                        fail_op: wgpu::StencilOperation::Keep,
-                        depth_fail_op: wgpu::StencilOperation::Keep,
-                    },
-                    back: StencilFaceState {
-                        compare: wgpu::CompareFunction::NotEqual,
-                        pass_op: wgpu::StencilOperation::Keep,
-                        fail_op: wgpu::StencilOperation::Keep,
-                        depth_fail_op: wgpu::StencilOperation::Keep,
-                    },
-                    read_mask: 0xFFFFFFF,
-                    write_mask: 0xFFFFFFF,
-                },
-                bias: DepthBiasState::default(),
-            }),
-        );
-        let draw_masked_inverted_stencil_buffer_shader_id = framework.create_shader(info);
-
-        let dotted_module_descriptor = framework
-            .shader_compiler
-            .compile_into_shader_description("Dotted shader", include_str!("dotted_selection.wgsl"))
-            .unwrap();
-        let dotted_info =
-            ShaderCreationInfo::using_default_vertex(framework, dotted_module_descriptor)
-                .with_bind_element(BindElement::Texture); // 2: diffuse texture + sampler
-        let dotted_shader = framework.create_shader(dotted_info);
         Self {
             is_active: false,
             first_click_position: Point2::origin(),
             last_click_position: Point2::origin(),
-            draw_on_stencil_buffer_shader_id,
-            draw_masked_stencil_buffer_shader_id,
-            draw_masked_inverted_stencil_buffer_shader_id,
-            dotted_shader,
         }
     }
 }
@@ -220,6 +126,9 @@ impl Tool for RectSelectionTool {
         );
         context.renderer.set_stencil_clear(Some(0));
         context.renderer.set_stencil_reference(255);
+        context
+            .renderer
+            .set_draw_debug_name("Selection tool: draw selection on stencil buffer");
         let rect = Box2d::from_points(self.first_click_position, self.last_click_position);
         context.renderer.draw(DrawCommand {
             primitives: PrimitiveType::Rect {
@@ -228,7 +137,9 @@ impl Tool for RectSelectionTool {
             },
             draw_mode: DrawMode::Single,
             additional_data: OptionalDrawData::just_shader(Some(
-                self.draw_on_stencil_buffer_shader_id.clone(),
+                image_editor::global_selection_data()
+                    .draw_on_stencil_buffer_shader_id
+                    .clone(),
             )),
         });
         context
@@ -239,6 +150,9 @@ impl Tool for RectSelectionTool {
             &current_layer.bitmap.camera(),
             Some(wgpu::Color::TRANSPARENT),
         );
+        context
+            .renderer
+            .set_draw_debug_name("Selection tool: draw layer with stencil buffer");
         context.renderer.set_stencil_clear(None);
         context.renderer.set_stencil_reference(255);
         context.renderer.draw(DrawCommand {
@@ -250,7 +164,9 @@ impl Tool for RectSelectionTool {
             },
             draw_mode: DrawMode::Single,
             additional_data: OptionalDrawData::just_shader(Some(
-                self.draw_masked_stencil_buffer_shader_id.clone(),
+                image_editor::global_selection_data()
+                    .draw_on_stencil_buffer_shader_id
+                    .clone(),
             )),
         });
         context
@@ -262,6 +178,9 @@ impl Tool for RectSelectionTool {
             &current_layer.bitmap.camera(),
             Some(wgpu::Color::TRANSPARENT),
         );
+        context
+            .renderer
+            .set_draw_debug_name("Selection tool: draw layer with inverted stencil buffer");
         context.renderer.set_stencil_clear(None);
         context.renderer.set_stencil_reference(255);
         context.renderer.draw(DrawCommand {
@@ -273,7 +192,9 @@ impl Tool for RectSelectionTool {
             },
             draw_mode: DrawMode::Single,
             additional_data: OptionalDrawData::just_shader(Some(
-                self.draw_masked_inverted_stencil_buffer_shader_id.clone(),
+                image_editor::global_selection_data()
+                    .draw_on_stencil_buffer_shader_id
+                    .clone(),
             )),
         });
         context
@@ -313,7 +234,9 @@ impl Tool for RectSelectionTool {
                 multiply_color: wgpu::Color::RED,
             },
             draw_mode: DrawMode::Single,
-            additional_data: OptionalDrawData::just_shader(Some(self.dotted_shader.clone())),
+            additional_data: OptionalDrawData::just_shader(Some(
+                image_editor::global_selection_data().dotted_shader.clone(),
+            )),
         });
     }
     fn name(&self) -> &'static str {

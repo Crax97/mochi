@@ -52,6 +52,7 @@ pub struct Renderer<'f> {
     texture2d_instanced_shader_id: ShaderId,
     texture2d_single_shader_id: ShaderId,
 
+    render_pass_debug_name: Option<String>,
     depth_stencil_target: Option<TextureId>,
     stencil_value: Option<u32>,
 
@@ -146,6 +147,7 @@ impl<'f> Renderer<'f> {
             clear_stencil: None,
             viewport: None,
             empty_bind_group,
+            render_pass_debug_name: None,
             depth_stencil_target: None,
             stencil_value: None,
 
@@ -164,6 +166,10 @@ impl<'f> Renderer<'f> {
 
     pub fn set_viewport(&mut self, viewport: Option<(f32, f32, f32, f32)>) {
         self.viewport = viewport;
+    }
+
+    pub fn set_draw_debug_name(&mut self, name: &str) {
+        self.render_pass_debug_name = Some(name.to_owned());
     }
 
     pub fn set_depth_stencil_target(&mut self, new_target: Option<TextureId>) {
@@ -241,8 +247,11 @@ impl<'f> Renderer<'f> {
             Some(color) => LoadOp::Clear(color),
             None => LoadOp::Load,
         };
+        let pass_name = self.render_pass_debug_name.take();
         let render_pass_description = RenderPassDescriptor {
-            label: Some("Renderer pass with clear color"),
+            label: pass_name
+                .as_deref()
+                .or(Some("Renderer pass with clear color")),
             color_attachments: &[Some(RenderPassColorAttachment {
                 view: output,
                 resolve_target: None,

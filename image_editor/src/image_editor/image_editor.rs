@@ -8,6 +8,7 @@ use framework::{Framework, Transform2d};
 use wgpu::{TextureFormat, TextureView};
 
 use crate::document::DocumentCreationInfo;
+use crate::image_editor;
 
 use super::{
     document::Document,
@@ -33,6 +34,8 @@ pub struct ImageEditor<'framework> {
 
 impl<'framework> ImageEditor<'framework> {
     pub fn new(framework: &'framework Framework, initial_window_bounds: &[f32; 2]) -> Self {
+        image_editor::init_globals(framework);
+
         let test_width = 1800;
         let test_height = 1024;
         let test_document = Document::new(

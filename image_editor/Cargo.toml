@@ -17,6 +17,7 @@ cgmath="0.18.0"
 rfd = "0.10.0"
 strum = "0.24.1"
 strum_macros = "0.24.1"
+once_cell = "1.16.0"
 
 
 framework={path="../framework"}
