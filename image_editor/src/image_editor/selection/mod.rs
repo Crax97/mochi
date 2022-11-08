@@ -10,6 +10,11 @@ pub struct Selection {
 }
 
 impl Selection {
+    pub fn set(&mut self, new_selection: SelectionShape) {
+        self.shapes = vec![new_selection];
+        self.inverted = false;
+    }
+
     pub fn extend(&mut self, new_selection: SelectionShape) {
         self.shapes.push(new_selection);
     }

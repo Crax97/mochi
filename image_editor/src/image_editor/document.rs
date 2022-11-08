@@ -2,6 +2,7 @@ use super::layers::{Layer, LayerIndex, RootLayer};
 use crate::{
     blend_settings::{BlendSettings, BlendSettingsUniform},
     layers::{BitmapLayer, BitmapLayerConfiguration, LayerCreationInfo, LayerTree},
+    selection::Selection,
     LayerConstructionInfo,
 };
 use cgmath::{point2, vec2, Vector2};
@@ -40,6 +41,7 @@ pub struct Document<'framework> {
     buffering_step: BufferingStep,
 
     current_layer_index: LayerIndex,
+    selection: Option<Selection>,
 }
 
 pub struct DocumentCreationInfo {
@@ -94,6 +96,7 @@ impl<'l> Document<'l> {
             layer_canvases: HashMap::new(),
             tree_root: RootLayer(vec![]),
             buffering_step: BufferingStep::First,
+            selection: None,
         };
 
         document.add_layer(
@@ -149,6 +152,15 @@ impl<'l> Document<'l> {
 
         mutate_fn(layer);
     }
+
+    pub fn mutate_selection<F: FnMut(Option<&mut Selection>)>(&mut self, mut callback: F) {
+        callback(self.selection.as_mut());
+    }
+
+    pub fn selection(&self) -> Option<&Selection> {
+        self.selection.as_ref()
+    }
+
     pub(crate) fn delete_layer(&mut self, layer_idx: LayerIndex) {
         if self.layers.len() == 1 {
             return;
