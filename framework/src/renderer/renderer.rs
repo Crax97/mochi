@@ -22,6 +22,11 @@ enum ResolvedResourceType<'a> {
     Texture(&'a Texture2d),
 }
 
+enum DrawType {
+    Instanced { buffer: BufferId, elements: u32 },
+    Separate(Vec<BufferId>),
+}
+
 enum ResolvedDrawType<'a> {
     Instanced { buffer: &'a Buffer, elements: u32 },
     Separate(Vec<ResolvedResourceType<'a>>),
@@ -199,31 +204,76 @@ impl Renderer {
         framework: &mut Framework,
     ) {
         // let texture = framework.allocated_textures.map.get(&output.index).unwrap();
-        //let depth_texture_view =
-        //    depth_stencil_output.map(|tex_id| framework.depth_stencil_texture(tex_id));
         // self.end(&texture.value.texture_view, None, framework);
-        // let command_encoder_description = CommandEncoderDescriptor {
-        //     label: Some("Framework Renderer command descriptor"),
-        // };
-        // let mut command_encoder = framework
-        //     .device
-        //     .create_command_encoder(&command_encoder_description);
-        // self.execute_draw_queue(
-        //     &mut command_encoder,
-        //     output,
-        //     depth_stencil_output,
-        //     framework,
-        // );
-        // self.submit_frame(command_encoder, framework);
+        let command_encoder_description = CommandEncoderDescriptor {
+            label: Some("Framework Renderer command descriptor"),
+        };
+        let mut command_encoder = framework
+            .device
+            .create_command_encoder(&command_encoder_description);
+
+        let draw_commands_with_buffers = self.generate_partial_draws(framework);
+        let commands = self.resolve_draw_commands(framework, draw_commands_with_buffers);
+
+        let texture = &framework.texture2d(output).texture_view;
+        let depth_texture_view =
+            depth_stencil_output.map(|tex_id| framework.depth_stencil_texture(tex_id));
+        self.execute_draw_queue(
+            &mut command_encoder,
+            texture,
+            depth_texture_view,
+            commands,
+            framework,
+        );
+        self.submit_frame(command_encoder, framework);
     }
 
-    /*
+    fn generate_partial_draws(
+        &mut self,
+        framework: &mut Framework,
+    ) -> Vec<(DrawType, DrawCommand)> {
+        let mut partial_draws: Vec<(DrawType, DrawCommand)> = vec![];
+        for draw in self.draw_queue.iter() {
+            let draw_type = self.generate_draw_type(&draw, framework);
+            partial_draws.push((draw_type, draw.clone()))
+        }
+        partial_draws
+    }
+
+    fn generate_draw_type(&self, command: &DrawCommand, framework: &mut Framework) -> DrawType {
+        match command.draw_mode {
+            DrawMode::Instanced => {
+                self.build_instance_buffer_for_primitive_type(&command, framework)
+            }
+            DrawMode::Single => self.build_uniform_buffers_for_primitive_type(&command, framework),
+        }
+    }
+
+    fn resolve_draw_commands<'f>(
+        &self,
+        framework: &'f Framework,
+        partial_draws: Vec<(DrawType, DrawCommand)>,
+    ) -> Vec<ResolvedDrawCommand<'f>> {
+        let mut commands: Vec<ResolvedDrawCommand> = vec![];
+        for (draw, command) in partial_draws.into_iter() {
+            commands.push(ResolvedDrawCommand {
+                mesh: self.pick_mesh_from_draw_type(&command.primitives, framework),
+                draw_type: self.resolve_draw_type(draw, framework),
+                shader: self.pick_shader_from_command(&command, framework),
+                vertex_buffers: self.resolve_vertex_buffers(&command, framework),
+                bindable_resources: self.resolve_bindable_resources(&command, framework),
+            });
+        }
+        commands
+    }
+
     fn execute_draw_queue(
         &mut self,
         command_encoder: &mut CommandEncoder,
         output: &TextureView,
         depth_output: Option<&DepthStencilTexture>,
-        framework: &mut Framework,
+        commands: Vec<ResolvedDrawCommand>,
+        framework: &Framework,
     ) {
         let depth_load = Operations {
             load: if let Some(depth) = self.clear_depth {
@@ -279,34 +329,9 @@ impl Renderer {
         if let Some(viewport) = self.viewport.take() {
             render_pass.set_viewport(viewport.0, viewport.1, viewport.2, viewport.3, 0.0, 1.0);
         }
-        let commands = self.resolve_draw_commands(framework);
         let camera_buffer =
             ResolvedResourceType::UniformBuffer(framework.buffer(&self.camera_buffer_id));
         self.execute_commands(render_pass, &camera_buffer, &commands);
-    }
-
-    fn submit_frame(&mut self, command_encoder: CommandEncoder, framework: &Framework) {
-        framework
-            .queue
-            .submit(std::iter::once(command_encoder.finish()));
-        self.draw_queue.clear();
-    }
-
-    fn resolve_draw_commands<'f, 'b>(
-        &self,
-        framework: &'f mut Framework,
-    ) -> Vec<ResolvedDrawCommand<'b>> {
-        let mut commands: Vec<ResolvedDrawCommand> = vec![];
-        for draw in self.draw_queue.iter() {
-            // commands.push(ResolvedDrawCommand {
-            //     mesh: self.pick_mesh_from_draw_type(&draw.primitives, framework),
-            //     draw_type: self.resolve_draw_type(&draw, framework),
-            //     shader: self.pick_shader_from_command(&draw, framework),
-            //     vertex_buffers: self.resolve_vertex_buffers(&draw, framework),
-            //     bindable_resources: self.resolve_bindable_resources(&draw, framework),
-            // });
-        }
-        commands
     }
 
     fn execute_commands<'a>(
@@ -346,6 +371,12 @@ impl Renderer {
             }
         }
     }
+    fn submit_frame(&mut self, command_encoder: CommandEncoder, framework: &Framework) {
+        framework
+            .queue
+            .submit(std::iter::once(command_encoder.finish()));
+        self.draw_queue.clear();
+    }
 
     fn bind_vertex_buffer<'a>(
         &self,
@@ -364,7 +395,7 @@ impl Renderer {
     ) {
         let bind_group = match resource {
             ResolvedResourceType::UniformBuffer(buffer) => buffer.bind_group.as_ref().unwrap(),
-            ResolvedResourceType::Texture(texture) => &texture.bind_group,
+            ResolvedResourceType::Texture(texture) => texture.bind_group(),
             ResolvedResourceType::EmptyBindGroup => &self.empty_bind_group,
         };
         render_pass.set_bind_group(idx, bind_group, &[])
@@ -496,17 +527,25 @@ impl Renderer {
 
     fn resolve_draw_type<'f, 'b>(
         &self,
-        command: &DrawCommand,
-        framework: &'f mut Framework,
+        draw: DrawType,
+        framework: &'f Framework,
     ) -> ResolvedDrawType<'b>
     where
         'f: 'b,
     {
-        match command.draw_mode {
-            DrawMode::Instanced => {
-                self.build_instance_buffer_for_primitive_type(&command, framework)
+        match draw {
+            DrawType::Instanced { buffer, elements } => ResolvedDrawType::Instanced {
+                buffer: framework.buffer(&buffer),
+                elements,
+            },
+            DrawType::Separate(draws) => {
+                let mut buffers: Vec<ResolvedResourceType> = vec![];
+                buffers.reserve(draws.len());
+                for b in draws {
+                    buffers.push(ResolvedResourceType::UniformBuffer(framework.buffer(&b)));
+                }
+                ResolvedDrawType::Separate(buffers)
             }
-            DrawMode::Single => self.build_uniform_buffers_for_primitive_type(&command, framework),
         }
     }
 
@@ -514,7 +553,7 @@ impl Renderer {
         &self,
         command: &DrawCommand,
         framework: &'f mut Framework,
-    ) -> ResolvedDrawType<'f> {
+    ) -> DrawType {
         match &command.primitives {
             PrimitiveType::Noop => unreachable!(),
             PrimitiveType::Texture2D {
@@ -541,8 +580,8 @@ impl Renderer {
                     allow_write: false,
                     allow_read: true,
                 });
-                ResolvedDrawType::Instanced {
-                    buffer: framework.buffer(&buffer_id),
+                DrawType::Instanced {
+                    buffer: buffer_id,
                     elements: instances.len() as u32,
                 }
             }
@@ -568,8 +607,8 @@ impl Renderer {
                     allow_write: false,
                     allow_read: true,
                 });
-                ResolvedDrawType::Instanced {
-                    buffer: framework.buffer(&buffer_id),
+                DrawType::Instanced {
+                    buffer: buffer_id,
                     elements: rects.len() as u32,
                 }
             }
@@ -580,7 +619,7 @@ impl Renderer {
         &self,
         command: &DrawCommand,
         framework: &'a mut Framework,
-    ) -> ResolvedDrawType<'a> {
+    ) -> DrawType {
         match &command.primitives {
             PrimitiveType::Noop => unreachable!(),
             PrimitiveType::Texture2D {
@@ -608,12 +647,7 @@ impl Renderer {
                     });
                     buffer_ids.push(buffer_id);
                 }
-                ResolvedDrawType::Separate(
-                    buffer_ids
-                        .iter()
-                        .map(|id| ResolvedResourceType::UniformBuffer(framework.buffer(id)))
-                        .collect(),
-                )
+                DrawType::Separate(buffer_ids)
             }
             PrimitiveType::Rect {
                 rects,
@@ -638,14 +672,8 @@ impl Renderer {
                     });
                     buffer_ids.push(buffer_id);
                 }
-                ResolvedDrawType::Separate(
-                    buffer_ids
-                        .iter()
-                        .map(|id| ResolvedResourceType::UniformBuffer(framework.buffer(id)))
-                        .collect(),
-                )
+                DrawType::Separate(buffer_ids)
             }
         }
     }
-     */
 }

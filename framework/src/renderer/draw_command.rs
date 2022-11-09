@@ -3,6 +3,7 @@ use crate::{
     Box2d, Transform2d,
 };
 
+#[derive(Clone)]
 pub enum DrawMode {
     // The shader used supports instancing: all the instance data passed in the draw call
     // will be stored in an instance buffer
@@ -12,7 +13,7 @@ pub enum DrawMode {
     Single,
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub enum PrimitiveType {
     #[default]
     Noop,
@@ -28,12 +29,13 @@ pub enum PrimitiveType {
     },
 }
 
+#[derive(Clone)]
 pub enum BindableResource {
     UniformBuffer(BufferId),
     Texture(TextureId),
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct OptionalDrawData {
     pub additional_vertex_buffers: Vec<BufferId>,
     pub additional_bindable_resource: Vec<BindableResource>,
@@ -51,6 +53,7 @@ impl OptionalDrawData {
     }
 }
 
+#[derive(Clone)]
 pub struct DrawCommand {
     pub primitives: PrimitiveType,
     pub draw_mode: DrawMode,

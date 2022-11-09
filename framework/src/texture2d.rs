@@ -217,6 +217,15 @@ impl Texture2d {
             }
         }
     }
+
+    pub(crate) fn bind_group(&self) -> &wgpu::BindGroup {
+        match &self.tex_type {
+            TextureType::Managed { data } => &data.bind_group,
+            TextureType::External => {
+                panic!("Texture2D::bind_group is applicable only to managed textures")
+            }
+        }
+    }
 }
 
 impl Texture2d {
