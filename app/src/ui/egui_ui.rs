@@ -347,7 +347,6 @@ impl Ui for EguiUI {
     }
     fn present(
         &mut self,
-        framework: &Framework,
         window: &Window,
         surface_configuration: SurfaceConfiguration,
         output_view: &TextureView,
@@ -355,7 +354,7 @@ impl Ui for EguiUI {
         let output = self.platform.end_frame(None);
         let paint_jobs = self.platform.context().tessellate(output.shapes);
         let mut encoder =
-            framework
+            framework::instance()
                 .device
                 .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                     label: Some("egui Ui rendering"),
@@ -367,11 +366,15 @@ impl Ui for EguiUI {
         };
         let tdelta: egui::TexturesDelta = output.textures_delta;
         self.backend_pass
-            .add_textures(&framework.device, &framework.queue, &tdelta)
+            .add_textures(
+                &framework::instance().device,
+                &framework::instance().queue,
+                &tdelta,
+            )
             .expect("add texture ok");
         self.backend_pass.update_buffers(
-            &framework.device,
-            &framework.queue,
+            &framework::instance().device,
+            &framework::instance().queue,
             &paint_jobs,
             &screen_descriptor,
         );

@@ -80,11 +80,7 @@ where
     pub allow_read: bool,
 }
 
-fn recreate_buffer<T>(
-    data: &BufferInitialSetup<T>,
-    config: &InnerBufferConfiguration,
-    framework: &'_ Framework,
-) -> BufferInfo
+fn recreate_buffer<T>(data: &BufferInitialSetup<T>, config: &InnerBufferConfiguration) -> BufferInfo
 where
     T: bytemuck::Pod + bytemuck::Zeroable,
 {
@@ -102,7 +98,7 @@ where
         };
     let (buffer, num_items) = match data {
         BufferInitialSetup::Data(data) => (
-            framework
+            crate::instance()
                 .device
                 .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: None,
@@ -112,21 +108,25 @@ where
             data.as_slice().len(),
         ),
         BufferInitialSetup::Size(initial_size) => (
-            framework.device.create_buffer(&wgpu::BufferDescriptor {
-                label: None,
-                size: *initial_size,
-                usage,
-                mapped_at_creation: false,
-            }),
+            crate::instance()
+                .device
+                .create_buffer(&wgpu::BufferDescriptor {
+                    label: None,
+                    size: *initial_size,
+                    usage,
+                    mapped_at_creation: false,
+                }),
             1,
         ),
         BufferInitialSetup::Count(nums) => (
-            framework.device.create_buffer(&wgpu::BufferDescriptor {
-                label: None,
-                size: (std::mem::size_of::<T>() * nums) as u64,
-                usage,
-                mapped_at_creation: false,
-            }),
+            crate::instance()
+                .device
+                .create_buffer(&wgpu::BufferDescriptor {
+                    label: None,
+                    size: (std::mem::size_of::<T>() * nums) as u64,
+                    usage,
+                    mapped_at_creation: false,
+                }),
             *nums,
         ),
     };
@@ -146,11 +146,7 @@ impl Buffer {
             allow_write: initial_configuration.allow_write,
             buffer_type: initial_configuration.buffer_type,
         };
-        let buffer = recreate_buffer(
-            &initial_configuration.initial_setup,
-            &configuration,
-            framework,
-        );
+        let buffer = recreate_buffer(&initial_configuration.initial_setup, &configuration);
         let bind_group = if configuration.buffer_type == BufferType::Uniform {
             let bind_group = framework
                 .device
@@ -200,7 +196,7 @@ impl Buffer {
         let current_items = self.buffer.num_items;
 
         if length > current_items {
-            self.buffer = recreate_buffer(&BufferInitialSetup::Data(data), &self.config, framework);
+            self.buffer = recreate_buffer(&BufferInitialSetup::Data(data), &self.config);
         }
         self.buffer.num_items = data.len();
         let buffer = &self.buffer.buffer;

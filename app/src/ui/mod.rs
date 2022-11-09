@@ -32,7 +32,6 @@ pub trait Ui {
     fn do_ui(&mut self, ctx: UiContext) -> bool;
     fn present(
         &mut self,
-        framework: &Framework,
         window: &Window,
         surface_configuration: SurfaceConfiguration,
         output_view: &TextureView,

@@ -10,7 +10,6 @@ pub mod renderer;
 pub mod scene;
 pub mod shader;
 pub mod texture2d;
-
 use once_cell::sync::OnceCell;
 
 pub use asset_id::*;
@@ -33,21 +32,23 @@ pub use texture2d::Texture2d;
 pub use texture2d::Texture2dConfiguration;
 use wgpu::DeviceDescriptor;
 
-static INSTANCE: OnceCell<Framework> = OnceCell::new();
+static mut INSTANCE: OnceCell<Framework> = OnceCell::new();
 
 pub fn setup_framework<'a>(device_descriptor: &DeviceDescriptor<'a>) {
-    if let Some(_) = INSTANCE.get() {
-        panic!("Tried initializing framework twice.");
+    unsafe {
+        if let Some(_) = INSTANCE.get() {
+            panic!("Tried initializing framework twice.");
+        }
+        INSTANCE
+            .set(Framework::new(device_descriptor).unwrap())
+            .unwrap_or_else(|_| panic!("Failed to create framework"));
     }
-    INSTANCE
-        .set(Framework::new(device_descriptor).unwrap())
-        .unwrap_or_else(|_| panic!("Failed to create framework"));
 }
 
 pub fn instance() -> &'static Framework {
-    todo!()
+    unsafe { INSTANCE.get().unwrap() }
 }
 
 pub fn instance_mut() -> &'static mut Framework {
-    todo!()
+    unsafe { INSTANCE.get_mut().unwrap() }
 }

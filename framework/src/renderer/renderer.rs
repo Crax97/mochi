@@ -120,7 +120,8 @@ impl Renderer {
             allow_write: true,
             allow_read: false,
         });
-        let texture2d_instanced_shader_id = todo!(); // framework.create_shader(Renderer::texture2d_shader_creation_info(framework));
+        let texture2d_instanced_shader_id = crate::instance_mut()
+            .create_shader(ShaderCreationInfo::using_default_vertex_fragment_instanced());
         let texture2d_single_shader_id = crate::instance_mut()
             .create_shader(ShaderCreationInfo::using_default_vertex_fragment());
 
@@ -477,10 +478,6 @@ impl Renderer {
             DrawMode::Instanced => self.build_instance_buffer_for_primitive_type(&command),
             DrawMode::Single => self.build_uniform_buffers_for_primitive_type(&command),
         }
-    }
-
-    pub fn texture2d_shader_creation_info(framework: &Framework) -> ShaderCreationInfo {
-        ShaderCreationInfo::using_default_vertex_fragment_instanced(framework)
     }
 
     fn build_instance_buffer_for_primitive_type(&self, command: &DrawCommand) -> ResolvedDrawType {

@@ -260,12 +260,9 @@ impl ImageApplication {
 
                 let surface_configuration = self.final_surface_configuration.clone();
 
-                let ui_command = self.ui.present(
-                    &framework::instance(),
-                    &self.window,
-                    surface_configuration,
-                    &app_surface_view,
-                );
+                let ui_command =
+                    self.ui
+                        .present(&self.window, surface_configuration, &app_surface_view);
                 commands.push(ui_command);
 
                 framework::instance().queue.submit(commands);
