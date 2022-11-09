@@ -697,7 +697,6 @@ dependencies = [
  "futures-intrusive",
  "log",
  "naga",
- "once_cell",
  "pollster",
  "strum",
  "strum_macros",
