@@ -90,6 +90,22 @@ impl<T> AssetMap<T> {
         };
         id
     }
+
+    pub(crate) fn get(&self, id: &AssetId<T>) -> &T {
+        &self
+            .map
+            .get(&id.index)
+            .unwrap_or_else(|| panic!("No asset with id {:?}", id))
+            .value
+    }
+
+    pub(crate) fn get_mut(&mut self, id: &AssetId<T>) -> &mut T {
+        &mut self
+            .map
+            .get_mut(&id.index)
+            .unwrap_or_else(|| panic!("No asset with id {:?}", id))
+            .value
+    }
     pub(crate) fn update(&mut self) {
         while let Ok(update) = self.event_receiver.try_recv() {
             match update {

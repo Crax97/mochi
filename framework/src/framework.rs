@@ -125,10 +125,10 @@ impl<'a> Framework {
     }
 
     pub(crate) fn buffer(&self, id: &BufferId) -> &Buffer {
-        todo!()
+        self.allocated_buffers.get(id)
     }
     pub(crate) fn buffer_mut(&mut self, id: &BufferId) -> &mut Buffer {
-        todo!()
+        self.allocated_buffers.get_mut(id)
     }
 
     pub fn allocate_texture2d<'r>(
@@ -149,7 +149,7 @@ impl<'a> Framework {
     }
 
     pub(crate) fn texture2d<'r>(&'r self, id: &TextureId) -> &'r Texture2d {
-        todo!()
+        self.allocated_textures.get(id)
     }
 
     pub fn log_info(&self) {
@@ -183,7 +183,7 @@ impl<'a> Framework {
     }
 
     pub fn mesh<'r>(&'r self, id: &MeshId) -> &'r Mesh {
-        todo!()
+        self.allocated_meshes.get(id)
     }
 }
 
@@ -195,7 +195,7 @@ impl<'a> Framework {
     }
 
     pub(crate) fn shader(&self, id: &ShaderId) -> &Shader {
-        todo!()
+        self.allocated_shaders.get(id)
     }
 }
 // Buffer
@@ -269,6 +269,6 @@ impl<'a> Framework {
     }
 
     pub fn depth_stencil_texture(&self, id: &DepthStencilTextureId) -> &DepthStencilTexture {
-        todo!()
+        self.allocated_depth_stencil_textures.get(id)
     }
 }
