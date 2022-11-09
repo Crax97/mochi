@@ -15,6 +15,7 @@ use crate::{
 mod egui_ui;
 
 pub struct UiContext<'app> {
+    pub framework: &'app mut Framework,
     pub image_editor: &'app mut ImageEditor,
     pub renderer: &'app mut Renderer,
     pub deferred_renderer: &'app mut Renderer,
@@ -35,9 +36,14 @@ pub trait Ui {
         window: &Window,
         surface_configuration: SurfaceConfiguration,
         output_view: &TextureView,
+        framework: &Framework,
     ) -> CommandBuffer;
 }
 
-pub fn create_ui(surface_configuration: &SurfaceConfiguration, window: &Window) -> impl Ui {
-    egui_ui::EguiUI::new(surface_configuration, window)
+pub fn create_ui(
+    surface_configuration: &SurfaceConfiguration,
+    window: &Window,
+    framework: &Framework,
+) -> impl Ui {
+    egui_ui::EguiUI::new(surface_configuration, window, framework)
 }

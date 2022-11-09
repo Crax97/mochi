@@ -89,21 +89,21 @@ pub struct ImageApplication {
     color_picker_id: ToolId,
 }
 impl ImageApplication {
-    pub(crate) fn new(window: Window) -> Self {
-        let final_surface = unsafe { framework::instance().instance.create_surface(&window) };
+    pub(crate) fn new(window: Window, framework: &mut Framework) -> Self {
+        let final_surface = unsafe { framework.instance.create_surface(&window) };
         let final_surface_configuration = SurfaceConfiguration {
             usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: final_surface.get_supported_formats(&framework::instance().adapter)[0],
+            format: final_surface.get_supported_formats(&framework.adapter)[0],
             width: window.inner_size().width,
             height: window.inner_size().height,
             present_mode: wgpu::PresentMode::Fifo,
         };
 
-        let image_editor = ImageEditor::new(&[1024.0, 1024.0]);
-        final_surface.configure(&framework::instance().device, &final_surface_configuration);
+        let image_editor = ImageEditor::new(framework, &[1024.0, 1024.0]);
+        final_surface.configure(&framework.device, &final_surface_configuration);
 
-        let test_stamp = Toolbox::create_test_stamp();
-        let stamping_engine = StrokingEngine::new(test_stamp);
+        let test_stamp = Toolbox::create_test_stamp(framework);
+        let stamping_engine = StrokingEngine::new(test_stamp, framework);
         let stamping_engine = Rc::new(RefCell::new(stamping_engine));
         let brush_tool = Rc::new(RefCell::new(BrushTool::new(stamping_engine.clone(), 1.0)));
         let hand_tool = Rc::new(RefCell::new(HandTool::new()));
@@ -123,10 +123,10 @@ impl ImageApplication {
 
         ImageApplication::read_action_bindings(&mut action_map);
 
-        let ui = ui::create_ui(&final_surface_configuration, &window);
+        let ui = ui::create_ui(&final_surface_configuration, &window, &framework);
 
-        let instant_renderer = Renderer::new();
-        let deferred_renderer = Renderer::new();
+        let instant_renderer = Renderer::new(framework);
+        let deferred_renderer = Renderer::new(framework);
 
         Self {
             window,
@@ -150,7 +150,11 @@ impl ImageApplication {
         }
     }
 
-    pub(crate) fn on_resized(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
+    pub(crate) fn on_resized(
+        &mut self,
+        new_size: winit::dpi::PhysicalSize<u32>,
+        framework: &Framework,
+    ) {
         if new_size.width == 0 || new_size.height == 0 {
             return;
         }
@@ -168,26 +172,29 @@ impl ImageApplication {
         ];
         let new_surface_configuration = SurfaceConfiguration {
             usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: self
-                .final_surface
-                .get_supported_formats(&framework::instance().adapter)[0],
+            format: self.final_surface.get_supported_formats(&framework.adapter)[0],
             width: new_size.width as u32,
             height: new_size.height as u32,
             present_mode: wgpu::PresentMode::Fifo,
         };
         self.final_surface
-            .configure(&framework::instance().device, &new_surface_configuration);
+            .configure(&framework.device, &new_surface_configuration);
         self.final_surface_configuration = new_surface_configuration;
         self.image_editor.on_resize(left_right_top_bottom);
     }
 
-    pub(crate) fn on_event(&mut self, event: &winit::event::Event<()>) -> ControlFlow {
+    pub(crate) fn on_event(
+        &mut self,
+        event: &winit::event::Event<()>,
+        framework: &mut Framework,
+    ) -> ControlFlow {
         self.input_state.update(&event);
         let actions = self.action_map.update(&self.input_state);
         self.ui.on_new_winit_event(&event);
 
-        self.dispatch_actions(actions);
+        self.dispatch_actions(actions, framework);
         let context = EditorContext {
+            framework,
             image_editor: &mut self.image_editor,
             renderer: &mut self.instant_renderer,
         };
@@ -204,7 +211,7 @@ impl ImageApplication {
                         return ControlFlow::ExitWithCode(0);
                     }
                     WindowEvent::Resized(new_size) => {
-                        self.on_resized(*new_size);
+                        self.on_resized(*new_size, framework);
                     }
                     _ => {}
                 }
@@ -214,6 +221,7 @@ impl ImageApplication {
                 self.ui.begin();
 
                 let ui_ctx = UiContext {
+                    framework,
                     image_editor: &mut self.image_editor,
                     toolbox: &mut self.toolbox,
                     input_state: &self.input_state,
@@ -225,7 +233,8 @@ impl ImageApplication {
                 };
                 let block_editor = self.ui.do_ui(ui_ctx);
                 self.toolbox.set_is_blocked(block_editor);
-                self.image_editor.update_layers(&mut self.instant_renderer);
+                self.image_editor
+                    .update_layers(&mut self.instant_renderer, framework);
 
                 let current_texture = match self.final_surface.get_current_texture() {
                     Ok(surface) => surface,
@@ -247,32 +256,44 @@ impl ImageApplication {
                     .create_view(&wgpu::TextureViewDescriptor::default());
 
                 self.image_editor
-                    .render_document(&mut self.instant_renderer);
+                    .render_document(&mut self.instant_renderer, framework);
 
-                self.deferred_renderer
-                    .begin(&self.image_editor.document().final_layer().camera(), None);
+                self.deferred_renderer.begin(
+                    &self.image_editor.document().final_layer().camera(),
+                    None,
+                    framework,
+                );
                 self.toolbox.draw(&mut self.deferred_renderer);
-                self.deferred_renderer
-                    .end_on_texture(&self.image_editor.document().final_layer().texture(), None);
+                self.deferred_renderer.end_on_texture(
+                    &self.image_editor.document().final_layer().texture(),
+                    None,
+                    framework,
+                );
 
-                self.image_editor
-                    .render_canvas(&mut self.instant_renderer, &app_surface_view);
+                self.image_editor.render_canvas(
+                    &mut self.instant_renderer,
+                    &app_surface_view,
+                    framework,
+                );
 
                 let surface_configuration = self.final_surface_configuration.clone();
 
-                let ui_command =
-                    self.ui
-                        .present(&self.window, surface_configuration, &app_surface_view);
+                let ui_command = self.ui.present(
+                    &self.window,
+                    surface_configuration,
+                    &app_surface_view,
+                    &framework,
+                );
                 commands.push(ui_command);
 
-                framework::instance().queue.submit(commands);
+                framework.queue.submit(commands);
                 current_texture.present();
             }
             _ => {}
         }
 
         self.window.request_redraw();
-        framework::instance_mut().update_asset_maps();
+        framework.update_asset_maps();
         ControlFlow::Wait
     }
 
@@ -306,20 +327,22 @@ impl ImageApplication {
         action_map.add_action_binding((Key::E, ActionState::Pressed), "toggle_eraser");
     }
 
-    fn dispatch_actions(&mut self, actions: Vec<String>) {
+    fn dispatch_actions(&mut self, actions: Vec<String>, framework: &mut Framework) {
         for action in actions {
             match action.as_str() {
                 "save" => {
-                    self.image_editor.export_current_image();
+                    self.image_editor.export_current_image(framework);
                 }
                 "undo" => {
                     self.undo_stack.try_undo(&mut EditorContext {
+                        framework,
                         image_editor: &mut self.image_editor,
                         renderer: &mut self.instant_renderer,
                     });
                 }
                 "redo" => {
                     self.undo_stack.try_redo(&mut EditorContext {
+                        framework,
                         image_editor: &mut self.image_editor,
                         renderer: &mut self.instant_renderer,
                     });

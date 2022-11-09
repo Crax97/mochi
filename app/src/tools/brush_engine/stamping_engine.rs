@@ -112,18 +112,20 @@ pub struct StrokingEngine {
 }
 
 impl StrokingEngine {
-    pub fn new(initial_stamp: Stamp) -> Self {
-        let brush_fragment = framework::instance()
+    pub fn new(initial_stamp: Stamp, framework: &mut Framework) -> Self {
+        let brush_fragment = framework
             .shader_compiler
             .compile(include_str!("brush_fragment.wgsl"))
             .unwrap();
-        let brush_shader_info =
-            ShaderCreationInfo::using_default_vertex_instanced(ShaderModuleDescriptor {
+        let brush_shader_info = ShaderCreationInfo::using_default_vertex_instanced(
+            ShaderModuleDescriptor {
                 label: Some("Brush shader"),
                 source: ShaderSource::Naga(brush_fragment),
-            })
-            .with_bind_element(BindElement::Texture) // 2: texture + sampler
-            .with_bind_element(BindElement::UniformBuffer); // 3: brush settings
+            },
+            framework,
+        )
+        .with_bind_element(BindElement::Texture) // 2: texture + sampler
+        .with_bind_element(BindElement::UniformBuffer); // 3: brush settings
 
         let eraser_blend_state = wgpu::BlendState {
             color: BlendComponent {
@@ -138,18 +140,20 @@ impl StrokingEngine {
             },
         };
 
-        let brush_fragment = framework::instance()
+        let brush_fragment = framework
             .shader_compiler
             .compile(include_str!("brush_fragment.wgsl"))
             .unwrap();
-        let eraser_shader_info =
-            ShaderCreationInfo::using_default_vertex_instanced(ShaderModuleDescriptor {
+        let eraser_shader_info = ShaderCreationInfo::using_default_vertex_instanced(
+            ShaderModuleDescriptor {
                 label: Some("Eraser shader"),
                 source: ShaderSource::Naga(brush_fragment),
-            })
-            .with_bind_element(BindElement::Texture) // 2: texture + sampler
-            .with_bind_element(BindElement::UniformBuffer) // 3: brush settings
-            .with_blend_state(eraser_blend_state);
+            },
+            framework,
+        )
+        .with_bind_element(BindElement::Texture) // 2: texture + sampler
+        .with_bind_element(BindElement::UniformBuffer) // 3: brush settings
+        .with_blend_state(eraser_blend_state);
 
         let stamp_config = StampConfiguration {
             color_srgb: [0, 0, 0],
@@ -160,12 +164,10 @@ impl StrokingEngine {
             is_eraser: false,
         };
 
-        let brush_shader_id = framework::instance_mut().create_shader(brush_shader_info);
-        let eraser_shader_id = framework::instance_mut().create_shader(eraser_shader_info);
+        let brush_shader_id = framework.create_shader(brush_shader_info);
+        let eraser_shader_id = framework.create_shader(eraser_shader_info);
         let brush_settings_buffer_id =
-            framework::instance_mut().allocate_typed_buffer(BufferConfiguration::<
-                BrushUniformData,
-            > {
+            framework.allocate_typed_buffer(BufferConfiguration::<BrushUniformData> {
                 initial_setup: framework::buffer::BufferInitialSetup::Data(&vec![
                     BrushUniformData::from(stamp_config.clone()),
                 ]),
@@ -210,15 +212,14 @@ impl StrokingEngine {
         let modified_layer = context.image_editor.document().current_layer_index();
         let layer = context.image_editor.document().get_layer(&modified_layer);
         let old_layer_texture_id = layer.bitmap.texture().clone();
-        let (width, height) = framework::instance().texture2d_dimensions(&old_layer_texture_id);
+        let (width, height) = context
+            .framework
+            .texture2d_dimensions(&old_layer_texture_id);
 
-        let new_texture_id = framework::instance_mut().texture2d_copy_subregion(
-            &old_layer_texture_id,
-            0,
-            0,
-            width,
-            height,
-        );
+        let new_texture_id =
+            context
+                .framework
+                .texture2d_copy_subregion(&old_layer_texture_id, 0, 0, width, height);
 
         (old_layer_texture_id, new_texture_id)
     }
@@ -227,8 +228,8 @@ impl StrokingEngine {
         self.stamp_configuration.is_eraser = !self.stamp_configuration.is_eraser;
     }
 
-    fn update_brush_settings(&self) {
-        framework::instance_mut().buffer_write_sync(
+    fn update_brush_settings(&self, framework: &mut Framework) {
+        framework.buffer_write_sync(
             &self.brush_settings_buffer_id,
             vec![BrushUniformData::from(self.stamp_configuration)],
         );
@@ -242,7 +243,7 @@ impl BrushEngine for StrokingEngine {
         context: StrokeContext,
     ) -> Option<Box<dyn EditorCommand>> {
         if self.wants_update_brush_settings {
-            self.update_brush_settings();
+            self.update_brush_settings(context.framework);
             self.wants_update_brush_settings = false;
         }
 
@@ -275,7 +276,9 @@ impl BrushEngine for StrokingEngine {
                     // 2. Do draw
 
                     let stamp = self.current_stamp().brush_texture.texture();
-                    context.renderer.begin(&layer.bitmap.camera(), None);
+                    context
+                        .renderer
+                        .begin(&layer.bitmap.camera(), None, context.framework);
                     context.renderer.set_viewport(Some((
                         0.0,
                         0.0,
@@ -302,9 +305,11 @@ impl BrushEngine for StrokingEngine {
                             ..Default::default()
                         },
                     });
-                    context
-                        .renderer
-                        .end_on_texture(layer.bitmap.texture(), None);
+                    context.renderer.end_on_texture(
+                        layer.bitmap.texture(),
+                        None,
+                        context.framework,
+                    );
                 }
             }
         }

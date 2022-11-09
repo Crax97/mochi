@@ -59,7 +59,9 @@ impl Tool for ColorPicker {
             );
 
             let final_texture_id = context.image_editor.document().final_layer().texture();
-            let pixel = framework::instance().texture2d_sample_pixel(final_texture_id, x, y);
+            let pixel = context
+                .framework
+                .texture2d_sample_pixel(final_texture_id, x, y);
             let mut engine = self.stamping_engine.borrow_mut();
             let mut settings = engine.settings();
             settings.color_srgb = [

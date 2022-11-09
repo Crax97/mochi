@@ -10,7 +10,7 @@ use crate::{
     tools::{EditorContext, PointerEvent, Tool},
 };
 use cgmath::point2;
-use framework::renderer::renderer::Renderer;
+use framework::{renderer::renderer::Renderer, Framework};
 use image_editor::layers::{BitmapLayer, BitmapLayerConfiguration};
 use winit::event::MouseButton;
 
@@ -37,7 +37,7 @@ impl Toolbox {
         (new_toolbox, primary_id)
     }
 
-    pub fn create_test_stamp() -> Stamp {
+    pub fn create_test_stamp(framework: &mut Framework) -> Stamp {
         let test_stamp_bytes = include_bytes!("test/test_brush.png");
         let image = image::load_from_memory(test_stamp_bytes).unwrap();
         let brush_bitmap = BitmapLayer::new_from_bytes(
@@ -48,6 +48,7 @@ impl Toolbox {
                 initial_background_color: [0.0, 0.0, 0.0, 0.0],
                 height: image.height(),
             },
+            framework,
         );
         Stamp::new(brush_bitmap)
     }

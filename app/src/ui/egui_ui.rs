@@ -35,7 +35,11 @@ pub struct EguiUI {
 }
 
 impl EguiUI {
-    pub(crate) fn new(surface_configuration: &SurfaceConfiguration, window: &Window) -> Self {
+    pub(crate) fn new(
+        surface_configuration: &SurfaceConfiguration,
+        window: &Window,
+        framework: &Framework,
+    ) -> Self {
         Self {
             platform: egui_winit_platform::Platform::new(PlatformDescriptor {
                 physical_width: surface_configuration.width,
@@ -44,11 +48,7 @@ impl EguiUI {
                 font_definitions: FontDefinitions::default(),
                 style: Default::default(),
             }),
-            backend_pass: RenderPass::new(
-                &framework::instance().device,
-                surface_configuration.format,
-                1,
-            ),
+            backend_pass: RenderPass::new(&framework.device, surface_configuration.format, 1),
             new_layer_in_creation: None,
         }
     }
@@ -92,6 +92,7 @@ impl EguiUI {
                                 .clicked()
                             {
                                 app_ctx.undo_stack.do_undo(&mut EditorContext {
+                                    framework: app_ctx.framework,
                                     image_editor: app_ctx.image_editor,
                                     renderer: app_ctx.renderer,
                                 })
@@ -102,6 +103,7 @@ impl EguiUI {
                                 .clicked()
                             {
                                 app_ctx.undo_stack.do_redo(&mut EditorContext {
+                                    framework: app_ctx.framework,
                                     image_editor: app_ctx.image_editor,
                                     renderer: app_ctx.renderer,
                                 })
@@ -181,7 +183,9 @@ impl EguiUI {
         });
 
         if ui.button("Save").clicked() {
-            app_ctx.image_editor.export_current_image();
+            app_ctx
+                .image_editor
+                .export_current_image(&app_ctx.framework);
         }
 
         event_handled
@@ -327,9 +331,10 @@ impl Ui for EguiUI {
                 self.new_layer_in_creation = None;
             }
             LayerAction::CreateNewLayer => {
-                app_ctx
-                    .image_editor
-                    .add_layer_to_document(self.new_layer_in_creation.take().unwrap());
+                app_ctx.image_editor.add_layer_to_document(
+                    self.new_layer_in_creation.take().unwrap(),
+                    app_ctx.framework,
+                );
             }
             LayerAction::DeleteLayer(idx) => app_ctx.image_editor.delete_layer(idx),
             LayerAction::SelectLayer(idx) => app_ctx.image_editor.select_new_layer(idx),
@@ -350,11 +355,12 @@ impl Ui for EguiUI {
         window: &Window,
         surface_configuration: SurfaceConfiguration,
         output_view: &TextureView,
+        framework: &Framework,
     ) -> CommandBuffer {
         let output = self.platform.end_frame(None);
         let paint_jobs = self.platform.context().tessellate(output.shapes);
         let mut encoder =
-            framework::instance()
+            framework
                 .device
                 .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                     label: Some("egui Ui rendering"),
@@ -366,15 +372,11 @@ impl Ui for EguiUI {
         };
         let tdelta: egui::TexturesDelta = output.textures_delta;
         self.backend_pass
-            .add_textures(
-                &framework::instance().device,
-                &framework::instance().queue,
-                &tdelta,
-            )
+            .add_textures(&framework.device, &framework.queue, &tdelta)
             .expect("add texture ok");
         self.backend_pass.update_buffers(
-            &framework::instance().device,
-            &framework::instance().queue,
+            &framework.device,
+            &framework.queue,
             &paint_jobs,
             &screen_descriptor,
         );

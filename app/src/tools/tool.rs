@@ -1,10 +1,11 @@
 use cgmath::{Point2, Vector2};
-use framework::renderer::renderer::Renderer;
+use framework::{renderer::renderer::Renderer, Framework};
 
 use crate::EditorCommand;
 use image_editor::ImageEditor;
 
 pub struct EditorContext<'editor> {
+    pub framework: &'editor mut Framework,
     pub image_editor: &'editor mut ImageEditor,
     pub renderer: &'editor mut Renderer,
 }

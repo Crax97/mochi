@@ -7,8 +7,7 @@ use wgpu::{
 
 use crate::{
     buffer::BufferInitialSetup,
-    framework::{self, BufferId, DepthStencilTextureId, MeshId, ShaderId, TextureId},
-    instance, instance_mut,
+    framework::{BufferId, DepthStencilTextureId, MeshId, ShaderId, TextureId},
     shader::{Shader, ShaderCreationInfo},
     Buffer, BufferConfiguration, BufferType, Camera2d, Camera2dUniformBlock, DepthStencilTexture,
     Framework, Mesh, MeshConstructionDetails, MeshInstance2D, Texture2d, Texture2dConfiguration,
@@ -60,7 +59,7 @@ pub struct Renderer {
 impl Renderer {
     const DIFFUSE_BIND_GROUP_LOCATION: u32 = 2;
 
-    fn construct_initial_quad() -> MeshId {
+    fn construct_initial_quad(framework: &mut Framework) -> MeshId {
         let quad_mesh_vertices = [
             Vertex {
                 position: point3(-1.0, 1.0, 0.0),
@@ -88,44 +87,42 @@ impl Renderer {
             allow_editing: false,
             primitives: 6,
         };
-        crate::instance_mut().allocate_mesh(construction_info)
+        framework.allocate_mesh(construction_info)
     }
 
-    fn empty_bind_group() -> BindGroup {
-        let layout =
-            crate::instance()
-                .device
-                .create_bind_group_layout(&BindGroupLayoutDescriptor {
-                    label: None,
-                    entries: &[],
-                });
-        crate::instance()
+    fn empty_bind_group(framework: &Framework) -> BindGroup {
+        let layout = framework
             .device
-            .create_bind_group(&BindGroupDescriptor {
+            .create_bind_group_layout(&BindGroupLayoutDescriptor {
                 label: None,
-                layout: &layout,
                 entries: &[],
-            })
+            });
+        framework.device.create_bind_group(&BindGroupDescriptor {
+            label: None,
+            layout: &layout,
+            entries: &[],
+        })
     }
 
-    pub fn new() -> Self {
-        let camera_buffer_id = crate::instance_mut().allocate_typed_buffer(BufferConfiguration::<
-            Camera2dUniformBlock,
-        > {
-            initial_setup: BufferInitialSetup::Count(1),
-            buffer_type: BufferType::Uniform,
-            allow_write: true,
-            allow_read: false,
-        });
-        let texture2d_instanced_shader_id = crate::instance_mut()
-            .create_shader(ShaderCreationInfo::using_default_vertex_fragment_instanced());
-        let texture2d_single_shader_id = crate::instance_mut()
-            .create_shader(ShaderCreationInfo::using_default_vertex_fragment());
+    pub fn new(framework: &mut Framework) -> Self {
+        let camera_buffer_id =
+            framework.allocate_typed_buffer(BufferConfiguration::<Camera2dUniformBlock> {
+                initial_setup: BufferInitialSetup::Count(1),
+                buffer_type: BufferType::Uniform,
+                allow_write: true,
+                allow_read: false,
+            });
+        let texture2d_instanced_shader_id = framework.create_shader(
+            ShaderCreationInfo::using_default_vertex_fragment_instanced(&framework),
+        );
+        let texture2d_single_shader_id = framework.create_shader(
+            ShaderCreationInfo::using_default_vertex_fragment(&framework),
+        );
 
-        let quad_mesh_id = Renderer::construct_initial_quad();
-        let empty_bind_group = Renderer::empty_bind_group();
+        let quad_mesh_id = Renderer::construct_initial_quad(framework);
+        let empty_bind_group = Renderer::empty_bind_group(framework);
 
-        let white_texture_id = crate::instance_mut().allocate_texture2d(
+        let white_texture_id = framework.allocate_texture2d(
             Texture2dConfiguration {
                 debug_name: Some("White texture".to_string()),
                 width: 1,
@@ -157,9 +154,14 @@ impl Renderer {
         }
     }
 
-    pub fn begin(&mut self, camera: &Camera2d, clear_color: Option<Color>) {
+    pub fn begin(
+        &mut self,
+        camera: &Camera2d,
+        clear_color: Option<Color>,
+        framework: &mut Framework,
+    ) {
         self.clear_color = clear_color;
-        instance_mut()
+        framework
             .buffer_write_sync::<Camera2dUniformBlock>(&self.camera_buffer_id, vec![camera.into()]);
     }
 
@@ -194,37 +196,42 @@ impl Renderer {
         &mut self,
         output: &TextureId,
         depth_stencil_output: Option<&DepthStencilTextureId>,
+        framework: &mut Framework,
     ) {
-        let texture = instance().texture2d(output);
-        let depth_texture_view =
-            depth_stencil_output.map(|tex_id| instance().depth_stencil_texture(tex_id));
-        self.end(&texture.texture_view, depth_texture_view.as_deref());
+        // let texture = framework.allocated_textures.map.get(&output.index).unwrap();
+        //let depth_texture_view =
+        //    depth_stencil_output.map(|tex_id| framework.depth_stencil_texture(tex_id));
+        // self.end(&texture.value.texture_view, None, framework);
     }
 
     pub fn end(
         &mut self,
         output: &TextureView,
         depth_stencil_output: Option<&DepthStencilTexture>,
+        framework: &mut Framework,
     ) {
-        let mut command_encoder = self.create_command_encoder();
-        self.execute_draw_queue(&mut command_encoder, output, depth_stencil_output);
-        self.submit_frame(command_encoder);
+        // let command_encoder_description = CommandEncoderDescriptor {
+        //     label: Some("Framework Renderer command descriptor"),
+        // };
+        // let mut command_encoder = framework
+        //     .device
+        //     .create_command_encoder(&command_encoder_description);
+        // self.execute_draw_queue(
+        //     &mut command_encoder,
+        //     output,
+        //     depth_stencil_output,
+        //     framework,
+        // );
+        // self.submit_frame(command_encoder, framework);
     }
 
-    fn create_command_encoder(&self) -> CommandEncoder {
-        let command_encoder_description = CommandEncoderDescriptor {
-            label: Some("Framework Renderer command descriptor"),
-        };
-        instance()
-            .device
-            .create_command_encoder(&command_encoder_description)
-    }
-
+    /*
     fn execute_draw_queue(
         &mut self,
         command_encoder: &mut CommandEncoder,
         output: &TextureView,
         depth_output: Option<&DepthStencilTexture>,
+        framework: &mut Framework,
     ) {
         let depth_load = Operations {
             load: if let Some(depth) = self.clear_depth {
@@ -280,32 +287,34 @@ impl Renderer {
         if let Some(viewport) = self.viewport.take() {
             render_pass.set_viewport(viewport.0, viewport.1, viewport.2, viewport.3, 0.0, 1.0);
         }
-        let commands = self.resolve_draw_commands();
+        let commands = self.resolve_draw_commands(framework);
         let camera_buffer =
-            ResolvedResourceType::UniformBuffer(instance().buffer(&self.camera_buffer_id));
+            ResolvedResourceType::UniformBuffer(framework.buffer(&self.camera_buffer_id));
         self.execute_commands(render_pass, &camera_buffer, &commands);
     }
 
-    fn submit_frame(&mut self, command_encoder: CommandEncoder) {
-        instance()
+    fn submit_frame(&mut self, command_encoder: CommandEncoder, framework: &Framework) {
+        framework
             .queue
             .submit(std::iter::once(command_encoder.finish()));
         self.draw_queue.clear();
     }
 
-    fn resolve_draw_commands(&self) -> Vec<ResolvedDrawCommand> {
-        self.draw_queue
-            .iter()
-            .map(|command| -> ResolvedDrawCommand {
-                ResolvedDrawCommand {
-                    mesh: self.pick_mesh_from_draw_type(&command.primitives),
-                    draw_type: self.resolve_draw_type(&command),
-                    shader: self.pick_shader_from_command(&command),
-                    vertex_buffers: self.resolve_vertex_buffers(&command),
-                    bindable_resources: self.resolve_bindable_resources(&command),
-                }
-            })
-            .collect()
+    fn resolve_draw_commands<'f, 'b>(
+        &self,
+        framework: &'f mut Framework,
+    ) -> Vec<ResolvedDrawCommand<'b>> {
+        let mut commands: Vec<ResolvedDrawCommand> = vec![];
+        for draw in self.draw_queue.iter() {
+            // commands.push(ResolvedDrawCommand {
+            //     mesh: self.pick_mesh_from_draw_type(&draw.primitives, framework),
+            //     draw_type: self.resolve_draw_type(&draw, framework),
+            //     shader: self.pick_shader_from_command(&draw, framework),
+            //     vertex_buffers: self.resolve_vertex_buffers(&draw, framework),
+            //     bindable_resources: self.resolve_bindable_resources(&draw, framework),
+            // });
+        }
+        commands
     }
 
     fn execute_commands<'a>(
@@ -369,15 +378,29 @@ impl Renderer {
         render_pass.set_bind_group(idx, bind_group, &[])
     }
 
-    fn pick_mesh_from_draw_type<'a>(&'a self, draw_type: &PrimitiveType) -> &'a Mesh {
+    fn pick_mesh_from_draw_type<'f, 'b>(
+        &self,
+        draw_type: &PrimitiveType,
+        framework: &'f Framework,
+    ) -> &'b Mesh
+    where
+        'f: 'b,
+    {
         let mesh_id = match draw_type {
             PrimitiveType::Noop => unreachable!(),
             PrimitiveType::Texture2D { .. } | PrimitiveType::Rect { .. } => &self.quad_mesh_id, // Pick quad mesh
         };
-        instance().mesh(&mesh_id)
+        framework.mesh(&mesh_id)
     }
 
-    fn pick_shader_from_command(&self, command: &DrawCommand) -> &Shader {
+    fn pick_shader_from_command<'f, 'b>(
+        &self,
+        command: &DrawCommand,
+        framework: &'f Framework,
+    ) -> &'b Shader
+    where
+        'f: 'b,
+    {
         let shader_id = if let Some(shader_id) = command.additional_data.shader.as_ref() {
             &shader_id
         } else {
@@ -392,27 +415,38 @@ impl Renderer {
             }
         };
 
-        instance().shader(shader_id)
+        framework.shader(shader_id)
     }
 
-    fn resolve_vertex_buffers(&self, command: &DrawCommand) -> Vec<&Buffer> {
+    fn resolve_vertex_buffers<'f, 'b>(
+        &self,
+        command: &DrawCommand,
+        framework: &'f Framework,
+    ) -> Vec<&'b Buffer>
+    where
+        'f: 'b,
+    {
         command
             .additional_data
             .additional_vertex_buffers
             .iter()
             .map(|buf_id| {
-                let buffer = instance().buffer(buf_id);
+                let buffer = framework.buffer(buf_id);
                 debug_assert!(buffer.config.buffer_type == BufferType::Vertex);
                 buffer
             })
             .collect()
     }
 
-    fn resolve_bindable_resources<'a>(
-        &'a self,
+    fn resolve_bindable_resources<'f, 'b>(
+        &self,
         command: &DrawCommand,
-    ) -> Vec<(u32, ResolvedResourceType<'a>)> {
-        let mut specific_draw_resources = self.resolve_draw_type_resources(command);
+        framework: &'f Framework,
+    ) -> Vec<(u32, ResolvedResourceType<'b>)>
+    where
+        'f: 'b,
+    {
+        let mut specific_draw_resources = self.resolve_draw_type_resources(command, framework);
         let mut additional_draw_resources = command
             .additional_data
             .additional_bindable_resource
@@ -424,13 +458,13 @@ impl Renderer {
                     match &resource {
                         BindableResource::UniformBuffer(buf_id) => {
                             ResolvedResourceType::UniformBuffer({
-                                let buffer = instance().buffer(buf_id);
+                                let buffer = framework.buffer(buf_id);
                                 debug_assert!(buffer.config.buffer_type == BufferType::Uniform);
                                 buffer
                             })
                         }
                         BindableResource::Texture(tex_id) => {
-                            ResolvedResourceType::Texture(instance().texture2d(tex_id))
+                            ResolvedResourceType::Texture(framework.texture2d(tex_id))
                         }
                     },
                 )
@@ -441,8 +475,9 @@ impl Renderer {
     }
 
     fn resolve_draw_type_resources<'a>(
-        &'a self,
+        &self,
         command: &DrawCommand,
+        framework: &'a Framework,
     ) -> Vec<(u32, ResolvedResourceType<'a>)> {
         match &command.primitives {
             PrimitiveType::Noop => unreachable!(),
@@ -451,7 +486,7 @@ impl Renderer {
                     (1, ResolvedResourceType::EmptyBindGroup),
                     (
                         Renderer::DIFFUSE_BIND_GROUP_LOCATION,
-                        ResolvedResourceType::Texture(crate::instance().texture2d(texture_id)),
+                        ResolvedResourceType::Texture(framework.texture2d(texture_id)),
                     ),
                 ]
             }
@@ -460,23 +495,34 @@ impl Renderer {
                     (1, ResolvedResourceType::EmptyBindGroup),
                     (
                         Renderer::DIFFUSE_BIND_GROUP_LOCATION,
-                        ResolvedResourceType::Texture(
-                            crate::instance().texture2d(&self.white_texture_id),
-                        ),
+                        ResolvedResourceType::Texture(framework.texture2d(&self.white_texture_id)),
                     ),
                 ]
             }
         }
     }
 
-    fn resolve_draw_type<'a>(&self, command: &DrawCommand) -> ResolvedDrawType {
+    fn resolve_draw_type<'f, 'b>(
+        &self,
+        command: &DrawCommand,
+        framework: &'f mut Framework,
+    ) -> ResolvedDrawType<'b>
+    where
+        'f: 'b,
+    {
         match command.draw_mode {
-            DrawMode::Instanced => self.build_instance_buffer_for_primitive_type(&command),
-            DrawMode::Single => self.build_uniform_buffers_for_primitive_type(&command),
+            DrawMode::Instanced => {
+                self.build_instance_buffer_for_primitive_type(&command, framework)
+            }
+            DrawMode::Single => self.build_uniform_buffers_for_primitive_type(&command, framework),
         }
     }
 
-    fn build_instance_buffer_for_primitive_type(&self, command: &DrawCommand) -> ResolvedDrawType {
+    fn build_instance_buffer_for_primitive_type<'f>(
+        &self,
+        command: &DrawCommand,
+        framework: &'f mut Framework,
+    ) -> ResolvedDrawType<'f> {
         match &command.primitives {
             PrimitiveType::Noop => unreachable!(),
             PrimitiveType::Texture2D {
@@ -497,14 +543,14 @@ impl Renderer {
                         )
                     })
                     .collect();
-                let buffer_id = crate::instance_mut().allocate_typed_buffer(BufferConfiguration {
+                let buffer_id = framework.allocate_typed_buffer(BufferConfiguration {
                     initial_setup: BufferInitialSetup::Data(&mesh_instances_2d),
                     buffer_type: BufferType::Vertex,
                     allow_write: false,
                     allow_read: true,
                 });
                 ResolvedDrawType::Instanced {
-                    buffer: crate::instance().buffer(&buffer_id),
+                    buffer: framework.buffer(&buffer_id),
                     elements: instances.len() as u32,
                 }
             }
@@ -524,21 +570,25 @@ impl Renderer {
                         )
                     })
                     .collect();
-                let buffer_id = crate::instance_mut().allocate_typed_buffer(BufferConfiguration {
+                let buffer_id = framework.allocate_typed_buffer(BufferConfiguration {
                     initial_setup: BufferInitialSetup::Data(&mesh_instances_2d),
                     buffer_type: BufferType::Vertex,
                     allow_write: false,
                     allow_read: true,
                 });
                 ResolvedDrawType::Instanced {
-                    buffer: crate::instance_mut().buffer(&buffer_id),
+                    buffer: framework.buffer(&buffer_id),
                     elements: rects.len() as u32,
                 }
             }
         }
     }
 
-    fn build_uniform_buffers_for_primitive_type(&self, command: &DrawCommand) -> ResolvedDrawType {
+    fn build_uniform_buffers_for_primitive_type<'a>(
+        &self,
+        command: &DrawCommand,
+        framework: &'a mut Framework,
+    ) -> ResolvedDrawType<'a> {
         match &command.primitives {
             PrimitiveType::Noop => unreachable!(),
             PrimitiveType::Texture2D {
@@ -547,58 +597,63 @@ impl Renderer {
                 multiply_color,
                 ..
             } => {
-                let instances = instances
-                    .iter()
-                    .map(|inst| {
-                        MeshInstance2D::new(
-                            point2(inst.position.x, inst.position.y),
-                            vec2(inst.scale.x, inst.scale.y),
-                            inst.rotation_radians.0,
-                            *flip_uv_y,
-                            *multiply_color,
-                        )
-                    })
-                    .map(|instance| {
-                        crate::instance_mut().allocate_typed_buffer(BufferConfiguration {
-                            initial_setup: BufferInitialSetup::Data(&vec![instance]),
-                            buffer_type: BufferType::Uniform,
-                            allow_write: false,
-                            allow_read: true,
-                        })
-                    })
-                    .map(|buffer_id| {
-                        ResolvedResourceType::UniformBuffer(crate::instance().buffer(&buffer_id))
+                let instances = instances.iter().map(|inst| {
+                    MeshInstance2D::new(
+                        point2(inst.position.x, inst.position.y),
+                        vec2(inst.scale.x, inst.scale.y),
+                        inst.rotation_radians.0,
+                        *flip_uv_y,
+                        *multiply_color,
+                    )
+                });
+                let mut buffer_ids: Vec<BufferId> = vec![];
+                for instance in instances {
+                    let buffer_id = framework.allocate_typed_buffer(BufferConfiguration {
+                        initial_setup: BufferInitialSetup::Data(&vec![instance]),
+                        buffer_type: BufferType::Uniform,
+                        allow_write: false,
+                        allow_read: true,
                     });
-                ResolvedDrawType::Separate(instances.collect())
+                    buffer_ids.push(buffer_id);
+                }
+                ResolvedDrawType::Separate(
+                    buffer_ids
+                        .iter()
+                        .map(|id| ResolvedResourceType::UniformBuffer(framework.buffer(id)))
+                        .collect(),
+                )
             }
             PrimitiveType::Rect {
                 rects,
                 multiply_color,
             } => {
-                let instances = rects
-                    .iter()
-                    .map(|rect| {
-                        MeshInstance2D::new(
-                            rect.center(),
-                            rect.extents,
-                            0.0,
-                            false,
-                            multiply_color.clone(),
-                        )
-                    })
-                    .map(|instance| {
-                        crate::instance_mut().allocate_typed_buffer(BufferConfiguration {
-                            initial_setup: BufferInitialSetup::Data(&vec![instance]),
-                            buffer_type: BufferType::Uniform,
-                            allow_write: false,
-                            allow_read: true,
-                        })
-                    })
-                    .map(|buffer_id| {
-                        ResolvedResourceType::UniformBuffer(crate::instance().buffer(&buffer_id))
+                let instances = rects.iter().map(|rect| {
+                    MeshInstance2D::new(
+                        rect.center(),
+                        rect.extents,
+                        0.0,
+                        false,
+                        multiply_color.clone(),
+                    )
+                });
+                let mut buffer_ids: Vec<BufferId> = vec![];
+                for instance in instances {
+                    let buffer_id = framework.allocate_typed_buffer(BufferConfiguration {
+                        initial_setup: BufferInitialSetup::Data(&vec![instance]),
+                        buffer_type: BufferType::Uniform,
+                        allow_write: false,
+                        allow_read: true,
                     });
-                ResolvedDrawType::Separate(instances.collect())
+                    buffer_ids.push(buffer_id);
+                }
+                ResolvedDrawType::Separate(
+                    buffer_ids
+                        .iter()
+                        .map(|id| ResolvedResourceType::UniformBuffer(framework.buffer(id)))
+                        .collect(),
+                )
             }
         }
     }
+     */
 }

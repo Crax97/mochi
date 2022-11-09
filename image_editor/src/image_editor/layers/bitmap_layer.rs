@@ -1,6 +1,7 @@
 use cgmath::{num_traits::ToPrimitive, Point3, Rad, Vector2};
 use framework::framework::{BufferId, ShaderId};
 use framework::renderer::draw_command::BindableResource;
+use framework::Framework;
 use framework::{
     framework::TextureId,
     renderer::{
@@ -22,7 +23,7 @@ pub struct BitmapLayer {
 }
 
 impl BitmapLayer {
-    pub fn new(configuration: BitmapLayerConfiguration) -> Self {
+    pub fn new(configuration: BitmapLayerConfiguration, framework: &mut Framework) -> Self {
         let bytes: Vec<u32> = (1..(configuration.width * configuration.height) + 1)
             .map(|_| {
                 let bg = configuration.initial_background_color;
@@ -34,13 +35,17 @@ impl BitmapLayer {
             })
             .collect();
         let bytes = bytemuck::cast_slice(&bytes);
-        Self::new_from_bytes(&bytes, configuration)
+        Self::new_from_bytes(&bytes, configuration, framework)
     }
 
-    pub fn new_from_bytes(bytes: &[u8], configuration: BitmapLayerConfiguration) -> Self {
+    pub fn new_from_bytes(
+        bytes: &[u8],
+        configuration: BitmapLayerConfiguration,
+        framework: &mut Framework,
+    ) -> Self {
         let format = wgpu::TextureFormat::Rgba8UnormSrgb;
 
-        let texture = framework::instance_mut().allocate_texture2d(
+        let texture = framework.allocate_texture2d(
             Texture2dConfiguration {
                 debug_name: Some(configuration.label.clone() + " Texture"),
                 width: configuration.width,
@@ -118,12 +123,13 @@ impl BitmapLayer {
         bottom_layer: TextureId,
         blend_settings_buffer: BufferId,
         output: &TextureId,
+        framework: &mut Framework,
     ) {
         let real_scale = Vector2 {
             x: self.size().x * 0.5,
             y: self.size().y * 0.5,
         };
-        renderer.begin(&self.camera(), None);
+        renderer.begin(&self.camera(), None, framework);
         renderer.draw(DrawCommand {
             primitives: PrimitiveType::Texture2D {
                 texture_id: self.texture().clone(),
@@ -154,7 +160,7 @@ impl BitmapLayer {
                 shader: Some(shader_to_use),
             },
         });
-        renderer.end_on_texture(output, None);
+        renderer.end_on_texture(output, None, framework);
     }
 
     pub fn camera(&self) -> Camera2d {

@@ -2,6 +2,7 @@ use cgmath::{point3, ElementWise, Point2, Point3, Vector2};
 use framework::framework::TextureId;
 use framework::renderer::renderer::Renderer;
 use framework::scene::Transform2d;
+use framework::Framework;
 use uuid::Uuid;
 
 use crate::blend_settings::BlendMode;
@@ -89,8 +90,13 @@ impl Layer {
         self.mark_dirty();
     }
 
-    pub(crate) fn lay_on_canvas(&self, renderer: &mut Renderer, canvas: &BitmapLayer) {
-        renderer.begin(&canvas.camera(), None);
+    pub(crate) fn lay_on_canvas(
+        &self,
+        renderer: &mut Renderer,
+        canvas: &BitmapLayer,
+        framework: &mut Framework,
+    ) {
+        renderer.begin(&canvas.camera(), None, framework);
         match self.layer_type {
             LayerType::Bitmap => {
                 self.bitmap.draw(
@@ -102,7 +108,7 @@ impl Layer {
                 );
             }
         }
-        renderer.end_on_texture(canvas.texture(), None);
+        renderer.end_on_texture(canvas.texture(), None, framework);
     }
 
     pub fn replace_texture(&mut self, new_texture: TextureId) {

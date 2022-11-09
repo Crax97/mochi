@@ -19,6 +19,7 @@ pub(crate) struct BufferInfo {
     pub num_items: usize,
 }
 
+#[derive(Clone)]
 pub struct InnerBufferConfiguration {
     pub buffer_type: BufferType,
     pub allow_write: bool,
@@ -80,7 +81,11 @@ where
     pub allow_read: bool,
 }
 
-fn recreate_buffer<T>(data: &BufferInitialSetup<T>, config: &InnerBufferConfiguration) -> BufferInfo
+pub(crate) fn recreate_buffer<T>(
+    framework: &Framework,
+    data: &BufferInitialSetup<T>,
+    config: &InnerBufferConfiguration,
+) -> BufferInfo
 where
     T: bytemuck::Pod + bytemuck::Zeroable,
 {
@@ -98,7 +103,7 @@ where
         };
     let (buffer, num_items) = match data {
         BufferInitialSetup::Data(data) => (
-            crate::instance()
+            framework
                 .device
                 .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: None,
@@ -108,25 +113,21 @@ where
             data.as_slice().len(),
         ),
         BufferInitialSetup::Size(initial_size) => (
-            crate::instance()
-                .device
-                .create_buffer(&wgpu::BufferDescriptor {
-                    label: None,
-                    size: *initial_size,
-                    usage,
-                    mapped_at_creation: false,
-                }),
+            framework.device.create_buffer(&wgpu::BufferDescriptor {
+                label: None,
+                size: *initial_size,
+                usage,
+                mapped_at_creation: false,
+            }),
             1,
         ),
         BufferInitialSetup::Count(nums) => (
-            crate::instance()
-                .device
-                .create_buffer(&wgpu::BufferDescriptor {
-                    label: None,
-                    size: (std::mem::size_of::<T>() * nums) as u64,
-                    usage,
-                    mapped_at_creation: false,
-                }),
+            framework.device.create_buffer(&wgpu::BufferDescriptor {
+                label: None,
+                size: (std::mem::size_of::<T>() * nums) as u64,
+                usage,
+                mapped_at_creation: false,
+            }),
             *nums,
         ),
     };
@@ -146,7 +147,11 @@ impl Buffer {
             allow_write: initial_configuration.allow_write,
             buffer_type: initial_configuration.buffer_type,
         };
-        let buffer = recreate_buffer(&initial_configuration.initial_setup, &configuration);
+        let buffer = recreate_buffer(
+            framework,
+            &initial_configuration.initial_setup,
+            &configuration,
+        );
         let bind_group = if configuration.buffer_type == BufferType::Uniform {
             let bind_group = framework
                 .device
@@ -189,19 +194,6 @@ impl Buffer {
         data.iter().map(|b| *b).collect()
     }
 
-    pub(crate) fn write_sync<T: bytemuck::Pod + bytemuck::Zeroable>(&mut self, data: &Vec<T>) {
-        let framework = crate::instance();
-        let queue = &framework.queue;
-        let length = data.as_slice().len();
-        let current_items = self.buffer.num_items;
-
-        if length > current_items {
-            self.buffer = recreate_buffer(&BufferInitialSetup::Data(data), &self.config);
-        }
-        self.buffer.num_items = data.len();
-        let buffer = &self.buffer.buffer;
-        queue.write_buffer(&buffer, 0, &bytemuck::cast_slice(&data.as_slice()));
-    }
     pub(crate) fn read_region(
         &self,
         framework: &'_ Framework,

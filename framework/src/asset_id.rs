@@ -15,7 +15,7 @@ pub(crate) enum RefEvent<T> {
 }
 
 pub(crate) struct RefCounted<T> {
-    value: T,
+    pub(crate) value: T,
     refs: AtomicU32,
 }
 
@@ -38,7 +38,7 @@ impl<T: Debug> Debug for RefCounted<T> {
 }
 
 pub(crate) struct AssetMap<T> {
-    map: HashMap<Uuid, RefCounted<T>>,
+    pub(crate) map: HashMap<Uuid, RefCounted<T>>,
     event_receiver: Receiver<RefEvent<Uuid>>,
     event_sender: Sender<RefEvent<Uuid>>,
 }

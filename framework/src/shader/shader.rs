@@ -27,19 +27,22 @@ pub struct ShaderCreationInfo<'a> {
 }
 
 impl<'a> ShaderCreationInfo<'a> {
-    pub fn using_default_vertex_instanced(fragment: ShaderModuleDescriptor) -> Self {
-        let default_vertex_instanced = crate::instance()
+    pub fn using_default_vertex_instanced(
+        fragment: ShaderModuleDescriptor,
+        framework: &Framework,
+    ) -> Self {
+        let default_vertex_instanced = framework
             .shader_compiler
             .compile_into_shader_description(
                 "Default Instanced Vertex Shader",
                 include_str!("default_shaders/default_vertex_instanced.wgsl"),
             )
             .unwrap();
-        let default_vertex_instanced = crate::instance()
+        let default_vertex_instanced = framework
             .device
             .create_shader_module(default_vertex_instanced);
 
-        let fragment_module = crate::instance().device.create_shader_module(fragment);
+        let fragment_module = framework.device.create_shader_module(fragment);
         Self {
             vertex_module: default_vertex_instanced,
             fragment_module,
@@ -54,18 +57,17 @@ impl<'a> ShaderCreationInfo<'a> {
         .with_bind_element(BindElement::UniformBuffer) // 0 camera info buffer
         .with_bind_element(BindElement::None) // 1 is unused, for compat with default fragment shader
     }
-    pub fn using_default_vertex(fragment: ShaderModuleDescriptor) -> Self {
-        let default_vertex = crate::instance()
+
+    pub fn using_default_vertex(fragment: ShaderModuleDescriptor, framework: &Framework) -> Self {
+        let default_vertex = framework
             .shader_compiler
             .compile_into_shader_description(
                 "Default Vertex Shader",
                 include_str!("default_shaders/default_vertex.wgsl"),
             )
             .unwrap();
-        let default_vertex = crate::instance()
-            .device
-            .create_shader_module(default_vertex);
-        let fragment_module = crate::instance().device.create_shader_module(fragment);
+        let default_vertex = framework.device.create_shader_module(default_vertex);
+        let fragment_module = framework.device.create_shader_module(fragment);
         Self {
             vertex_module: default_vertex,
             fragment_module,
@@ -79,26 +81,26 @@ impl<'a> ShaderCreationInfo<'a> {
         .with_bind_element(BindElement::UniformBuffer) // 0 mesh info buffer
         .with_bind_element(BindElement::UniformBuffer) // 1 camera info buffer
     }
-    pub fn using_default_vertex_fragment() -> Self {
-        let default_fragment = crate::instance()
+    pub fn using_default_vertex_fragment(framework: &Framework) -> Self {
+        let default_fragment = framework
             .shader_compiler
             .compile_into_shader_description(
                 "Default Fragment Shader",
                 include_str!("default_shaders/default_fragment.wgsl"),
             )
             .unwrap();
-        ShaderCreationInfo::using_default_vertex(default_fragment)
+        ShaderCreationInfo::using_default_vertex(default_fragment, framework)
             .with_bind_element(BindElement::Texture) // 2: diffuse texture + sampler
     }
-    pub fn using_default_vertex_fragment_instanced() -> Self {
-        let default_fragment = crate::instance()
+    pub fn using_default_vertex_fragment_instanced(framework: &Framework) -> Self {
+        let default_fragment = framework
             .shader_compiler
             .compile_into_shader_description(
                 "Default Fragment Shader",
                 include_str!("default_shaders/default_fragment.wgsl"),
             )
             .unwrap();
-        ShaderCreationInfo::using_default_vertex_instanced(default_fragment)
+        ShaderCreationInfo::using_default_vertex_instanced(default_fragment, framework)
             .with_bind_element(BindElement::Texture) // 2: texture + sampler
     }
 

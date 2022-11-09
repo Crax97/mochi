@@ -32,16 +32,19 @@ pub struct ImageEditor {
 }
 
 impl ImageEditor {
-    pub fn new(initial_window_bounds: &[f32; 2]) -> Self {
-        image_editor::init_globals();
+    pub fn new(framework: &mut Framework, initial_window_bounds: &[f32; 2]) -> Self {
+        image_editor::init_globals(framework);
 
         let test_width = 1800;
         let test_height = 1024;
-        let test_document = Document::new(DocumentCreationInfo {
-            width: test_width,
-            height: test_height,
-            first_layer_color: [0.0, 0.0, 0.0, 1.0],
-        });
+        let test_document = Document::new(
+            DocumentCreationInfo {
+                width: test_width,
+                height: test_height,
+                first_layer_color: [0.0, 0.0, 0.0, 1.0],
+            },
+            framework,
+        );
         let left_right_top_bottom = [
             -initial_window_bounds[0] * 0.5,
             initial_window_bounds[0] * 0.5,
@@ -55,25 +58,26 @@ impl ImageEditor {
             test_document.outer_size().y / initial_window_bounds[1]
         } * 1.5;
 
-        let final_present_shader_info = ShaderCreationInfo::using_default_vertex_fragment()
-            .with_output_format(TextureFormat::Bgra8UnormSrgb);
-        let final_present_shader =
-            framework::instance_mut().create_shader(final_present_shader_info);
+        let final_present_shader_info =
+            ShaderCreationInfo::using_default_vertex_fragment(framework)
+                .with_output_format(TextureFormat::Bgra8UnormSrgb);
+        let final_present_shader = framework.create_shader(final_present_shader_info);
         println!("Initial scale: {initial_camera_scale}");
         //pan_camera.set_scale(initial_camera_scale);
 
-        let layer_draw_shader = framework::instance()
+        let layer_draw_shader = framework
             .shader_compiler
             .compile_into_shader_description(
                 "Layer draw shader",
                 include_str!("layers/layer_fragment.wgsl"),
             )
             .unwrap();
-        let fucking_shader_info = ShaderCreationInfo::using_default_vertex(layer_draw_shader)
-            .with_bind_element(BindElement::Texture) // Bottom layer
-            .with_bind_element(BindElement::Texture) // Top layer
-            .with_bind_element(BindElement::UniformBuffer); // Blend settings
-        let layer_draw_shader = framework::instance_mut().create_shader(fucking_shader_info);
+        let fucking_shader_info =
+            ShaderCreationInfo::using_default_vertex(layer_draw_shader, framework)
+                .with_bind_element(BindElement::Texture) // Bottom layer
+                .with_bind_element(BindElement::Texture) // Top layer
+                .with_bind_element(BindElement::UniformBuffer); // Blend settings
+        let layer_draw_shader = framework.create_shader(fucking_shader_info);
         ImageEditor {
             pan_camera,
             document: test_document,
@@ -86,7 +90,7 @@ impl ImageEditor {
         &self.document
     }
 
-    pub fn export_current_image(&mut self) {
+    pub fn export_current_image(&mut self, framework: &Framework) {
         let file_path = rfd::FileDialog::new()
             .add_filter("PNG Image", &["png"])
             .add_filter("JPG Image", &["jpg", "jpeg"])
@@ -94,7 +98,7 @@ impl ImageEditor {
             .set_title("Save image")
             .save_file();
         if let Some(file_path) = file_path {
-            let image = self.get_full_image_bytes();
+            let image = self.get_full_image_bytes(framework);
             if let Err(e) = image.save(file_path) {
                 log::error!("While saving image: {e}");
             };
@@ -105,8 +109,12 @@ impl ImageEditor {
         mutate_fn(&mut self.document);
     }
 
-    pub fn add_layer_to_document(&mut self, config: LayerConstructionInfo) -> LayerIndex {
-        self.document.add_layer(config)
+    pub fn add_layer_to_document(
+        &mut self,
+        config: LayerConstructionInfo,
+        framework: &mut Framework,
+    ) -> LayerIndex {
+        self.document.add_layer(config, framework)
     }
 
     pub fn select_new_layer(&mut self, layer_idx: LayerIndex) {
@@ -121,17 +129,22 @@ impl ImageEditor {
         self.pan_camera.set_new_bounds(new_bounds);
     }
 
-    pub fn update_layers(&mut self, renderer: &mut Renderer) {
-        self.mutate_document(|d| d.update_layers(renderer));
+    pub fn update_layers(&mut self, renderer: &mut Renderer, framework: &mut Framework) {
+        self.mutate_document(|d| d.update_layers(renderer, framework));
     }
 
-    pub fn render_document(&mut self, renderer: &mut Renderer) {
+    pub fn render_document(&mut self, renderer: &mut Renderer, framework: &mut Framework) {
         self.document
-            .render(renderer, self.layer_draw_shader.clone());
+            .render(renderer, self.layer_draw_shader.clone(), framework);
     }
 
-    pub fn render_canvas(&mut self, renderer: &mut Renderer, output_canvas: &TextureView) {
-        renderer.begin(&self.pan_camera, Some(wgpu::Color::TRANSPARENT));
+    pub fn render_canvas(
+        &mut self,
+        renderer: &mut Renderer,
+        output_canvas: &TextureView,
+        framework: &mut Framework,
+    ) {
+        renderer.begin(&self.pan_camera, Some(wgpu::Color::TRANSPARENT), framework);
         renderer.draw(DrawCommand {
             primitives: PrimitiveType::Texture2D {
                 texture_id: self.document.final_layer().texture().clone(),
@@ -150,15 +163,15 @@ impl ImageEditor {
             },
         });
 
-        renderer.end(output_canvas, None);
+        renderer.end(output_canvas, None, framework);
     }
 
     pub fn get_full_image_texture(&self) -> &BitmapLayer {
         &self.document().final_layer()
     }
 
-    pub fn get_full_image_bytes(&mut self) -> image::DynamicImage {
-        self.document().final_image_bytes()
+    pub fn get_full_image_bytes(&mut self, framework: &Framework) -> image::DynamicImage {
+        self.document().final_image_bytes(framework)
     }
 
     pub fn pan_camera(&mut self, delta: cgmath::Vector2<f32>) {

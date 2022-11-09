@@ -6,6 +6,7 @@ use log::*;
 use wgpu::*;
 
 use crate::{
+    buffer::BufferInitialSetup,
     shader::{Shader, ShaderCompiler, ShaderCreationInfo},
     texture2d::GpuImageData,
     AssetId, AssetMap, AssetsLibrary, DepthStencilTexture, DepthStencilTextureConfiguration, Mesh,
@@ -37,11 +38,11 @@ pub struct Framework {
     pub asset_library: AssetsLibrary,
     pub shader_compiler: ShaderCompiler,
 
-    allocated_textures: TextureMap,
-    allocated_depth_stencil_textures: DepthStencilTextureMap,
-    allocated_buffers: BufferMap,
-    allocated_shaders: ShaderMap,
-    allocated_meshes: MeshMap,
+    pub(crate) allocated_textures: TextureMap,
+    pub(crate) allocated_depth_stencil_textures: DepthStencilTextureMap,
+    pub(crate) allocated_buffers: BufferMap,
+    pub(crate) allocated_shaders: ShaderMap,
+    pub(crate) allocated_meshes: MeshMap,
 }
 
 impl Framework {
@@ -67,6 +68,10 @@ impl Framework {
             .expect("Failed to compile 2d transformations functions");
         shader_compiler
     }
+
+    pub(crate) fn buffer_oneshot(&self, config: BufferConfiguration<u8>) -> Buffer {
+        Buffer::new(self, config)
+    }
 }
 
 #[derive(Debug)]
@@ -82,7 +87,7 @@ impl std::fmt::Display for AdapterCreationError {
 impl std::error::Error for AdapterCreationError {}
 
 impl<'a> Framework {
-    pub(crate) fn new(device_descriptor: &DeviceDescriptor<'a>) -> Result<Self> {
+    pub fn new(device_descriptor: &DeviceDescriptor<'a>) -> Result<Self> {
         let instance = wgpu::Instance::new(Backends::all());
         let adapter = pollster::block_on(async {
             instance
@@ -148,8 +153,11 @@ impl<'a> Framework {
         self.allocated_textures.insert(tex)
     }
 
-    pub(crate) fn texture2d<'r>(&'r self, id: &TextureId) -> &'r Texture2d {
+    pub(crate) fn texture2d(&self, id: &TextureId) -> &Texture2d {
         self.allocated_textures.get(id)
+    }
+    pub(crate) fn texture2d_view(&mut self, id: &TextureId) -> &TextureView {
+        &self.allocated_textures.get(id).texture_view
     }
 
     pub fn log_info(&self) {
@@ -205,7 +213,28 @@ impl<'a> Framework {
         id: &BufferId,
         data: Vec<T>,
     ) {
-        self.buffer_mut(id).write_sync(&data);
+        // TODO: fix this ugly shit
+        let length = data.as_slice().len();
+        let current_items = { self.buffer(id).buffer.num_items };
+
+        if length > current_items {
+            let config = self.buffer(id).config.clone();
+            let new_buf =
+                crate::buffer::recreate_buffer(self, &BufferInitialSetup::Data(&data), &config);
+
+            let buf_mut = self.buffer_mut(id);
+            buf_mut.buffer = new_buf;
+        }
+        {
+            let buffer = self.buffer_mut(id);
+            buffer.buffer.num_items = data.len();
+        }
+        {
+            let buffer = self.buffer(id);
+            let buffer = &buffer.buffer.buffer;
+            self.queue
+                .write_buffer(&buffer, 0, &bytemuck::cast_slice(&data.as_slice()));
+        }
     }
 }
 

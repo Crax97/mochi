@@ -18,7 +18,7 @@ use framework::{
 use framework::{
     framework::TextureId, renderer::renderer::Renderer, scene::Camera2d, BufferConfiguration,
 };
-use image::{DynamicImage, ImageBuffer};
+use image::{DynamicImage, Frame, ImageBuffer};
 
 use framework::framework::ShaderId;
 use std::collections::HashMap;
@@ -58,25 +58,34 @@ pub struct DocumentCreationInfo {
 }
 
 impl Document {
-    pub fn new(config: DocumentCreationInfo) -> Self {
-        let final_layer_1 = BitmapLayer::new(BitmapLayerConfiguration {
-            label: "Double Buffering Layer 1".to_owned(),
-            width: config.width,
-            height: config.height,
-            initial_background_color: [0.5, 0.5, 0.5, 1.0],
-        });
-        let final_layer_2 = BitmapLayer::new(BitmapLayerConfiguration {
-            label: "Double Buffering Layer 2".to_owned(),
-            width: config.width,
-            height: config.height,
-            initial_background_color: [0.5, 0.5, 0.5, 1.0],
-        });
-        let buffer_layer = BitmapLayer::new(BitmapLayerConfiguration {
-            label: "Draw Buffer Layer".to_owned(),
-            width: config.width,
-            height: config.height,
-            initial_background_color: [0.5, 0.5, 0.5, 1.0],
-        });
+    pub fn new(config: DocumentCreationInfo, framework: &mut Framework) -> Self {
+        let final_layer_1 = BitmapLayer::new(
+            BitmapLayerConfiguration {
+                label: "Double Buffering Layer 1".to_owned(),
+                width: config.width,
+                height: config.height,
+                initial_background_color: [0.5, 0.5, 0.5, 1.0],
+            },
+            framework,
+        );
+        let final_layer_2 = BitmapLayer::new(
+            BitmapLayerConfiguration {
+                label: "Double Buffering Layer 2".to_owned(),
+                width: config.width,
+                height: config.height,
+                initial_background_color: [0.5, 0.5, 0.5, 1.0],
+            },
+            framework,
+        );
+        let buffer_layer = BitmapLayer::new(
+            BitmapLayerConfiguration {
+                label: "Draw Buffer Layer".to_owned(),
+                width: config.width,
+                height: config.height,
+                initial_background_color: [0.5, 0.5, 0.5, 1.0],
+            },
+            framework,
+        );
 
         let first_layer_index = LayerIndex(1);
 
@@ -96,18 +105,24 @@ impl Document {
             selection: Selection::default(),
         };
 
-        document.add_layer(LayerConstructionInfo {
-            initial_color: [1.0, 1.0, 1.0, 1.0],
-            name: "Background Layer".into(),
-            width: document.document_size.x,
-            height: document.document_size.y,
-        });
-        document.add_layer(LayerConstructionInfo {
-            initial_color: [0.0, 0.0, 0.0, 0.0],
-            name: "Layer 0".into(),
-            width: document.document_size.x,
-            height: document.document_size.y,
-        });
+        document.add_layer(
+            LayerConstructionInfo {
+                initial_color: [1.0, 1.0, 1.0, 1.0],
+                name: "Background Layer".into(),
+                width: document.document_size.x,
+                height: document.document_size.y,
+            },
+            framework,
+        );
+        document.add_layer(
+            LayerConstructionInfo {
+                initial_color: [0.0, 0.0, 0.0, 0.0],
+                name: "Layer 0".into(),
+                width: document.document_size.x,
+                height: document.document_size.y,
+            },
+            framework,
+        );
 
         document
     }
@@ -171,20 +186,23 @@ impl Document {
         }
     }
 
-    pub fn copy_layer_selection_to_new_layer(&mut self, renderer: &mut Renderer, rect: Box2d) {
+    pub fn copy_layer_selection_to_new_layer(
+        &mut self,
+        renderer: &mut Renderer,
+        rect: Box2d,
+        framework: &mut Framework,
+    ) {
         let current_layer = self.current_layer();
-        let (width, height) =
-            framework::instance_mut().texture2d_dimensions(current_layer.bitmap.texture());
-        let stencil_texture = framework::instance_mut().allocate_depth_stencil_texture(
-            DepthStencilTextureConfiguration {
+        let (width, height) = framework.texture2d_dimensions(current_layer.bitmap.texture());
+        let stencil_texture =
+            framework.allocate_depth_stencil_texture(DepthStencilTextureConfiguration {
                 debug_name: Some("Selection tool depth stencil texture"),
                 width,
                 height,
                 is_stencil: true,
-            },
-        );
-        let format = framework::instance_mut().texture2d_format(current_layer.bitmap.texture());
-        let new_texture = framework::instance_mut().allocate_texture2d(
+            });
+        let format = framework.texture2d_format(current_layer.bitmap.texture());
+        let new_texture = framework.allocate_texture2d(
             Texture2dConfiguration {
                 debug_name: None,
                 width,
@@ -196,7 +214,7 @@ impl Document {
             },
             None,
         );
-        let old_texture_copy = framework::instance_mut().allocate_texture2d(
+        let old_texture_copy = framework.allocate_texture2d(
             Texture2dConfiguration {
                 debug_name: None,
                 width,
@@ -213,6 +231,7 @@ impl Document {
         renderer.begin(
             &current_layer.bitmap.camera(),
             Some(wgpu::Color::TRANSPARENT),
+            framework,
         );
         renderer.set_stencil_clear(Some(0));
         renderer.set_stencil_reference(255);
@@ -229,11 +248,12 @@ impl Document {
                     .clone(),
             )),
         });
-        renderer.end_on_texture(&new_texture, Some(&stencil_texture));
+        renderer.end_on_texture(&new_texture, Some(&stencil_texture), framework);
         // 2. Draw layer using the rect stencil buffer, this is the selection. Store it into a new texture
         renderer.begin(
             &current_layer.bitmap.camera(),
             Some(wgpu::Color::TRANSPARENT),
+            framework,
         );
         renderer.set_draw_debug_name("Selection tool: draw layer with stencil buffer");
         renderer.set_stencil_clear(None);
@@ -252,12 +272,13 @@ impl Document {
                     .clone(),
             )),
         });
-        renderer.end_on_texture(&new_texture, Some(&stencil_texture));
+        renderer.end_on_texture(&new_texture, Some(&stencil_texture), framework);
         // 3. Draw the layer using the inverted stencil buffer: this is the remaining part of the texture
 
         renderer.begin(
             &current_layer.bitmap.camera(),
             Some(wgpu::Color::TRANSPARENT),
+            framework,
         );
         renderer.set_draw_debug_name("Selection tool: draw layer with inverted stencil buffer");
         renderer.set_stencil_clear(None);
@@ -276,16 +297,19 @@ impl Document {
                     .clone(),
             )),
         });
-        renderer.end_on_texture(&old_texture_copy, Some(&stencil_texture));
+        renderer.end_on_texture(&old_texture_copy, Some(&stencil_texture), framework);
 
         //5. Now add the new layer
-        let (width, height) = framework::instance().texture2d_dimensions(&new_texture);
-        let new_index = self.add_layer(LayerConstructionInfo {
-            initial_color: [0.0, 0.0, 0.0, 0.0],
-            name: current_layer.settings().name.clone() + " subregion",
-            width,
-            height,
-        });
+        let (width, height) = framework.texture2d_dimensions(&new_texture);
+        let new_index = self.add_layer(
+            LayerConstructionInfo {
+                initial_color: [0.0, 0.0, 0.0, 0.0],
+                name: current_layer.settings().name.clone() + " subregion",
+                width,
+                height,
+            },
+            framework,
+        );
         self.mutate_layer(&new_index, |layer| {
             layer.replace_texture(new_texture.clone())
         });
@@ -322,15 +346,22 @@ impl Document {
         self.layer_canvases.remove(removed_layer.uuid()).unwrap();
     }
 
-    pub(crate) fn add_layer(&mut self, config: LayerConstructionInfo) -> LayerIndex {
+    pub(crate) fn add_layer(
+        &mut self,
+        config: LayerConstructionInfo,
+        framework: &mut Framework,
+    ) -> LayerIndex {
         let layer_index = LayerIndex(self.layers_created);
         self.layers_created += 1;
-        let new_layer = BitmapLayer::new(BitmapLayerConfiguration {
-            label: config.name.clone(),
-            width: config.width,
-            height: config.height,
-            initial_background_color: config.initial_color,
-        });
+        let new_layer = BitmapLayer::new(
+            BitmapLayerConfiguration {
+                label: config.name.clone(),
+                width: config.width,
+                height: config.height,
+                initial_background_color: config.initial_color,
+            },
+            framework,
+        );
         let new_layer = Layer::new_bitmap(
             new_layer,
             LayerCreationInfo {
@@ -340,19 +371,20 @@ impl Document {
                 rotation_radians: 0.0,
             },
         );
-        let bitmap_canvas = BitmapLayer::new(BitmapLayerConfiguration {
-            label: config.name,
-            width: self.document_size.x,
-            height: self.document_size.y,
-            initial_background_color: [0.0; 4],
-        });
+        let bitmap_canvas = BitmapLayer::new(
+            BitmapLayerConfiguration {
+                label: config.name,
+                width: self.document_size.x,
+                height: self.document_size.y,
+                initial_background_color: [0.0; 4],
+            },
+            framework,
+        );
         let settings = BlendSettingsUniform::from(BlendSettings {
             blend_mode: new_layer.settings().blend_mode,
         });
         let layer_settings_buffer =
-            framework::instance_mut().allocate_typed_buffer(BufferConfiguration::<
-                BlendSettingsUniform,
-            > {
+            framework.allocate_typed_buffer(BufferConfiguration::<BlendSettingsUniform> {
                 initial_setup: framework::buffer::BufferInitialSetup::Data(&vec![settings]),
                 buffer_type: framework::BufferType::Uniform,
                 allow_write: true,
@@ -373,23 +405,33 @@ impl Document {
         layer_index
     }
 
-    pub(crate) fn update_layers(&mut self, renderer: &mut Renderer) {
+    pub(crate) fn update_layers(&mut self, renderer: &mut Renderer, framework: &mut Framework) {
         for (_, layer) in self.layers.iter_mut() {
             let layer_info = self.layer_canvases.get(layer.uuid()).unwrap();
             if layer.needs_settings_update() {
-                Self::update_layer_settings(layer, &layer_info.layer_settings_buffer);
+                Self::update_layer_settings(layer, &layer_info.layer_settings_buffer, framework);
             }
 
             if layer.needs_bitmap_update() {
-                Self::update_layer_bitmap(renderer, layer, &layer_info.bitmap_canvas);
+                Self::update_layer_bitmap(renderer, layer, &layer_info.bitmap_canvas, framework);
             }
         }
     }
 
-    pub(crate) fn render(&mut self, renderer: &mut Renderer, shader_to_use: ShaderId) {
+    pub(crate) fn render(
+        &mut self,
+        renderer: &mut Renderer,
+        shader_to_use: ShaderId,
+        framework: &mut Framework,
+    ) {
         let draw_sequence = self.generate_draw_sequence();
 
-        self.execute_draw_sequence_double_buffered(renderer, draw_sequence, shader_to_use)
+        self.execute_draw_sequence_double_buffered(
+            renderer,
+            draw_sequence,
+            shader_to_use,
+            framework,
+        )
     }
 
     fn execute_draw_sequence_double_buffered(
@@ -397,10 +439,11 @@ impl Document {
         renderer: &mut Renderer,
         draw_sequence: Vec<LayerIndex>,
         shader_to_use: ShaderId,
+        framework: &mut Framework,
     ) {
         // Clear first layer
         let final_layer = self.final_layer().texture().clone();
-        Self::clear_texture(renderer, &final_layer, wgpu::Color::TRANSPARENT);
+        Self::clear_texture(renderer, &final_layer, wgpu::Color::TRANSPARENT, framework);
 
         // Actually draw shit
         let mut draw_layer = |index| {
@@ -418,17 +461,28 @@ impl Document {
                 previous_layer.clone(),
                 layer_draw_info.layer_settings_buffer.clone(),
                 &final_layer,
+                framework,
             );
-            Self::clear_texture(renderer, &previous_layer, wgpu::Color::TRANSPARENT);
+            Self::clear_texture(
+                renderer,
+                &previous_layer,
+                wgpu::Color::TRANSPARENT,
+                framework,
+            );
         };
         for layer_index in draw_sequence {
             draw_layer(layer_index);
         }
     }
 
-    pub fn clear_texture(renderer: &mut Renderer, texture: &TextureId, color: wgpu::Color) {
-        renderer.begin(&Camera2d::default(), Some(color));
-        renderer.end_on_texture(texture, None);
+    pub fn clear_texture(
+        renderer: &mut Renderer,
+        texture: &TextureId,
+        color: wgpu::Color,
+        framework: &mut Framework,
+    ) {
+        renderer.begin(&Camera2d::default(), Some(color), framework);
+        renderer.end_on_texture(texture, None, framework);
     }
 
     fn generate_draw_sequence(&self) -> Vec<LayerIndex> {
@@ -490,8 +544,8 @@ impl Document {
         self.current_layer_index
     }
 
-    pub fn final_image_bytes(&self) -> DynamicImage {
-        let bytes = framework::instance().texture2d_read_data(self.final_layer().texture());
+    pub fn final_image_bytes(&self, framework: &Framework) -> DynamicImage {
+        let bytes = framework.texture2d_read_data(self.final_layer().texture());
         let width = bytes.width;
         let height = bytes.height;
         let data = bytes.to_bytes(true);
@@ -516,8 +570,8 @@ impl Document {
         }
     }
 
-    fn update_layer_settings(layer: &mut Layer, target: &BufferId) {
-        framework::instance_mut().buffer_write_sync(
+    fn update_layer_settings(layer: &mut Layer, target: &BufferId, framework: &mut Framework) {
+        framework.buffer_write_sync(
             target,
             vec![BlendSettingsUniform::from(BlendSettings {
                 blend_mode: layer.settings().blend_mode,
@@ -525,8 +579,18 @@ impl Document {
         )
     }
 
-    fn update_layer_bitmap(renderer: &mut Renderer, layer: &mut Layer, target: &BitmapLayer) {
-        Self::clear_texture(renderer, target.texture(), wgpu::Color::TRANSPARENT);
-        layer.lay_on_canvas(renderer, &target);
+    fn update_layer_bitmap(
+        renderer: &mut Renderer,
+        layer: &mut Layer,
+        target: &BitmapLayer,
+        framework: &mut Framework,
+    ) {
+        Self::clear_texture(
+            renderer,
+            target.texture(),
+            wgpu::Color::TRANSPARENT,
+            framework,
+        );
+        layer.lay_on_canvas(renderer, &target, framework);
     }
 }

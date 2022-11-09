@@ -103,6 +103,7 @@ impl Tool for BrushTool {
             let path = StrokePath::linear_start_to_end(start, end, self.step);
 
             let context = StrokeContext {
+                framework: context.framework,
                 layer: context.image_editor.selected_layer(),
                 editor: &context.image_editor,
                 renderer: context.renderer,
