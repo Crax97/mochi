@@ -184,6 +184,8 @@ impl<'a> Framework {
         self.allocated_buffers.borrow_mut().update();
         self.allocated_shaders.borrow_mut().update();
         self.allocated_textures.borrow_mut().update();
+        self.allocated_depth_stencil_textures.borrow_mut().update();
+        self.allocated_meshes.borrow_mut().update();
     }
     pub fn allocate_mesh(&self, construction_info: MeshConstructionDetails) -> MeshId {
         let mesh = Mesh::new(self, construction_info);
