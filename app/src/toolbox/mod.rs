@@ -10,22 +10,22 @@ use crate::{
     tools::{EditorContext, PointerEvent, Tool},
 };
 use cgmath::point2;
-use framework::{renderer::renderer::Renderer, Framework};
+use framework::renderer::renderer::Renderer;
 use image_editor::layers::{BitmapLayer, BitmapLayerConfiguration};
 use winit::event::MouseButton;
 
 #[derive(Clone, Copy, Hash, Eq, PartialEq)]
 pub struct ToolId(usize);
 
-pub struct Toolbox<'framework> {
-    tools: HashMap<ToolId, Rc<RefCell<dyn Tool + 'framework>>>,
+pub struct Toolbox {
+    tools: HashMap<ToolId, Rc<RefCell<dyn Tool>>>,
     primary_tool_id: ToolId,
-    primary_tool: Rc<RefCell<dyn Tool + 'framework>>,
+    primary_tool: Rc<RefCell<dyn Tool>>,
     blocked: bool,
 }
 
-impl<'framework> Toolbox<'framework> {
-    pub fn new(primary_tool: Rc<RefCell<dyn Tool + 'framework>>) -> (Self, ToolId) {
+impl Toolbox {
+    pub fn new(primary_tool: Rc<RefCell<dyn Tool>>) -> (Self, ToolId) {
         let mut new_toolbox = Self {
             tools: HashMap::new(),
             primary_tool: primary_tool.clone(),
@@ -37,7 +37,7 @@ impl<'framework> Toolbox<'framework> {
         (new_toolbox, primary_id)
     }
 
-    pub fn create_test_stamp(framework: &'framework Framework) -> Stamp {
+    pub fn create_test_stamp() -> Stamp {
         let test_stamp_bytes = include_bytes!("test/test_brush.png");
         let image = image::load_from_memory(test_stamp_bytes).unwrap();
         let brush_bitmap = BitmapLayer::new_from_bytes(
@@ -52,7 +52,7 @@ impl<'framework> Toolbox<'framework> {
         Stamp::new(brush_bitmap)
     }
 
-    pub fn add_tool(&mut self, new_tool: Rc<RefCell<dyn Tool + 'framework>>) -> ToolId {
+    pub fn add_tool(&mut self, new_tool: Rc<RefCell<dyn Tool>>) -> ToolId {
         let id = self.tools.len();
         let id = ToolId(id);
         self.tools.insert(id, new_tool);
@@ -61,18 +61,18 @@ impl<'framework> Toolbox<'framework> {
 
     // Panics if id is not a valid index
     #[allow(dead_code)]
-    pub fn get_tool(&self, id: &ToolId) -> RefMut<dyn Tool + 'framework> {
+    pub fn get_tool(&self, id: &ToolId) -> RefMut<dyn Tool> {
         self.tools.get(id).expect("Not a valid id!").borrow_mut()
     }
 
-    pub fn primary_tool(&self) -> RefMut<dyn Tool + 'framework> {
+    pub fn primary_tool(&self) -> RefMut<dyn Tool> {
         self.primary_tool.borrow_mut()
     }
     pub fn primary_tool_id(&self) -> &ToolId {
         &self.primary_tool_id
     }
 
-    pub fn for_each_tool<F: FnMut(&ToolId, Ref<dyn Tool + 'framework>)>(&self, mut f: F) {
+    pub fn for_each_tool<F: FnMut(&ToolId, Ref<dyn Tool>)>(&self, mut f: F) {
         for (id, tool) in self.tools.iter() {
             f(id, tool.borrow());
         }

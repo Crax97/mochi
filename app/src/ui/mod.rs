@@ -14,16 +14,16 @@ use crate::{
 
 mod egui_ui;
 
-pub struct UiContext<'app, 'framework> {
+pub struct UiContext<'app> {
     pub image_editor: &'app mut ImageEditor,
     pub renderer: &'app mut Renderer,
     pub deferred_renderer: &'app mut Renderer,
-    pub toolbox: &'app mut Toolbox<'framework>,
+    pub toolbox: &'app mut Toolbox,
     pub input_state: &'app InputState,
     pub undo_stack: &'app mut UndoStack,
 
     pub stamping_engine: Rc<RefCell<StrokingEngine>>,
-    pub brush_tool: Rc<RefCell<BrushTool<'framework>>>,
+    pub brush_tool: Rc<RefCell<BrushTool>>,
 }
 
 pub trait Ui {
@@ -39,10 +39,6 @@ pub trait Ui {
     ) -> CommandBuffer;
 }
 
-pub fn create_ui(
-    framework: &Framework,
-    surface_configuration: &SurfaceConfiguration,
-    window: &Window,
-) -> impl Ui {
-    egui_ui::EguiUI::new(framework, surface_configuration, window)
+pub fn create_ui(surface_configuration: &SurfaceConfiguration, window: &Window) -> impl Ui {
+    egui_ui::EguiUI::new(surface_configuration, window)
 }

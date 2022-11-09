@@ -32,7 +32,7 @@ pub struct ImageEditorGlobals {
 }
 
 static INSTANCE: OnceCell<ImageEditorGlobals> = OnceCell::new();
-fn make_globals(framework: &Framework) -> ImageEditorGlobals {
+fn make_globals() -> ImageEditorGlobals {
     let info = ShaderCreationInfo::using_default_vertex_fragment().with_depth_state(Some(
         DepthStencilState {
             format: wgpu::TextureFormat::Depth24PlusStencil8,
@@ -111,7 +111,7 @@ fn make_globals(framework: &Framework) -> ImageEditorGlobals {
     let draw_masked_inverted_stencil_buffer_shader_id =
         framework::instance_mut().create_shader(info);
 
-    let dotted_module_descriptor = framework
+    let dotted_module_descriptor = framework::instance()
         .shader_compiler
         .compile_into_shader_description(
             "Dotted shader",
@@ -130,9 +130,9 @@ fn make_globals(framework: &Framework) -> ImageEditorGlobals {
     }
 }
 
-pub(crate) fn init_globals(framework: &Framework) {
+pub(crate) fn init_globals() {
     if let None = INSTANCE.get() {
-        INSTANCE.set(make_globals(framework)).unwrap();
+        INSTANCE.set(make_globals()).unwrap();
     }
 }
 

@@ -112,8 +112,8 @@ pub struct StrokingEngine {
 }
 
 impl StrokingEngine {
-    pub fn new(initial_stamp: Stamp, framework: &Framework) -> Self {
-        let brush_fragment = framework
+    pub fn new(initial_stamp: Stamp) -> Self {
+        let brush_fragment = framework::instance()
             .shader_compiler
             .compile(include_str!("brush_fragment.wgsl"))
             .unwrap();
@@ -138,7 +138,7 @@ impl StrokingEngine {
             },
         };
 
-        let brush_fragment = framework
+        let brush_fragment = framework::instance()
             .shader_compiler
             .compile(include_str!("brush_fragment.wgsl"))
             .unwrap();

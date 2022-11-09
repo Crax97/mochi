@@ -64,8 +64,7 @@ impl UndoStack {
     }
 }
 
-pub struct ImageApplication<'framework> {
-    pub(crate) framework: &'framework Framework,
+pub struct ImageApplication {
     pub(crate) window: Window,
     pub(crate) final_surface: Surface,
     pub(crate) final_surface_configuration: SurfaceConfiguration,
@@ -75,10 +74,10 @@ pub struct ImageApplication<'framework> {
     deferred_renderer: Renderer,
     image_editor: ImageEditor,
     input_state: InputState,
-    toolbox: Toolbox<'framework>,
+    toolbox: Toolbox,
     ui: Box<dyn Ui>,
     stamping_engine: Rc<RefCell<StrokingEngine>>,
-    brush_tool: Rc<RefCell<BrushTool<'framework>>>,
+    brush_tool: Rc<RefCell<BrushTool>>,
     #[allow(dead_code)]
     hand_tool: Rc<RefCell<HandTool>>,
     undo_stack: UndoStack,
@@ -89,29 +88,29 @@ pub struct ImageApplication<'framework> {
     #[allow(dead_code)]
     color_picker_id: ToolId,
 }
-impl<'framework> ImageApplication<'framework> {
-    pub(crate) fn new(window: Window, framework: &'framework Framework) -> Self {
-        let final_surface = unsafe { framework.instance.create_surface(&window) };
+impl ImageApplication {
+    pub(crate) fn new(window: Window) -> Self {
+        let final_surface = unsafe { framework::instance().instance.create_surface(&window) };
         let final_surface_configuration = SurfaceConfiguration {
             usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: final_surface.get_supported_formats(&framework.adapter)[0],
+            format: final_surface.get_supported_formats(&framework::instance().adapter)[0],
             width: window.inner_size().width,
             height: window.inner_size().height,
             present_mode: wgpu::PresentMode::Fifo,
         };
 
-        let image_editor = ImageEditor::new(&framework, &[1024.0, 1024.0]);
-        final_surface.configure(&framework.device, &final_surface_configuration);
+        let image_editor = ImageEditor::new(&[1024.0, 1024.0]);
+        final_surface.configure(&framework::instance().device, &final_surface_configuration);
 
-        let test_stamp = Toolbox::create_test_stamp(framework);
-        let stamping_engine = StrokingEngine::new(test_stamp, framework);
+        let test_stamp = Toolbox::create_test_stamp();
+        let stamping_engine = StrokingEngine::new(test_stamp);
         let stamping_engine = Rc::new(RefCell::new(stamping_engine));
         let brush_tool = Rc::new(RefCell::new(BrushTool::new(stamping_engine.clone(), 1.0)));
         let hand_tool = Rc::new(RefCell::new(HandTool::new()));
         let color_picker = Rc::new(RefCell::new(ColorPicker::new(stamping_engine.clone())));
         let move_tool = Rc::new(RefCell::new(TransformLayerTool::new()));
         let test_tool = Rc::new(RefCell::new(DebugSelectRegionTool::new()));
-        let rect_select_tool = Rc::new(RefCell::new(RectSelectionTool::new(framework)));
+        let rect_select_tool = Rc::new(RefCell::new(RectSelectionTool::new()));
 
         let (mut toolbox, brush_id) = Toolbox::new(brush_tool.clone());
         let _ = toolbox.add_tool(hand_tool.clone());
@@ -124,13 +123,12 @@ impl<'framework> ImageApplication<'framework> {
 
         ImageApplication::read_action_bindings(&mut action_map);
 
-        let ui = ui::create_ui(&framework, &final_surface_configuration, &window);
+        let ui = ui::create_ui(&final_surface_configuration, &window);
 
         let instant_renderer = Renderer::new();
         let deferred_renderer = Renderer::new();
 
         Self {
-            framework,
             window,
             instant_renderer,
             deferred_renderer,
@@ -172,13 +170,13 @@ impl<'framework> ImageApplication<'framework> {
             usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: self
                 .final_surface
-                .get_supported_formats(&self.framework.adapter)[0],
+                .get_supported_formats(&framework::instance().adapter)[0],
             width: new_size.width as u32,
             height: new_size.height as u32,
             present_mode: wgpu::PresentMode::Fifo,
         };
         self.final_surface
-            .configure(&self.framework.device, &new_surface_configuration);
+            .configure(&framework::instance().device, &new_surface_configuration);
         self.final_surface_configuration = new_surface_configuration;
         self.image_editor.on_resize(left_right_top_bottom);
     }
@@ -263,14 +261,14 @@ impl<'framework> ImageApplication<'framework> {
                 let surface_configuration = self.final_surface_configuration.clone();
 
                 let ui_command = self.ui.present(
-                    &self.framework,
+                    &framework::instance(),
                     &self.window,
                     surface_configuration,
                     &app_surface_view,
                 );
                 commands.push(ui_command);
 
-                self.framework.queue.submit(commands);
+                framework::instance().queue.submit(commands);
                 current_texture.present();
             }
             _ => {}

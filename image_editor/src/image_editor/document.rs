@@ -58,7 +58,7 @@ pub struct DocumentCreationInfo {
 }
 
 impl Document {
-    pub fn new(config: DocumentCreationInfo, framework: &Framework) -> Self {
+    pub fn new(config: DocumentCreationInfo) -> Self {
         let final_layer_1 = BitmapLayer::new(BitmapLayerConfiguration {
             label: "Double Buffering Layer 1".to_owned(),
             width: config.width,

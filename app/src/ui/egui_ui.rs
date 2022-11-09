@@ -35,11 +35,7 @@ pub struct EguiUI {
 }
 
 impl EguiUI {
-    pub(crate) fn new(
-        framework: &framework::Framework,
-        surface_configuration: &SurfaceConfiguration,
-        window: &Window,
-    ) -> Self {
+    pub(crate) fn new(surface_configuration: &SurfaceConfiguration, window: &Window) -> Self {
         Self {
             platform: egui_winit_platform::Platform::new(PlatformDescriptor {
                 physical_width: surface_configuration.width,
@@ -48,7 +44,11 @@ impl EguiUI {
                 font_definitions: FontDefinitions::default(),
                 style: Default::default(),
             }),
-            backend_pass: RenderPass::new(&framework.device, surface_configuration.format, 1),
+            backend_pass: RenderPass::new(
+                &framework::instance().device,
+                surface_configuration.format,
+                1,
+            ),
             new_layer_in_creation: None,
         }
     }

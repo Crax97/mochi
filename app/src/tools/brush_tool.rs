@@ -10,8 +10,8 @@ use crate::{
 
 use super::{BrushEngine, EditorCommand, StrokePath, Tool};
 
-pub struct BrushTool<'framework> {
-    engine: Rc<RefCell<dyn BrushEngine + 'framework>>,
+pub struct BrushTool {
+    engine: Rc<RefCell<dyn BrushEngine>>,
     is_active: bool,
     last_mouse_position: Point2<f32>,
     last_pressure: f32,
@@ -20,8 +20,8 @@ pub struct BrushTool<'framework> {
     pub step: f32,
 }
 
-impl<'framework> BrushTool<'framework> {
-    pub fn new(initial_engine: Rc<RefCell<dyn BrushEngine + 'framework>>, step: f32) -> Self {
+impl BrushTool {
+    pub fn new(initial_engine: Rc<RefCell<dyn BrushEngine>>, step: f32) -> Self {
         Self {
             engine: initial_engine.clone(),
             step,
@@ -41,7 +41,7 @@ impl<'framework> BrushTool<'framework> {
     }
 }
 
-impl<'framework> Tool for BrushTool<'framework> {
+impl Tool for BrushTool {
     fn on_pointer_click(
         &mut self,
         pointer_click: PointerEvent,

@@ -32,19 +32,16 @@ pub struct ImageEditor {
 }
 
 impl ImageEditor {
-    pub fn new(framework: &Framework, initial_window_bounds: &[f32; 2]) -> Self {
-        image_editor::init_globals(framework);
+    pub fn new(initial_window_bounds: &[f32; 2]) -> Self {
+        image_editor::init_globals();
 
         let test_width = 1800;
         let test_height = 1024;
-        let test_document = Document::new(
-            DocumentCreationInfo {
-                width: test_width,
-                height: test_height,
-                first_layer_color: [0.0, 0.0, 0.0, 1.0],
-            },
-            framework,
-        );
+        let test_document = Document::new(DocumentCreationInfo {
+            width: test_width,
+            height: test_height,
+            first_layer_color: [0.0, 0.0, 0.0, 1.0],
+        });
         let left_right_top_bottom = [
             -initial_window_bounds[0] * 0.5,
             initial_window_bounds[0] * 0.5,

@@ -28,7 +28,7 @@ pub struct RectSelectionTool {
 }
 
 impl RectSelectionTool {
-    pub fn new(framework: &Framework) -> Self {
+    pub fn new() -> Self {
         Self {
             is_active: false,
             first_click_position: Point2::origin(),

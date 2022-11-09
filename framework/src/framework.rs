@@ -83,7 +83,7 @@ impl std::fmt::Display for AdapterCreationError {
 impl std::error::Error for AdapterCreationError {}
 
 impl<'a> Framework {
-    pub fn new(device_descriptor: &DeviceDescriptor<'a>) -> Result<Self> {
+    pub(crate) fn new(device_descriptor: &DeviceDescriptor<'a>) -> Result<Self> {
         let instance = wgpu::Instance::new(Backends::all());
         let adapter = pollster::block_on(async {
             instance
