@@ -5,7 +5,7 @@ use framework::renderer::renderer::Renderer;
 use framework::scene::Camera2d;
 use framework::shader::{BindElement, ShaderCreationInfo};
 use framework::{Framework, Transform2d};
-use wgpu::{TextureFormat, TextureView};
+use wgpu::TextureFormat;
 
 use crate::document::DocumentCreationInfo;
 use crate::image_editor;

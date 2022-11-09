@@ -1,7 +1,4 @@
-use super::{
-    image_editor,
-    layers::{Layer, LayerIndex, RootLayer},
-};
+use super::layers::{Layer, LayerIndex, RootLayer};
 use crate::{
     blend_settings::{BlendSettings, BlendSettingsUniform},
     global_selection_data,
@@ -18,7 +15,7 @@ use framework::{
 use framework::{
     framework::TextureId, renderer::renderer::Renderer, scene::Camera2d, BufferConfiguration,
 };
-use image::{DynamicImage, Frame, ImageBuffer};
+use image::{DynamicImage, ImageBuffer};
 
 use framework::framework::ShaderId;
 use std::collections::HashMap;

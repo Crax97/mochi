@@ -1,23 +1,8 @@
-use std::borrow::Cow;
-
 use crate::tools::{EditorContext, PointerEvent};
-use cgmath::{vec2, EuclideanSpace, Point2};
-use framework::{
-    framework::{DepthStencilTextureId, ShaderId, TextureId},
-    renderer::draw_command::{DrawCommand, DrawMode, OptionalDrawData, PrimitiveType},
-    shader::{BindElement, ShaderCreationInfo},
-    Box2d, Camera2d, DepthStencilTextureConfiguration, Framework, Texture2dConfiguration,
-    Transform2d,
-};
-use image::{DynamicImage, RgbaImage};
-use image_editor::{
-    layers::{BitmapLayer, BitmapLayerConfiguration, Layer, LayerCreationInfo},
-    selection::SelectionShape,
-    LayerConstructionInfo,
-};
-use wgpu::{
-    DepthBiasState, DepthStencilState, ShaderModuleDescriptor, StencilFaceState, StencilState,
-};
+use cgmath::{EuclideanSpace, Point2};
+
+use framework::Box2d;
+use image_editor::selection::SelectionShape;
 
 use super::{tool::Tool, EditorCommand};
 

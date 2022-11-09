@@ -5,11 +5,6 @@ pub mod image_editor_event;
 pub mod layers;
 pub mod selection;
 
-use std::sync::Mutex;
-use std::sync::MutexGuard;
-use std::sync::RwLock;
-use std::sync::RwLockReadGuard;
-
 use framework::framework::ShaderId;
 use framework::shader::BindElement;
 use framework::shader::ShaderCreationInfo;
