@@ -8,9 +8,8 @@ use wgpu::*;
 use crate::{
     shader::{Shader, ShaderCompiler, ShaderCreationInfo},
     texture2d::GpuImageData,
-    AssetId, AssetMap, AssetRef, AssetRefMut, AssetsLibrary, DepthStencilTexture,
-    DepthStencilTextureConfiguration, Mesh, MeshConstructionDetails, Texture2d,
-    Texture2dConfiguration,
+    AssetId, AssetMap, AssetsLibrary, DepthStencilTexture, DepthStencilTextureConfiguration, Mesh,
+    MeshConstructionDetails, Texture2d, Texture2dConfiguration,
 };
 
 use super::buffer::{Buffer, BufferConfiguration};
@@ -149,7 +148,7 @@ impl<'a> Framework {
         self.allocated_textures.insert(tex)
     }
 
-    pub(crate) fn texture2d<'r>(&'r self, id: &TextureId) -> AssetRef<'r, Texture2d> {
+    pub(crate) fn texture2d<'r>(&'r self, id: &TextureId) -> &'r Texture2d {
         todo!()
     }
 
@@ -183,7 +182,7 @@ impl<'a> Framework {
         self.allocated_meshes.insert(mesh)
     }
 
-    pub fn mesh<'r>(&'r self, id: &MeshId) -> AssetRef<'r, Mesh> {
+    pub fn mesh<'r>(&'r self, id: &MeshId) -> &'r Mesh {
         todo!()
     }
 }
@@ -195,7 +194,7 @@ impl<'a> Framework {
         self.allocated_shaders.insert(shader)
     }
 
-    pub(crate) fn shader(&self, id: &ShaderId) -> AssetRef<Shader> {
+    pub(crate) fn shader(&self, id: &ShaderId) -> &Shader {
         todo!()
     }
 }
@@ -269,10 +268,7 @@ impl<'a> Framework {
         self.allocated_depth_stencil_textures.insert(depth_stencil)
     }
 
-    pub fn depth_stencil_texture(
-        &self,
-        id: &DepthStencilTextureId,
-    ) -> AssetRef<DepthStencilTexture> {
+    pub fn depth_stencil_texture(&self, id: &DepthStencilTextureId) -> &DepthStencilTexture {
         todo!()
     }
 }

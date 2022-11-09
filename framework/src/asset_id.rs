@@ -3,11 +3,7 @@ use std::{
     collections::HashMap,
     fmt::Debug,
     marker::PhantomData,
-    ops::{Deref, DerefMut},
-    sync::{
-        atomic::{AtomicU32, Ordering},
-        Arc,
-    },
+    sync::atomic::{AtomicU32, Ordering},
 };
 
 use crossbeam_channel::{Receiver, Sender};
@@ -45,37 +41,6 @@ pub(crate) struct AssetMap<T> {
     map: HashMap<Uuid, RefCounted<T>>,
     event_receiver: Receiver<RefEvent<Uuid>>,
     event_sender: Sender<RefEvent<Uuid>>,
-}
-pub struct AssetRef<'a, T> {
-    pub(crate) in_ref: Ref<'a, AssetMap<T>>,
-    pub(crate) id: AssetId<T>,
-}
-
-impl<'a, T> Deref for AssetRef<'a, T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        &self.in_ref.map.get(&self.id.index).unwrap().value
-    }
-}
-
-pub struct AssetRefMut<'a, T> {
-    pub(crate) in_ref: RefMut<'a, AssetMap<T>>,
-    pub(crate) id: AssetId<T>,
-}
-
-impl<'a, T> Deref for AssetRefMut<'a, T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        &self.in_ref.map.get(&self.id.index).unwrap().value
-    }
-}
-
-impl<'a, T> DerefMut for AssetRefMut<'a, T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.in_ref.map.get_mut(&self.id.index).unwrap().value
-    }
 }
 
 pub struct AssetId<T> {

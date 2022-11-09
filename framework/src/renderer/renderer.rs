@@ -10,32 +10,29 @@ use crate::{
     framework::{self, BufferId, DepthStencilTextureId, MeshId, ShaderId, TextureId},
     instance, instance_mut,
     shader::{Shader, ShaderCreationInfo},
-    AssetRef, Buffer, BufferConfiguration, BufferType, Camera2d, Camera2dUniformBlock,
-    DepthStencilTexture, Framework, Mesh, MeshConstructionDetails, MeshInstance2D, Texture2d,
-    Texture2dConfiguration, Vertex,
+    Buffer, BufferConfiguration, BufferType, Camera2d, Camera2dUniformBlock, DepthStencilTexture,
+    Framework, Mesh, MeshConstructionDetails, MeshInstance2D, Texture2d, Texture2dConfiguration,
+    Vertex,
 };
 
 use super::draw_command::{BindableResource, DrawCommand, DrawMode, PrimitiveType};
 
 enum ResolvedResourceType<'a> {
-    UniformBuffer(AssetRef<'a, Buffer>),
+    UniformBuffer(&'a Buffer),
     EmptyBindGroup,
-    Texture(AssetRef<'a, Texture2d>),
+    Texture(&'a Texture2d),
 }
 
 enum ResolvedDrawType<'a> {
-    Instanced {
-        buffer: AssetRef<'a, Buffer>,
-        elements: u32,
-    },
+    Instanced { buffer: &'a Buffer, elements: u32 },
     Separate(Vec<ResolvedResourceType<'a>>),
 }
 
 struct ResolvedDrawCommand<'a> {
-    mesh: AssetRef<'a, Mesh>,
+    mesh: &'a Mesh,
     draw_type: ResolvedDrawType<'a>,
-    shader: AssetRef<'a, Shader>,
-    vertex_buffers: Vec<AssetRef<'a, Buffer>>,
+    shader: &'a Shader,
+    vertex_buffers: Vec<&'a Buffer>,
     bindable_resources: Vec<(u32, ResolvedResourceType<'a>)>,
 }
 
@@ -209,12 +206,11 @@ impl Renderer {
         output: &TextureView,
         depth_stencil_output: Option<&DepthStencilTexture>,
     ) {
-        // let mut command_encoder = self.create_command_encoder();
-        // self.execute_draw_queue(&mut command_encoder, output, depth_stencil_output);
-        // self.submit_frame(command_encoder);
+        let mut command_encoder = self.create_command_encoder();
+        self.execute_draw_queue(&mut command_encoder, output, depth_stencil_output);
+        self.submit_frame(command_encoder);
     }
 
-    /*
     fn create_command_encoder(&self) -> CommandEncoder {
         let command_encoder_description = CommandEncoderDescriptor {
             label: Some("Framework Renderer command descriptor"),
@@ -353,7 +349,7 @@ impl Renderer {
     fn bind_vertex_buffer<'a>(
         &self,
         idx: u32,
-        buffer: &'a AssetRef<'a, Buffer>,
+        buffer: &'a Buffer,
         render_pass: &mut RenderPass<'a>,
     ) {
         debug_assert!(buffer.config.buffer_type == BufferType::Vertex);
@@ -373,7 +369,7 @@ impl Renderer {
         render_pass.set_bind_group(idx, bind_group, &[])
     }
 
-    fn pick_mesh_from_draw_type<'a>(&'a self, draw_type: &PrimitiveType) -> AssetRef<'a, Mesh> {
+    fn pick_mesh_from_draw_type<'a>(&'a self, draw_type: &PrimitiveType) -> &'a Mesh {
         let mesh_id = match draw_type {
             PrimitiveType::Noop => unreachable!(),
             PrimitiveType::Texture2D { .. } | PrimitiveType::Rect { .. } => &self.quad_mesh_id, // Pick quad mesh
@@ -381,7 +377,7 @@ impl Renderer {
         instance().mesh(&mesh_id)
     }
 
-    fn pick_shader_from_command(&self, command: &DrawCommand) -> AssetRef<'f, Shader> {
+    fn pick_shader_from_command(&self, command: &DrawCommand) -> &Shader {
         let shader_id = if let Some(shader_id) = command.additional_data.shader.as_ref() {
             &shader_id
         } else {
@@ -399,7 +395,7 @@ impl Renderer {
         instance().shader(shader_id)
     }
 
-    fn resolve_vertex_buffers(&self, command: &DrawCommand) -> Vec<AssetRef<'f, Buffer>> {
+    fn resolve_vertex_buffers(&self, command: &DrawCommand) -> Vec<&Buffer> {
         command
             .additional_data
             .additional_vertex_buffers
@@ -455,7 +451,7 @@ impl Renderer {
                     (1, ResolvedResourceType::EmptyBindGroup),
                     (
                         Renderer::DIFFUSE_BIND_GROUP_LOCATION,
-                        ResolvedResourceType::Texture(self.framework.texture2d(texture_id)),
+                        ResolvedResourceType::Texture(crate::instance().texture2d(texture_id)),
                     ),
                 ]
             }
@@ -465,7 +461,7 @@ impl Renderer {
                     (
                         Renderer::DIFFUSE_BIND_GROUP_LOCATION,
                         ResolvedResourceType::Texture(
-                            self.framework.texture2d(&self.white_texture_id),
+                            crate::instance().texture2d(&self.white_texture_id),
                         ),
                     ),
                 ]
@@ -501,14 +497,14 @@ impl Renderer {
                         )
                     })
                     .collect();
-                let buffer_id = self.framework.allocate_typed_buffer(BufferConfiguration {
+                let buffer_id = crate::instance_mut().allocate_typed_buffer(BufferConfiguration {
                     initial_setup: BufferInitialSetup::Data(&mesh_instances_2d),
                     buffer_type: BufferType::Vertex,
                     allow_write: false,
                     allow_read: true,
                 });
                 ResolvedDrawType::Instanced {
-                    buffer: self.framework.buffer(&buffer_id),
+                    buffer: crate::instance().buffer(&buffer_id),
                     elements: instances.len() as u32,
                 }
             }
@@ -528,14 +524,14 @@ impl Renderer {
                         )
                     })
                     .collect();
-                let buffer_id = self.framework.allocate_typed_buffer(BufferConfiguration {
+                let buffer_id = crate::instance_mut().allocate_typed_buffer(BufferConfiguration {
                     initial_setup: BufferInitialSetup::Data(&mesh_instances_2d),
                     buffer_type: BufferType::Vertex,
                     allow_write: false,
                     allow_read: true,
                 });
                 ResolvedDrawType::Instanced {
-                    buffer: self.framework.buffer(&buffer_id),
+                    buffer: crate::instance_mut().buffer(&buffer_id),
                     elements: rects.len() as u32,
                 }
             }
@@ -563,7 +559,7 @@ impl Renderer {
                         )
                     })
                     .map(|instance| {
-                        self.framework.allocate_typed_buffer(BufferConfiguration {
+                        crate::instance_mut().allocate_typed_buffer(BufferConfiguration {
                             initial_setup: BufferInitialSetup::Data(&vec![instance]),
                             buffer_type: BufferType::Uniform,
                             allow_write: false,
@@ -571,7 +567,7 @@ impl Renderer {
                         })
                     })
                     .map(|buffer_id| {
-                        ResolvedResourceType::UniformBuffer(self.framework.buffer(&buffer_id))
+                        ResolvedResourceType::UniformBuffer(crate::instance().buffer(&buffer_id))
                     });
                 ResolvedDrawType::Separate(instances.collect())
             }
@@ -591,7 +587,7 @@ impl Renderer {
                         )
                     })
                     .map(|instance| {
-                        self.framework.allocate_typed_buffer(BufferConfiguration {
+                        crate::instance_mut().allocate_typed_buffer(BufferConfiguration {
                             initial_setup: BufferInitialSetup::Data(&vec![instance]),
                             buffer_type: BufferType::Uniform,
                             allow_write: false,
@@ -599,11 +595,10 @@ impl Renderer {
                         })
                     })
                     .map(|buffer_id| {
-                        ResolvedResourceType::UniformBuffer(self.framework.buffer(&buffer_id))
+                        ResolvedResourceType::UniformBuffer(crate::instance().buffer(&buffer_id))
                     });
                 ResolvedDrawType::Separate(instances.collect())
             }
         }
     }
-    */
 }
