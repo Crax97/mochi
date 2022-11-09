@@ -7,7 +7,7 @@ use framework::{
         draw_command::{DrawCommand, DrawMode, OptionalDrawData, PrimitiveType},
         renderer::Renderer,
     },
-    Camera2d, Framework, Texture2dConfiguration, Transform2d,
+    Camera2d, Texture2dConfiguration, Transform2d,
 };
 
 pub struct BitmapLayerConfiguration {
@@ -22,7 +22,7 @@ pub struct BitmapLayer {
 }
 
 impl BitmapLayer {
-    pub fn new(framework: &Framework, configuration: BitmapLayerConfiguration) -> Self {
+    pub fn new(configuration: BitmapLayerConfiguration) -> Self {
         let bytes: Vec<u32> = (1..(configuration.width * configuration.height) + 1)
             .map(|_| {
                 let bg = configuration.initial_background_color;
@@ -34,17 +34,13 @@ impl BitmapLayer {
             })
             .collect();
         let bytes = bytemuck::cast_slice(&bytes);
-        Self::new_from_bytes(framework, &bytes, configuration)
+        Self::new_from_bytes(&bytes, configuration)
     }
 
-    pub fn new_from_bytes(
-        framework: &Framework,
-        bytes: &[u8],
-        configuration: BitmapLayerConfiguration,
-    ) -> Self {
+    pub fn new_from_bytes(bytes: &[u8], configuration: BitmapLayerConfiguration) -> Self {
         let format = wgpu::TextureFormat::Rgba8UnormSrgb;
 
-        let texture = framework.allocate_texture2d(
+        let texture = framework::instance_mut().allocate_texture2d(
             Texture2dConfiguration {
                 debug_name: Some(configuration.label.clone() + " Texture"),
                 width: configuration.width,

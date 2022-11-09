@@ -69,11 +69,11 @@ pub struct ImageApplication<'framework> {
     pub(crate) window: Window,
     pub(crate) final_surface: Surface,
     pub(crate) final_surface_configuration: SurfaceConfiguration,
-    instant_renderer: Renderer<'framework>,
+    instant_renderer: Renderer,
     // This has nothing to do with deferred rendering: deferred in this context means that end will be called
     // at the end of layer rendering, and that tools must not call end (place a check for this)
-    deferred_renderer: Renderer<'framework>,
-    image_editor: ImageEditor<'framework>,
+    deferred_renderer: Renderer,
+    image_editor: ImageEditor,
     input_state: InputState,
     toolbox: Toolbox<'framework>,
     ui: Box<dyn Ui>,
@@ -126,8 +126,8 @@ impl<'framework> ImageApplication<'framework> {
 
         let ui = ui::create_ui(&framework, &final_surface_configuration, &window);
 
-        let instant_renderer = Renderer::new(framework);
-        let deferred_renderer = Renderer::new(framework);
+        let instant_renderer = Renderer::new();
+        let deferred_renderer = Renderer::new();
 
         Self {
             framework,
@@ -277,7 +277,7 @@ impl<'framework> ImageApplication<'framework> {
         }
 
         self.window.request_redraw();
-        self.framework.update_asset_maps();
+        framework::instance_mut().update_asset_maps();
         ControlFlow::Wait
     }
 

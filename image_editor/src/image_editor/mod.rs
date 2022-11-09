@@ -33,7 +33,7 @@ pub struct ImageEditorGlobals {
 
 static INSTANCE: OnceCell<ImageEditorGlobals> = OnceCell::new();
 fn make_globals(framework: &Framework) -> ImageEditorGlobals {
-    let info = ShaderCreationInfo::using_default_vertex_fragment(framework).with_depth_state(Some(
+    let info = ShaderCreationInfo::using_default_vertex_fragment().with_depth_state(Some(
         DepthStencilState {
             format: wgpu::TextureFormat::Depth24PlusStencil8,
             depth_write_enabled: false,
@@ -57,8 +57,8 @@ fn make_globals(framework: &Framework) -> ImageEditorGlobals {
             bias: DepthBiasState::default(),
         },
     ));
-    let draw_on_stencil_buffer_shader_id = framework.create_shader(info);
-    let info = ShaderCreationInfo::using_default_vertex_fragment(framework).with_depth_state(Some(
+    let draw_on_stencil_buffer_shader_id = framework::instance_mut().create_shader(info);
+    let info = ShaderCreationInfo::using_default_vertex_fragment().with_depth_state(Some(
         DepthStencilState {
             format: wgpu::TextureFormat::Depth24PlusStencil8,
             depth_write_enabled: false,
@@ -82,9 +82,9 @@ fn make_globals(framework: &Framework) -> ImageEditorGlobals {
             bias: DepthBiasState::default(),
         },
     ));
-    let draw_masked_stencil_buffer_shader_id = framework.create_shader(info);
+    let draw_masked_stencil_buffer_shader_id = framework::instance_mut().create_shader(info);
 
-    let info = ShaderCreationInfo::using_default_vertex_fragment(framework).with_depth_state(Some(
+    let info = ShaderCreationInfo::using_default_vertex_fragment().with_depth_state(Some(
         DepthStencilState {
             format: wgpu::TextureFormat::Depth24PlusStencil8,
             depth_write_enabled: false,
@@ -108,7 +108,8 @@ fn make_globals(framework: &Framework) -> ImageEditorGlobals {
             bias: DepthBiasState::default(),
         },
     ));
-    let draw_masked_inverted_stencil_buffer_shader_id = framework.create_shader(info);
+    let draw_masked_inverted_stencil_buffer_shader_id =
+        framework::instance_mut().create_shader(info);
 
     let dotted_module_descriptor = framework
         .shader_compiler
@@ -117,9 +118,9 @@ fn make_globals(framework: &Framework) -> ImageEditorGlobals {
             include_str!("shaders/dotted_selection.wgsl"),
         )
         .unwrap();
-    let dotted_info = ShaderCreationInfo::using_default_vertex(framework, dotted_module_descriptor)
+    let dotted_info = ShaderCreationInfo::using_default_vertex(dotted_module_descriptor)
         .with_bind_element(BindElement::Texture); // 2: diffuse texture + sampler
-    let dotted_shader = framework.create_shader(dotted_info);
+    let dotted_shader = framework::instance_mut().create_shader(dotted_info);
 
     ImageEditorGlobals {
         draw_on_stencil_buffer_shader_id,

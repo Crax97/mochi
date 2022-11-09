@@ -4,9 +4,9 @@ use framework::renderer::renderer::Renderer;
 use crate::EditorCommand;
 use image_editor::ImageEditor;
 
-pub struct EditorContext<'editor, 'framework> {
-    pub image_editor: &'editor mut ImageEditor<'framework>,
-    pub renderer: &'editor mut Renderer<'framework>,
+pub struct EditorContext<'editor> {
+    pub image_editor: &'editor mut ImageEditor,
+    pub renderer: &'editor mut Renderer,
 }
 
 #[derive(Debug, Clone, Copy)]

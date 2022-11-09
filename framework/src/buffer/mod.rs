@@ -193,11 +193,8 @@ impl Buffer {
         data.iter().map(|b| *b).collect()
     }
 
-    pub(crate) fn write_sync<T: bytemuck::Pod + bytemuck::Zeroable>(
-        &mut self,
-        framework: &'_ Framework,
-        data: &Vec<T>,
-    ) {
+    pub(crate) fn write_sync<T: bytemuck::Pod + bytemuck::Zeroable>(&mut self, data: &Vec<T>) {
+        let framework = crate::instance();
         let queue = &framework.queue;
         let length = data.as_slice().len();
         let current_items = self.buffer.num_items;

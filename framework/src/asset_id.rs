@@ -4,8 +4,10 @@ use std::{
     fmt::Debug,
     marker::PhantomData,
     ops::{Deref, DerefMut},
-    rc::Rc,
-    sync::atomic::{AtomicU32, Ordering},
+    sync::{
+        atomic::{AtomicU32, Ordering},
+        Arc,
+    },
 };
 
 use crossbeam_channel::{Receiver, Sender};
@@ -39,15 +41,13 @@ impl<T: Debug> Debug for RefCounted<T> {
     }
 }
 
-pub(crate) struct InnerAssetMap<T> {
+pub(crate) struct AssetMap<T> {
     map: HashMap<Uuid, RefCounted<T>>,
     event_receiver: Receiver<RefEvent<Uuid>>,
     event_sender: Sender<RefEvent<Uuid>>,
 }
-
-pub(crate) type AssetMap<T> = Rc<RefCell<InnerAssetMap<T>>>;
 pub struct AssetRef<'a, T> {
-    pub(crate) in_ref: Ref<'a, InnerAssetMap<T>>,
+    pub(crate) in_ref: Ref<'a, AssetMap<T>>,
     pub(crate) id: AssetId<T>,
 }
 
@@ -60,7 +60,7 @@ impl<'a, T> Deref for AssetRef<'a, T> {
 }
 
 pub struct AssetRefMut<'a, T> {
-    pub(crate) in_ref: RefMut<'a, InnerAssetMap<T>>,
+    pub(crate) in_ref: RefMut<'a, AssetMap<T>>,
     pub(crate) id: AssetId<T>,
 }
 
@@ -104,7 +104,7 @@ impl<T> Drop for AssetId<T> {
     }
 }
 
-impl<T> InnerAssetMap<T> {
+impl<T> AssetMap<T> {
     pub(crate) fn new() -> Self {
         let (event_sender, event_receiver) = crossbeam_channel::unbounded();
         Self {
@@ -156,7 +156,7 @@ impl<T> InnerAssetMap<T> {
     }
 }
 
-impl<T: Debug> Debug for InnerAssetMap<T> {
+impl<T: Debug> Debug for AssetMap<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("InnerAssetMap")
             .field("map", &self.map)

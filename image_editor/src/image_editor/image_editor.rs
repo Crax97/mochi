@@ -23,17 +23,16 @@ pub struct LayerConstructionInfo {
     pub height: u32,
 }
 
-pub struct ImageEditor<'framework> {
-    framework: &'framework Framework,
+pub struct ImageEditor {
     pan_camera: Camera2d,
     layer_draw_shader: ShaderId,
 
-    document: Document<'framework>,
+    document: Document,
     final_present_shader: ShaderId,
 }
 
-impl<'framework> ImageEditor<'framework> {
-    pub fn new(framework: &'framework Framework, initial_window_bounds: &[f32; 2]) -> Self {
+impl ImageEditor {
+    pub fn new(framework: &Framework, initial_window_bounds: &[f32; 2]) -> Self {
         image_editor::init_globals(framework);
 
         let test_width = 1800;
@@ -59,37 +58,31 @@ impl<'framework> ImageEditor<'framework> {
             test_document.outer_size().y / initial_window_bounds[1]
         } * 1.5;
 
-        let final_present_shader_info =
-            ShaderCreationInfo::using_default_vertex_fragment(framework)
-                .with_output_format(TextureFormat::Bgra8UnormSrgb);
-        let final_present_shader = framework.create_shader(final_present_shader_info);
+        let final_present_shader_info = ShaderCreationInfo::using_default_vertex_fragment()
+            .with_output_format(TextureFormat::Bgra8UnormSrgb);
+        let final_present_shader =
+            framework::instance_mut().create_shader(final_present_shader_info);
         println!("Initial scale: {initial_camera_scale}");
         //pan_camera.set_scale(initial_camera_scale);
 
-        let layer_draw_shader = framework
+        let layer_draw_shader = framework::instance()
             .shader_compiler
             .compile_into_shader_description(
                 "Layer draw shader",
                 include_str!("layers/layer_fragment.wgsl"),
             )
             .unwrap();
-        let fucking_shader_info =
-            ShaderCreationInfo::using_default_vertex(framework, layer_draw_shader)
-                .with_bind_element(BindElement::Texture) // Bottom layer
-                .with_bind_element(BindElement::Texture) // Top layer
-                .with_bind_element(BindElement::UniformBuffer); // Blend settings
-        let layer_draw_shader = framework.create_shader(fucking_shader_info);
+        let fucking_shader_info = ShaderCreationInfo::using_default_vertex(layer_draw_shader)
+            .with_bind_element(BindElement::Texture) // Bottom layer
+            .with_bind_element(BindElement::Texture) // Top layer
+            .with_bind_element(BindElement::UniformBuffer); // Blend settings
+        let layer_draw_shader = framework::instance_mut().create_shader(fucking_shader_info);
         ImageEditor {
-            framework,
             pan_camera,
             document: test_document,
             final_present_shader,
             layer_draw_shader,
         }
-    }
-
-    pub fn framework(&'framework self) -> &'framework Framework {
-        self.framework
     }
 
     pub fn document(&self) -> &Document {
@@ -116,7 +109,7 @@ impl<'framework> ImageEditor<'framework> {
     }
 
     pub fn add_layer_to_document(&mut self, config: LayerConstructionInfo) -> LayerIndex {
-        self.document.add_layer(self.framework, config)
+        self.document.add_layer(config)
     }
 
     pub fn select_new_layer(&mut self, layer_idx: LayerIndex) {
@@ -135,10 +128,7 @@ impl<'framework> ImageEditor<'framework> {
         self.mutate_document(|d| d.update_layers(renderer));
     }
 
-    pub fn render_document<'s, 't>(&'s mut self, renderer: &mut Renderer)
-    where
-        'framework: 't,
-    {
+    pub fn render_document(&mut self, renderer: &mut Renderer) {
         self.document
             .render(renderer, self.layer_draw_shader.clone());
     }

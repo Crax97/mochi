@@ -41,7 +41,6 @@ impl<'framework> Toolbox<'framework> {
         let test_stamp_bytes = include_bytes!("test/test_brush.png");
         let image = image::load_from_memory(test_stamp_bytes).unwrap();
         let brush_bitmap = BitmapLayer::new_from_bytes(
-            &framework,
             image.as_bytes(),
             BitmapLayerConfiguration {
                 label: "Test brush".to_owned(),

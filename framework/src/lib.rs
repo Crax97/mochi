@@ -11,6 +11,8 @@ pub mod scene;
 pub mod shader;
 pub mod texture2d;
 
+use once_cell::sync::OnceCell;
+
 pub use asset_id::*;
 pub use asset_library::AssetsLibrary;
 pub use buffer::{Buffer, BufferConfiguration, BufferType};
@@ -29,3 +31,13 @@ pub use mesh::Vertices;
 pub use scene::*;
 pub use texture2d::Texture2d;
 pub use texture2d::Texture2dConfiguration;
+
+// static INSTANCE: OnceCell<Framework> = OnceCell::new();
+
+pub fn instance() -> &'static Framework {
+    todo!()
+}
+
+pub fn instance_mut() -> &'static mut Framework {
+    todo!()
+}

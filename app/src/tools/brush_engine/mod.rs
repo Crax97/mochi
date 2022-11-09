@@ -32,10 +32,10 @@ impl std::fmt::Display for StrokePath {
     }
 }
 
-pub struct StrokeContext<'editor, 'stroke, 'f> {
+pub struct StrokeContext<'editor, 'stroke> {
     pub layer: &'editor Layer,
-    pub editor: &'stroke ImageEditor<'editor>,
-    pub renderer: &'stroke mut Renderer<'f>,
+    pub editor: &'stroke ImageEditor,
+    pub renderer: &'stroke mut Renderer,
 }
 
 pub trait BrushEngine {

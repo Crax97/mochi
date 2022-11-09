@@ -7,7 +7,8 @@ use wgpu::{
 
 use crate::{
     buffer::BufferInitialSetup,
-    framework::{BufferId, DepthStencilTextureId, MeshId, ShaderId, TextureId},
+    framework::{self, BufferId, DepthStencilTextureId, MeshId, ShaderId, TextureId},
+    instance, instance_mut,
     shader::{Shader, ShaderCreationInfo},
     AssetRef, Buffer, BufferConfiguration, BufferType, Camera2d, Camera2dUniformBlock,
     DepthStencilTexture, Framework, Mesh, MeshConstructionDetails, MeshInstance2D, Texture2d,
@@ -38,9 +39,7 @@ struct ResolvedDrawCommand<'a> {
     bindable_resources: Vec<(u32, ResolvedResourceType<'a>)>,
 }
 
-pub struct Renderer<'f> {
-    framework: &'f Framework,
-
+pub struct Renderer {
     draw_queue: Vec<DrawCommand>,
     camera_buffer_id: BufferId,
     clear_color: Option<Color>,
@@ -61,10 +60,10 @@ pub struct Renderer<'f> {
     quad_mesh_id: MeshId,
 }
 
-impl<'f> Renderer<'f> {
+impl Renderer {
     const DIFFUSE_BIND_GROUP_LOCATION: u32 = 2;
 
-    fn construct_initial_quad(f: &Framework) -> MeshId {
+    fn construct_initial_quad() -> MeshId {
         let quad_mesh_vertices = [
             Vertex {
                 position: point3(-1.0, 1.0, 0.0),
@@ -92,40 +91,43 @@ impl<'f> Renderer<'f> {
             allow_editing: false,
             primitives: 6,
         };
-        f.allocate_mesh(construction_info)
+        crate::instance_mut().allocate_mesh(construction_info)
     }
 
-    fn empty_bind_group(framework: &Framework) -> BindGroup {
-        let layout = framework
+    fn empty_bind_group() -> BindGroup {
+        let layout =
+            crate::instance()
+                .device
+                .create_bind_group_layout(&BindGroupLayoutDescriptor {
+                    label: None,
+                    entries: &[],
+                });
+        crate::instance()
             .device
-            .create_bind_group_layout(&BindGroupLayoutDescriptor {
+            .create_bind_group(&BindGroupDescriptor {
                 label: None,
+                layout: &layout,
                 entries: &[],
-            });
-        framework.device.create_bind_group(&BindGroupDescriptor {
-            label: None,
-            layout: &layout,
-            entries: &[],
-        })
+            })
     }
 
-    pub fn new(framework: &'f Framework) -> Self {
-        let camera_buffer_id =
-            framework.allocate_typed_buffer(BufferConfiguration::<Camera2dUniformBlock> {
-                initial_setup: BufferInitialSetup::Count(1),
-                buffer_type: BufferType::Uniform,
-                allow_write: true,
-                allow_read: false,
-            });
-        let texture2d_instanced_shader_id =
-            framework.create_shader(Renderer::texture2d_shader_creation_info(framework));
-        let texture2d_single_shader_id =
-            framework.create_shader(ShaderCreationInfo::using_default_vertex_fragment(framework));
+    pub fn new() -> Self {
+        let camera_buffer_id = crate::instance_mut().allocate_typed_buffer(BufferConfiguration::<
+            Camera2dUniformBlock,
+        > {
+            initial_setup: BufferInitialSetup::Count(1),
+            buffer_type: BufferType::Uniform,
+            allow_write: true,
+            allow_read: false,
+        });
+        let texture2d_instanced_shader_id = todo!(); // framework.create_shader(Renderer::texture2d_shader_creation_info(framework));
+        let texture2d_single_shader_id = crate::instance_mut()
+            .create_shader(ShaderCreationInfo::using_default_vertex_fragment());
 
-        let quad_mesh_id = Renderer::construct_initial_quad(framework);
-        let empty_bind_group = Renderer::empty_bind_group(framework);
+        let quad_mesh_id = Renderer::construct_initial_quad();
+        let empty_bind_group = Renderer::empty_bind_group();
 
-        let white_texture_id = framework.allocate_texture2d(
+        let white_texture_id = crate::instance_mut().allocate_texture2d(
             Texture2dConfiguration {
                 debug_name: Some("White texture".to_string()),
                 width: 1,
@@ -139,7 +141,6 @@ impl<'f> Renderer<'f> {
         );
 
         Self {
-            framework,
             camera_buffer_id,
             draw_queue: vec![],
             clear_color: None,
@@ -160,7 +161,7 @@ impl<'f> Renderer<'f> {
 
     pub fn begin(&mut self, camera: &Camera2d, clear_color: Option<Color>) {
         self.clear_color = clear_color;
-        self.framework
+        instance_mut()
             .buffer_write_sync::<Camera2dUniformBlock>(&self.camera_buffer_id, vec![camera.into()]);
     }
 
@@ -196,9 +197,9 @@ impl<'f> Renderer<'f> {
         output: &TextureId,
         depth_stencil_output: Option<&DepthStencilTextureId>,
     ) {
-        let texture = self.framework.texture2d(output);
+        let texture = instance().texture2d(output);
         let depth_texture_view =
-            depth_stencil_output.map(|tex_id| self.framework.depth_stencil_texture(tex_id));
+            depth_stencil_output.map(|tex_id| instance().depth_stencil_texture(tex_id));
         self.end(&texture.texture_view, depth_texture_view.as_deref());
     }
 
@@ -207,16 +208,17 @@ impl<'f> Renderer<'f> {
         output: &TextureView,
         depth_stencil_output: Option<&DepthStencilTexture>,
     ) {
-        let mut command_encoder = self.create_command_encoder();
-        self.execute_draw_queue(&mut command_encoder, output, depth_stencil_output);
-        self.submit_frame(command_encoder);
+        // let mut command_encoder = self.create_command_encoder();
+        // self.execute_draw_queue(&mut command_encoder, output, depth_stencil_output);
+        // self.submit_frame(command_encoder);
     }
 
+    /*
     fn create_command_encoder(&self) -> CommandEncoder {
         let command_encoder_description = CommandEncoderDescriptor {
             label: Some("Framework Renderer command descriptor"),
         };
-        self.framework
+        instance()
             .device
             .create_command_encoder(&command_encoder_description)
     }
@@ -283,18 +285,18 @@ impl<'f> Renderer<'f> {
         }
         let commands = self.resolve_draw_commands();
         let camera_buffer =
-            ResolvedResourceType::UniformBuffer(self.framework.buffer(&self.camera_buffer_id));
+            ResolvedResourceType::UniformBuffer(instance().buffer(&self.camera_buffer_id));
         self.execute_commands(render_pass, &camera_buffer, &commands);
     }
 
     fn submit_frame(&mut self, command_encoder: CommandEncoder) {
-        self.framework
+        instance()
             .queue
             .submit(std::iter::once(command_encoder.finish()));
         self.draw_queue.clear();
     }
 
-    fn resolve_draw_commands(&'f self) -> Vec<ResolvedDrawCommand<'f>> {
+    fn resolve_draw_commands(&self) -> Vec<ResolvedDrawCommand> {
         self.draw_queue
             .iter()
             .map(|command| -> ResolvedDrawCommand {
@@ -375,7 +377,7 @@ impl<'f> Renderer<'f> {
             PrimitiveType::Noop => unreachable!(),
             PrimitiveType::Texture2D { .. } | PrimitiveType::Rect { .. } => &self.quad_mesh_id, // Pick quad mesh
         };
-        self.framework.mesh(&mesh_id)
+        instance().mesh(&mesh_id)
     }
 
     fn pick_shader_from_command(&self, command: &DrawCommand) -> AssetRef<'f, Shader> {
@@ -393,7 +395,7 @@ impl<'f> Renderer<'f> {
             }
         };
 
-        self.framework.shader(shader_id)
+        instance().shader(shader_id)
     }
 
     fn resolve_vertex_buffers(&self, command: &DrawCommand) -> Vec<AssetRef<'f, Buffer>> {
@@ -402,7 +404,7 @@ impl<'f> Renderer<'f> {
             .additional_vertex_buffers
             .iter()
             .map(|buf_id| {
-                let buffer = self.framework.buffer(buf_id);
+                let buffer = instance().buffer(buf_id);
                 debug_assert!(buffer.config.buffer_type == BufferType::Vertex);
                 buffer
             })
@@ -425,13 +427,13 @@ impl<'f> Renderer<'f> {
                     match &resource {
                         BindableResource::UniformBuffer(buf_id) => {
                             ResolvedResourceType::UniformBuffer({
-                                let buffer = self.framework.buffer(buf_id);
+                                let buffer = instance().buffer(buf_id);
                                 debug_assert!(buffer.config.buffer_type == BufferType::Uniform);
                                 buffer
                             })
                         }
                         BindableResource::Texture(tex_id) => {
-                            ResolvedResourceType::Texture(self.framework.texture2d(tex_id))
+                            ResolvedResourceType::Texture(instance().texture2d(tex_id))
                         }
                     },
                 )
@@ -606,4 +608,5 @@ impl<'f> Renderer<'f> {
             }
         }
     }
+    */
 }

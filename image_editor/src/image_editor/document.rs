@@ -34,8 +34,7 @@ struct LayerDrawInfo {
     layer_settings_buffer: BufferId,
 }
 
-pub struct Document<'framework> {
-    framework: &'framework Framework,
+pub struct Document {
     layers_created: u16,
 
     document_size: Vector2<u32>,
@@ -58,40 +57,30 @@ pub struct DocumentCreationInfo {
     pub first_layer_color: [f32; 4],
 }
 
-impl<'l> Document<'l> {
-    pub fn new(config: DocumentCreationInfo, framework: &'l Framework) -> Self {
-        let final_layer_1 = BitmapLayer::new(
-            framework,
-            BitmapLayerConfiguration {
-                label: "Double Buffering Layer 1".to_owned(),
-                width: config.width,
-                height: config.height,
-                initial_background_color: [0.5, 0.5, 0.5, 1.0],
-            },
-        );
-        let final_layer_2 = BitmapLayer::new(
-            framework,
-            BitmapLayerConfiguration {
-                label: "Double Buffering Layer 2".to_owned(),
-                width: config.width,
-                height: config.height,
-                initial_background_color: [0.5, 0.5, 0.5, 1.0],
-            },
-        );
-        let buffer_layer = BitmapLayer::new(
-            framework,
-            BitmapLayerConfiguration {
-                label: "Draw Buffer Layer".to_owned(),
-                width: config.width,
-                height: config.height,
-                initial_background_color: [0.5, 0.5, 0.5, 1.0],
-            },
-        );
+impl Document {
+    pub fn new(config: DocumentCreationInfo, framework: &Framework) -> Self {
+        let final_layer_1 = BitmapLayer::new(BitmapLayerConfiguration {
+            label: "Double Buffering Layer 1".to_owned(),
+            width: config.width,
+            height: config.height,
+            initial_background_color: [0.5, 0.5, 0.5, 1.0],
+        });
+        let final_layer_2 = BitmapLayer::new(BitmapLayerConfiguration {
+            label: "Double Buffering Layer 2".to_owned(),
+            width: config.width,
+            height: config.height,
+            initial_background_color: [0.5, 0.5, 0.5, 1.0],
+        });
+        let buffer_layer = BitmapLayer::new(BitmapLayerConfiguration {
+            label: "Draw Buffer Layer".to_owned(),
+            width: config.width,
+            height: config.height,
+            initial_background_color: [0.5, 0.5, 0.5, 1.0],
+        });
 
         let first_layer_index = LayerIndex(1);
 
         let mut document = Self {
-            framework,
             layers_created: 0,
             document_size: vec2(config.width, config.height),
             current_layer_index: first_layer_index,
@@ -107,24 +96,18 @@ impl<'l> Document<'l> {
             selection: Selection::default(),
         };
 
-        document.add_layer(
-            framework,
-            LayerConstructionInfo {
-                initial_color: [1.0, 1.0, 1.0, 1.0],
-                name: "Background Layer".into(),
-                width: document.document_size.x,
-                height: document.document_size.y,
-            },
-        );
-        document.add_layer(
-            framework,
-            LayerConstructionInfo {
-                initial_color: [0.0, 0.0, 0.0, 0.0],
-                name: "Layer 0".into(),
-                width: document.document_size.x,
-                height: document.document_size.y,
-            },
-        );
+        document.add_layer(LayerConstructionInfo {
+            initial_color: [1.0, 1.0, 1.0, 1.0],
+            name: "Background Layer".into(),
+            width: document.document_size.x,
+            height: document.document_size.y,
+        });
+        document.add_layer(LayerConstructionInfo {
+            initial_color: [0.0, 0.0, 0.0, 0.0],
+            name: "Layer 0".into(),
+            width: document.document_size.x,
+            height: document.document_size.y,
+        });
 
         document
     }
@@ -190,17 +173,18 @@ impl<'l> Document<'l> {
 
     pub fn copy_layer_selection_to_new_layer(&mut self, renderer: &mut Renderer, rect: Box2d) {
         let current_layer = self.current_layer();
-        let framework = self.framework;
-        let (width, height) = framework.texture2d_dimensions(current_layer.bitmap.texture());
-        let stencil_texture =
-            framework.allocate_depth_stencil_texture(DepthStencilTextureConfiguration {
+        let (width, height) =
+            framework::instance_mut().texture2d_dimensions(current_layer.bitmap.texture());
+        let stencil_texture = framework::instance_mut().allocate_depth_stencil_texture(
+            DepthStencilTextureConfiguration {
                 debug_name: Some("Selection tool depth stencil texture"),
                 width,
                 height,
                 is_stencil: true,
-            });
-        let format = framework.texture2d_format(current_layer.bitmap.texture());
-        let new_texture = framework.allocate_texture2d(
+            },
+        );
+        let format = framework::instance_mut().texture2d_format(current_layer.bitmap.texture());
+        let new_texture = framework::instance_mut().allocate_texture2d(
             Texture2dConfiguration {
                 debug_name: None,
                 width,
@@ -212,7 +196,7 @@ impl<'l> Document<'l> {
             },
             None,
         );
-        let old_texture_copy = framework.allocate_texture2d(
+        let old_texture_copy = framework::instance_mut().allocate_texture2d(
             Texture2dConfiguration {
                 debug_name: None,
                 width,
@@ -295,16 +279,13 @@ impl<'l> Document<'l> {
         renderer.end_on_texture(&old_texture_copy, Some(&stencil_texture));
 
         //5. Now add the new layer
-        let (width, height) = framework.texture2d_dimensions(&new_texture);
-        let new_index = self.add_layer(
-            framework,
-            LayerConstructionInfo {
-                initial_color: [0.0, 0.0, 0.0, 0.0],
-                name: current_layer.settings().name.clone() + " subregion",
-                width,
-                height,
-            },
-        );
+        let (width, height) = framework::instance().texture2d_dimensions(&new_texture);
+        let new_index = self.add_layer(LayerConstructionInfo {
+            initial_color: [0.0, 0.0, 0.0, 0.0],
+            name: current_layer.settings().name.clone() + " subregion",
+            width,
+            height,
+        });
         self.mutate_layer(&new_index, |layer| {
             layer.replace_texture(new_texture.clone())
         });
@@ -341,22 +322,15 @@ impl<'l> Document<'l> {
         self.layer_canvases.remove(removed_layer.uuid()).unwrap();
     }
 
-    pub(crate) fn add_layer(
-        &mut self,
-        framework: &'l Framework,
-        config: LayerConstructionInfo,
-    ) -> LayerIndex {
+    pub(crate) fn add_layer(&mut self, config: LayerConstructionInfo) -> LayerIndex {
         let layer_index = LayerIndex(self.layers_created);
         self.layers_created += 1;
-        let new_layer = BitmapLayer::new(
-            framework,
-            BitmapLayerConfiguration {
-                label: config.name.clone(),
-                width: config.width,
-                height: config.height,
-                initial_background_color: config.initial_color,
-            },
-        );
+        let new_layer = BitmapLayer::new(BitmapLayerConfiguration {
+            label: config.name.clone(),
+            width: config.width,
+            height: config.height,
+            initial_background_color: config.initial_color,
+        });
         let new_layer = Layer::new_bitmap(
             new_layer,
             LayerCreationInfo {
@@ -366,26 +340,24 @@ impl<'l> Document<'l> {
                 rotation_radians: 0.0,
             },
         );
-        let bitmap_canvas = BitmapLayer::new(
-            self.framework,
-            BitmapLayerConfiguration {
-                label: config.name,
-                width: self.document_size.x,
-                height: self.document_size.y,
-                initial_background_color: [0.0; 4],
-            },
-        );
+        let bitmap_canvas = BitmapLayer::new(BitmapLayerConfiguration {
+            label: config.name,
+            width: self.document_size.x,
+            height: self.document_size.y,
+            initial_background_color: [0.0; 4],
+        });
         let settings = BlendSettingsUniform::from(BlendSettings {
             blend_mode: new_layer.settings().blend_mode,
         });
-        let layer_settings_buffer = self.framework.allocate_typed_buffer(BufferConfiguration::<
-            BlendSettingsUniform,
-        > {
-            initial_setup: framework::buffer::BufferInitialSetup::Data(&vec![settings]),
-            buffer_type: framework::BufferType::Uniform,
-            allow_write: true,
-            allow_read: false,
-        });
+        let layer_settings_buffer =
+            framework::instance_mut().allocate_typed_buffer(BufferConfiguration::<
+                BlendSettingsUniform,
+            > {
+                initial_setup: framework::buffer::BufferInitialSetup::Data(&vec![settings]),
+                buffer_type: framework::BufferType::Uniform,
+                allow_write: true,
+                allow_read: false,
+            });
 
         let layer_draw_info = LayerDrawInfo {
             bitmap_canvas,
@@ -405,11 +377,7 @@ impl<'l> Document<'l> {
         for (_, layer) in self.layers.iter_mut() {
             let layer_info = self.layer_canvases.get(layer.uuid()).unwrap();
             if layer.needs_settings_update() {
-                Self::update_layer_settings(
-                    self.framework,
-                    layer,
-                    &layer_info.layer_settings_buffer,
-                );
+                Self::update_layer_settings(layer, &layer_info.layer_settings_buffer);
             }
 
             if layer.needs_bitmap_update() {
@@ -418,10 +386,7 @@ impl<'l> Document<'l> {
         }
     }
 
-    pub(crate) fn render<'tex>(&mut self, renderer: &mut Renderer, shader_to_use: ShaderId)
-    where
-        'l: 'tex,
-    {
+    pub(crate) fn render(&mut self, renderer: &mut Renderer, shader_to_use: ShaderId) {
         let draw_sequence = self.generate_draw_sequence();
 
         self.execute_draw_sequence_double_buffered(renderer, draw_sequence, shader_to_use)
@@ -526,9 +491,7 @@ impl<'l> Document<'l> {
     }
 
     pub fn final_image_bytes(&self) -> DynamicImage {
-        let bytes = self
-            .framework
-            .texture2d_read_data(self.final_layer().texture());
+        let bytes = framework::instance().texture2d_read_data(self.final_layer().texture());
         let width = bytes.width;
         let height = bytes.height;
         let data = bytes.to_bytes(true);
@@ -553,8 +516,8 @@ impl<'l> Document<'l> {
         }
     }
 
-    fn update_layer_settings(framework: &Framework, layer: &mut Layer, target: &BufferId) {
-        framework.buffer_write_sync(
+    fn update_layer_settings(layer: &mut Layer, target: &BufferId) {
+        framework::instance_mut().buffer_write_sync(
             target,
             vec![BlendSettingsUniform::from(BlendSettings {
                 blend_mode: layer.settings().blend_mode,

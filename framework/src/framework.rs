@@ -9,7 +9,7 @@ use crate::{
     shader::{Shader, ShaderCompiler, ShaderCreationInfo},
     texture2d::GpuImageData,
     AssetId, AssetMap, AssetRef, AssetRefMut, AssetsLibrary, DepthStencilTexture,
-    DepthStencilTextureConfiguration, InnerAssetMap, Mesh, MeshConstructionDetails, Texture2d,
+    DepthStencilTextureConfiguration, Mesh, MeshConstructionDetails, Texture2d,
     Texture2dConfiguration,
 };
 
@@ -106,40 +106,34 @@ impl<'a> Framework {
             device,
             queue,
             asset_library,
-            allocated_textures: Rc::new(RefCell::new(InnerAssetMap::new())),
-            allocated_depth_stencil_textures: Rc::new(RefCell::new(InnerAssetMap::new())),
-            allocated_buffers: Rc::new(RefCell::new(InnerAssetMap::new())),
-            allocated_shaders: Rc::new(RefCell::new(InnerAssetMap::new())),
-            allocated_meshes: Rc::new(RefCell::new(InnerAssetMap::new())),
+            allocated_textures: AssetMap::new(),
+            allocated_depth_stencil_textures: AssetMap::new(),
+            allocated_buffers: AssetMap::new(),
+            allocated_shaders: AssetMap::new(),
+            allocated_meshes: AssetMap::new(),
             shader_compiler,
         };
         Ok(framework)
     }
 
     pub fn allocate_typed_buffer<BufferType: bytemuck::Pod + bytemuck::Zeroable>(
-        &self,
+        &mut self,
         configuration: BufferConfiguration<BufferType>,
     ) -> BufferId {
         let buffer = Buffer::new(self, configuration);
 
-        self.allocated_buffers.borrow_mut().insert(buffer)
+        self.allocated_buffers.insert(buffer)
     }
 
-    pub(crate) fn buffer<'r>(&'r self, id: &BufferId) -> AssetRef<'r, Buffer> {
-        AssetRef {
-            in_ref: self.allocated_buffers.borrow(),
-            id: id.clone(),
-        }
+    pub(crate) fn buffer(&self, id: &BufferId) -> &Buffer {
+        todo!()
     }
-    pub(crate) fn buffer_mut<'r>(&'r self, id: &BufferId) -> AssetRefMut<'r, Buffer> {
-        AssetRefMut {
-            in_ref: self.allocated_buffers.borrow_mut(),
-            id: id.clone(),
-        }
+    pub(crate) fn buffer_mut(&mut self, id: &BufferId) -> &mut Buffer {
+        todo!()
     }
 
     pub fn allocate_texture2d<'r>(
-        &self,
+        &mut self,
         tex_info: Texture2dConfiguration,
         initial_data: Option<&[u8]>,
     ) -> TextureId {
@@ -152,14 +146,11 @@ impl<'a> Framework {
             );
             tex.write_data(data, &self);
         }
-        self.allocated_textures.borrow_mut().insert(tex)
+        self.allocated_textures.insert(tex)
     }
 
     pub(crate) fn texture2d<'r>(&'r self, id: &TextureId) -> AssetRef<'r, Texture2d> {
-        AssetRef {
-            in_ref: self.allocated_textures.borrow(),
-            id: id.clone(),
-        }
+        todo!()
     }
 
     pub fn log_info(&self) {
@@ -180,48 +171,42 @@ impl<'a> Framework {
         info!("\tUsing backend {}", backend_string);
     }
 
-    pub fn update_asset_maps(&self) {
-        self.allocated_buffers.borrow_mut().update();
-        self.allocated_shaders.borrow_mut().update();
-        self.allocated_textures.borrow_mut().update();
-        self.allocated_depth_stencil_textures.borrow_mut().update();
-        self.allocated_meshes.borrow_mut().update();
+    pub fn update_asset_maps(&mut self) {
+        self.allocated_buffers.update();
+        self.allocated_shaders.update();
+        self.allocated_textures.update();
+        self.allocated_depth_stencil_textures.update();
+        self.allocated_meshes.update();
     }
-    pub fn allocate_mesh(&self, construction_info: MeshConstructionDetails) -> MeshId {
+    pub fn allocate_mesh(&mut self, construction_info: MeshConstructionDetails) -> MeshId {
         let mesh = Mesh::new(self, construction_info);
-        self.allocated_meshes.borrow_mut().insert(mesh)
+        self.allocated_meshes.insert(mesh)
     }
 
     pub fn mesh<'r>(&'r self, id: &MeshId) -> AssetRef<'r, Mesh> {
-        AssetRef {
-            in_ref: self.allocated_meshes.borrow(),
-            id: id.clone(),
-        }
+        todo!()
     }
 }
 
 // Shaders
 impl<'a> Framework {
-    pub fn create_shader(&self, info: ShaderCreationInfo) -> ShaderId {
+    pub fn create_shader(&mut self, info: ShaderCreationInfo) -> ShaderId {
         let shader = Shader::new(&self, info);
-        self.allocated_shaders.borrow_mut().insert(shader)
+        self.allocated_shaders.insert(shader)
     }
 
     pub(crate) fn shader(&self, id: &ShaderId) -> AssetRef<Shader> {
-        AssetRef {
-            in_ref: self.allocated_shaders.borrow(),
-            id: id.clone(),
-        }
+        todo!()
     }
 }
 // Buffer
 impl<'a> Framework {
     pub fn buffer_write_sync<T: bytemuck::Pod + bytemuck::Zeroable>(
-        &self,
+        &mut self,
         id: &BufferId,
         data: Vec<T>,
     ) {
-        self.buffer_mut(id).write_sync(self, &data);
+        self.buffer_mut(id).write_sync(&data);
     }
 }
 
@@ -248,7 +233,7 @@ impl<'a> Framework {
         self.texture2d(id).read_data(self)
     }
     pub fn texture2d_copy_subregion(
-        &self,
+        &mut self,
         id: &TextureId,
         x: u32,
         y: u32,
@@ -277,22 +262,17 @@ impl<'a> Framework {
 // DepthStencilTexture
 impl<'a> Framework {
     pub fn allocate_depth_stencil_texture(
-        &self,
+        &mut self,
         config: DepthStencilTextureConfiguration,
     ) -> DepthStencilTextureId {
         let depth_stencil = DepthStencilTexture::new(&self, config);
-        self.allocated_depth_stencil_textures
-            .borrow_mut()
-            .insert(depth_stencil)
+        self.allocated_depth_stencil_textures.insert(depth_stencil)
     }
 
     pub fn depth_stencil_texture(
         &self,
         id: &DepthStencilTextureId,
     ) -> AssetRef<DepthStencilTexture> {
-        AssetRef {
-            in_ref: self.allocated_depth_stencil_textures.borrow(),
-            id: id.clone(),
-        }
+        todo!()
     }
 }
