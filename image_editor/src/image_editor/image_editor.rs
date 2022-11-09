@@ -162,6 +162,7 @@ impl<'framework> ImageEditor<'framework> {
                 shader: Some(self.final_present_shader.clone()),
             },
         });
+
         renderer.end(output_canvas, None);
     }
 

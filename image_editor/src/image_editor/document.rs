@@ -169,6 +169,25 @@ impl<'l> Document<'l> {
         &self.selection
     }
 
+    pub fn draw_selection(&self, renderer: &mut Renderer) {
+        for shape in self.selection.shapes.iter() {
+            match shape {
+                crate::selection::SelectionShape::Rectangle(rect) => {
+                    renderer.draw(DrawCommand {
+                        primitives: PrimitiveType::Rect {
+                            rects: vec![rect.clone()],
+                            multiply_color: wgpu::Color::RED,
+                        },
+                        draw_mode: DrawMode::Single,
+                        additional_data: OptionalDrawData::just_shader(Some(
+                            global_selection_data().dotted_shader.clone(),
+                        )),
+                    });
+                }
+            }
+        }
+    }
+
     pub fn copy_layer_selection_to_new_layer(&mut self, renderer: &mut Renderer, rect: Box2d) {
         let current_layer = self.current_layer();
         let framework = self.framework;

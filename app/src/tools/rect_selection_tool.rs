@@ -68,6 +68,10 @@ impl Tool for RectSelectionTool {
             }
             _ => {}
         }
+        context
+            .image_editor
+            .document()
+            .draw_selection(context.renderer);
         None
     }
 
@@ -86,22 +90,7 @@ impl Tool for RectSelectionTool {
         None
     }
 
-    fn draw(&self, renderer: &mut framework::renderer::renderer::Renderer) {
-        if !self.is_active {
-            return;
-        }
-        let rect = Box2d::from_points(self.first_click_position, self.last_click_position);
-        renderer.draw(DrawCommand {
-            primitives: PrimitiveType::Rect {
-                rects: vec![rect],
-                multiply_color: wgpu::Color::RED,
-            },
-            draw_mode: DrawMode::Single,
-            additional_data: OptionalDrawData::just_shader(Some(
-                image_editor::global_selection_data().dotted_shader.clone(),
-            )),
-        });
-    }
+    fn draw(&self, renderer: &mut framework::renderer::renderer::Renderer) {}
     fn name(&self) -> &'static str {
         "Rect Selection tool"
     }
