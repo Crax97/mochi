@@ -160,7 +160,7 @@ impl BitmapLayer {
                 shader: Some(shader_to_use),
             },
         });
-        renderer.end_on_texture(output, None, framework);
+        renderer.end(output, None, framework);
     }
 
     pub fn camera(&self) -> Camera2d {

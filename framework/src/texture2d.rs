@@ -1,5 +1,5 @@
 use std::num::{NonZeroU32, NonZeroU8};
-use wgpu::{Color, Extent3d, ImageCopyBuffer, ImageDataLayout, Origin3d};
+use wgpu::{Color, Extent3d, ImageCopyBuffer, ImageDataLayout, Origin3d, TextureView};
 
 use crate::{framework::TextureId, Framework};
 
@@ -33,15 +33,24 @@ impl GpuImageData {
     }
 }
 
-pub struct Texture2d {
-    pub(crate) texture: wgpu::Texture,
-    pub(crate) texture_view: wgpu::TextureView,
+pub(crate) struct ManagedTextureData {
+    texture: wgpu::Texture,
     #[allow(dead_code)]
-    pub(crate) sampler: wgpu::Sampler,
-    pub(crate) bind_group: wgpu::BindGroup,
-    pub(crate) format: wgpu::TextureFormat,
-    pub(crate) width: u32,
-    pub(crate) height: u32,
+    sampler: wgpu::Sampler,
+    bind_group: wgpu::BindGroup,
+    format: wgpu::TextureFormat,
+    width: u32,
+    height: u32,
+}
+
+pub(crate) enum TextureType {
+    Managed { data: ManagedTextureData },
+    External,
+}
+
+pub struct Texture2d {
+    pub(crate) tex_type: TextureType,
+    pub(crate) texture_view: wgpu::TextureView,
 }
 
 pub struct Texture2dConfiguration {
@@ -126,13 +135,24 @@ impl Texture2d {
                 ],
             });
         Self {
-            width: config.width,
-            height: config.height,
-            format: config.format,
-            texture,
+            tex_type: TextureType::Managed {
+                data: ManagedTextureData {
+                    width: config.width,
+                    height: config.height,
+                    format: config.format,
+                    texture,
+                    sampler,
+                    bind_group,
+                },
+            },
             texture_view,
-            sampler,
-            bind_group,
+        }
+    }
+
+    pub(crate) fn new_external(texture_view: TextureView) -> Self {
+        Self {
+            tex_type: TextureType::External,
+            texture_view,
         }
     }
 
@@ -161,16 +181,52 @@ impl Texture2d {
                 ],
             })
     }
+
+    pub(crate) fn height(&self) -> u32 {
+        match &self.tex_type {
+            TextureType::Managed { data } => data.height,
+            TextureType::External => {
+                panic!("Texture2D::height is applicable only to managed textures")
+            }
+        }
+    }
+
+    pub(crate) fn width(&self) -> u32 {
+        match &self.tex_type {
+            TextureType::Managed { data } => data.width,
+            TextureType::External => {
+                panic!("Texture2D::width is applicable only to managed textures")
+            }
+        }
+    }
+
+    pub(crate) fn texture(&self) -> &wgpu::Texture {
+        match &self.tex_type {
+            TextureType::Managed { data } => &data.texture,
+            TextureType::External => {
+                panic!("Texture2D::texture is applicable only to managed textures")
+            }
+        }
+    }
+
+    pub(crate) fn format(&self) -> wgpu::TextureFormat {
+        match &self.tex_type {
+            TextureType::Managed { data } => data.format,
+            TextureType::External => {
+                panic!("Texture2D::format is applicable only to managed textures")
+            }
+        }
+    }
 }
 
 impl Texture2d {
     fn convert_region_y_to_wgpu_y(&self, y: u32, region_height: u32) -> u32 {
-        self.height - y - region_height
+        self.height() - y - region_height
     }
 
     pub(crate) fn sample_pixel(&self, x: u32, y: u32, framework: &Framework) -> wgpu::Color {
         let texture_region = wgpu::ImageCopyTexture {
-            texture: &self.texture,
+            texture: self.texture(),
             mip_level: 0,
             origin: wgpu::Origin3d { x, y, z: 0 },
             aspect: wgpu::TextureAspect::All,
@@ -216,7 +272,7 @@ impl Texture2d {
     }
 
     pub(crate) fn write_data(&self, bytes: &[u8], framework: &Framework) {
-        self.write_region(bytes, (0, 0, self.width, self.height), framework);
+        self.write_region(bytes, (0, 0, self.width(), self.height()), framework);
     }
 
     pub(crate) fn write_region(
@@ -231,7 +287,7 @@ impl Texture2d {
         assert!(total_size_to_copy as usize <= region_bytes.len());
 
         let texture_region = wgpu::ImageCopyTexture {
-            texture: &self.texture,
+            texture: &self.texture(),
             mip_level: 0,
             origin: wgpu::Origin3d { x, y, z: 0 },
             aspect: wgpu::TextureAspect::All,
@@ -242,8 +298,8 @@ impl Texture2d {
             region_bytes,
             wgpu::ImageDataLayout {
                 offset: buffer_offset as u64,
-                bytes_per_row: NonZeroU32::new(self.width * 4),
-                rows_per_image: NonZeroU32::new(self.height),
+                bytes_per_row: NonZeroU32::new(self.width() * 4),
+                rows_per_image: NonZeroU32::new(self.height()),
             },
             wgpu::Extent3d {
                 width: w,
@@ -254,7 +310,7 @@ impl Texture2d {
     }
 
     pub(crate) fn read_data(&self, framework: &Framework) -> GpuImageData {
-        self.read_subregion(0, 0, self.width, self.height, framework)
+        self.read_subregion(0, 0, self.width(), self.height(), framework)
     }
 
     pub(crate) fn read_subregion(
@@ -293,7 +349,7 @@ impl Texture2d {
         });
         encoder.copy_texture_to_buffer(
             wgpu::ImageCopyTexture {
-                texture: &self.texture,
+                texture: &self.texture(),
                 mip_level: 0,
                 origin: Origin3d { x, y: real_y, z: 0 },
                 aspect: wgpu::TextureAspect::All,
@@ -347,13 +403,13 @@ impl Texture2d {
         let oneshot_texture = framework.texture2d(output_texture);
         encoder.copy_texture_to_texture(
             wgpu::ImageCopyTexture {
-                texture: &self.texture,
+                texture: &self.texture(),
                 mip_level: 0,
                 origin: Origin3d { x, y: real_y, z: 0 },
                 aspect: wgpu::TextureAspect::All,
             },
             wgpu::ImageCopyTexture {
-                texture: &oneshot_texture.texture,
+                texture: &oneshot_texture.texture(),
                 mip_level: 0,
                 origin: Origin3d::ZERO,
                 aspect: wgpu::TextureAspect::All,

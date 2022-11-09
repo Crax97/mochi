@@ -254,27 +254,26 @@ impl ImageApplication {
                 let app_surface_view = current_texture
                     .texture
                     .create_view(&wgpu::TextureViewDescriptor::default());
+                let app_surface_view =
+                    framework.with_external_texture(app_surface_view, |id, framework| {
+                        self.image_editor
+                            .render_document(&mut self.instant_renderer, framework);
 
-                self.image_editor
-                    .render_document(&mut self.instant_renderer, framework);
+                        self.deferred_renderer.begin(
+                            &self.image_editor.document().final_layer().camera(),
+                            None,
+                            framework,
+                        );
+                        self.toolbox.draw(&mut self.deferred_renderer);
+                        self.deferred_renderer.end(
+                            &self.image_editor.document().final_layer().texture(),
+                            None,
+                            framework,
+                        );
 
-                self.deferred_renderer.begin(
-                    &self.image_editor.document().final_layer().camera(),
-                    None,
-                    framework,
-                );
-                self.toolbox.draw(&mut self.deferred_renderer);
-                self.deferred_renderer.end_on_texture(
-                    &self.image_editor.document().final_layer().texture(),
-                    None,
-                    framework,
-                );
-
-                self.image_editor.render_canvas(
-                    &mut self.instant_renderer,
-                    &app_surface_view,
-                    framework,
-                );
+                        self.image_editor
+                            .render_canvas(&mut self.instant_renderer, &id, framework);
+                    });
 
                 let surface_configuration = self.final_surface_configuration.clone();
 

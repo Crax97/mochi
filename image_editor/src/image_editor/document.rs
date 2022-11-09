@@ -248,7 +248,7 @@ impl Document {
                     .clone(),
             )),
         });
-        renderer.end_on_texture(&new_texture, Some(&stencil_texture), framework);
+        renderer.end(&new_texture, Some(&stencil_texture), framework);
         // 2. Draw layer using the rect stencil buffer, this is the selection. Store it into a new texture
         renderer.begin(
             &current_layer.bitmap.camera(),
@@ -272,7 +272,7 @@ impl Document {
                     .clone(),
             )),
         });
-        renderer.end_on_texture(&new_texture, Some(&stencil_texture), framework);
+        renderer.end(&new_texture, Some(&stencil_texture), framework);
         // 3. Draw the layer using the inverted stencil buffer: this is the remaining part of the texture
 
         renderer.begin(
@@ -297,7 +297,7 @@ impl Document {
                     .clone(),
             )),
         });
-        renderer.end_on_texture(&old_texture_copy, Some(&stencil_texture), framework);
+        renderer.end(&old_texture_copy, Some(&stencil_texture), framework);
 
         //5. Now add the new layer
         let (width, height) = framework.texture2d_dimensions(&new_texture);
@@ -482,7 +482,7 @@ impl Document {
         framework: &mut Framework,
     ) {
         renderer.begin(&Camera2d::default(), Some(color), framework);
-        renderer.end_on_texture(texture, None, framework);
+        renderer.end(texture, None, framework);
     }
 
     fn generate_draw_sequence(&self) -> Vec<LayerIndex> {

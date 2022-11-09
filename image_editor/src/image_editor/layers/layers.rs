@@ -108,7 +108,7 @@ impl Layer {
                 );
             }
         }
-        renderer.end_on_texture(canvas.texture(), None, framework);
+        renderer.end(canvas.texture(), None, framework);
     }
 
     pub fn replace_texture(&mut self, new_texture: TextureId) {

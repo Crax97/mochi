@@ -153,11 +153,29 @@ impl<'a> Framework {
         self.allocated_textures.insert(tex)
     }
 
+    pub fn with_external_texture<F: FnMut(&TextureId, &mut Framework)>(
+        &mut self,
+        view: TextureView,
+        mut f: F,
+    ) -> TextureView {
+        let tex = Texture2d::new_external(view);
+        let id = self.allocated_textures.insert(tex);
+        f(&id, self);
+        self.take_external_texture2d_view(id)
+    }
+
+    fn take_external_texture2d_view(&mut self, view: TextureId) -> TextureView {
+        let tex = self.allocated_textures.take(view);
+        match tex.tex_type {
+            crate::texture2d::TextureType::Managed { .. } => {
+                panic!("Cannot treat a managed texture2d as external!")
+            }
+            crate::texture2d::TextureType::External => tex.texture_view,
+        }
+    }
+
     pub(crate) fn texture2d(&self, id: &TextureId) -> &Texture2d {
         self.allocated_textures.get(id)
-    }
-    pub(crate) fn texture2d_view(&mut self, id: &TextureId) -> &TextureView {
-        &self.allocated_textures.get(id).texture_view
     }
 
     pub fn log_info(&self) {
@@ -245,13 +263,13 @@ impl<'a> Framework {
     }
 
     pub fn texture2d_width(&self, id: &TextureId) -> u32 {
-        self.texture2d(id).width
+        self.texture2d(id).width()
     }
     pub fn texture2d_height(&self, id: &TextureId) -> u32 {
-        self.texture2d(id).height
+        self.texture2d(id).height()
     }
     pub fn texture2d_format(&self, id: &TextureId) -> TextureFormat {
-        self.texture2d(id).format
+        self.texture2d(id).format()
     }
 
     pub fn texture2d_sample_pixel(&self, id: &TextureId, x: u32, y: u32) -> wgpu::Color {
@@ -268,7 +286,7 @@ impl<'a> Framework {
         width: u32,
         height: u32,
     ) -> TextureId {
-        let format = { self.texture2d(id).format };
+        let format = { self.texture2d(id).format() };
         let output_texture = self.allocate_texture2d(
             crate::Texture2dConfiguration {
                 debug_name: Some("Tex Subregion".into()),

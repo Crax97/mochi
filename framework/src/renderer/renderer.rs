@@ -192,7 +192,7 @@ impl Renderer {
         self.draw_queue.push(draw_command)
     }
 
-    pub fn end_on_texture(
+    pub fn end(
         &mut self,
         output: &TextureId,
         depth_stencil_output: Option<&DepthStencilTextureId>,
@@ -202,14 +202,6 @@ impl Renderer {
         //let depth_texture_view =
         //    depth_stencil_output.map(|tex_id| framework.depth_stencil_texture(tex_id));
         // self.end(&texture.value.texture_view, None, framework);
-    }
-
-    pub fn end(
-        &mut self,
-        output: &TextureView,
-        depth_stencil_output: Option<&DepthStencilTexture>,
-        framework: &mut Framework,
-    ) {
         // let command_encoder_description = CommandEncoderDescriptor {
         //     label: Some("Framework Renderer command descriptor"),
         // };

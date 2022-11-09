@@ -1,5 +1,5 @@
 use cgmath::{ElementWise, Point2};
-use framework::framework::ShaderId;
+use framework::framework::{ShaderId, TextureId};
 use framework::renderer::draw_command::{DrawCommand, DrawMode, OptionalDrawData, PrimitiveType};
 use framework::renderer::renderer::Renderer;
 use framework::scene::Camera2d;
@@ -141,7 +141,7 @@ impl ImageEditor {
     pub fn render_canvas(
         &mut self,
         renderer: &mut Renderer,
-        output_canvas: &TextureView,
+        output_canvas: &TextureId,
         framework: &mut Framework,
     ) {
         renderer.begin(&self.pan_camera, Some(wgpu::Color::TRANSPARENT), framework);

@@ -41,6 +41,7 @@ pub(crate) struct AssetMap<T> {
     pub(crate) map: HashMap<Uuid, RefCounted<T>>,
     event_receiver: Receiver<RefEvent<Uuid>>,
     event_sender: Sender<RefEvent<Uuid>>,
+    taken_this_update: Vec<Uuid>,
 }
 
 pub struct AssetId<T> {
@@ -76,6 +77,7 @@ impl<T> AssetMap<T> {
             map: HashMap::new(),
             event_receiver,
             event_sender,
+            taken_this_update: vec![],
         }
     }
 
@@ -113,6 +115,7 @@ impl<T> AssetMap<T> {
                 RefEvent::DecrementRef(index) => self.decremente_ref(index),
             }
         }
+        self.taken_this_update.clear();
     }
 
     fn increment_ref(&mut self, index: Uuid) {
@@ -124,6 +127,9 @@ impl<T> AssetMap<T> {
     }
 
     fn decremente_ref(&mut self, index: Uuid) {
+        if self.taken_this_update.contains(&index) {
+            return;
+        }
         let refs_before_sub = {
             let asset = self
                 .map
@@ -134,6 +140,18 @@ impl<T> AssetMap<T> {
         if refs_before_sub == 1 {
             self.map.remove(&index);
         }
+    }
+
+    pub(crate) fn take(&mut self, view: AssetId<T>) -> T {
+        let uuid = view.index.clone();
+        drop(view);
+        let asset = self.map.remove(&uuid).unwrap();
+        if asset.refs.load(Ordering::Relaxed) != 1 {
+            panic!("AssetMap::take is only allowed for textures that have one reference");
+        }
+        self.taken_this_update.push(uuid);
+        self.update();
+        asset.value
     }
 }
 
