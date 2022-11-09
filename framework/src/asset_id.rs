@@ -5,13 +5,10 @@ use std::{
     marker::PhantomData,
     ops::{Deref, DerefMut},
     rc::Rc,
-    sync::{
-        atomic::{AtomicU32, Ordering},
-        mpsc::SyncSender,
-    },
+    sync::atomic::{AtomicU32, Ordering},
 };
 
-use std::sync::mpsc::{Receiver, Sender};
+use crossbeam_channel::{Receiver, Sender};
 use uuid::Uuid;
 
 pub(crate) enum RefEvent<T> {
@@ -45,7 +42,7 @@ impl<T: Debug> Debug for RefCounted<T> {
 pub(crate) struct InnerAssetMap<T> {
     map: HashMap<Uuid, RefCounted<T>>,
     event_receiver: Receiver<RefEvent<Uuid>>,
-    event_sender: SyncSender<RefEvent<Uuid>>,
+    event_sender: Sender<RefEvent<Uuid>>,
 }
 
 pub(crate) type AssetMap<T> = Rc<RefCell<InnerAssetMap<T>>>;
@@ -83,7 +80,7 @@ impl<'a, T> DerefMut for AssetRefMut<'a, T> {
 
 pub struct AssetId<T> {
     pub(crate) index: Uuid,
-    pub(crate) event_sender: SyncSender<RefEvent<Uuid>>,
+    pub(crate) event_sender: Sender<RefEvent<Uuid>>,
     pub(crate) phantom: PhantomData<T>,
 }
 
@@ -109,7 +106,7 @@ impl<T> Drop for AssetId<T> {
 
 impl<T> InnerAssetMap<T> {
     pub(crate) fn new() -> Self {
-        let (event_sender, event_receiver) = std::sync::mpsc::sync_channel(16);
+        let (event_sender, event_receiver) = crossbeam_channel::unbounded();
         Self {
             map: HashMap::new(),
             event_receiver,
