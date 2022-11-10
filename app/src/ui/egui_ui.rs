@@ -73,6 +73,24 @@ impl EguiUI {
             windows.push(
                 egui::Window::new("Tools")
                     .show(&ctx, |ui| {
+                        egui::menu::bar(ui, |ui| {
+                            egui::menu::menu_button(ui, "File", |ui| {});
+                            egui::menu::menu_button(ui, "Edit", |ui| {
+                                if ui.button("Selection to new layer").clicked() {
+                                    app_ctx.image_editor.mutate_document(|doc| {
+                                        doc.copy_layer_selection_to_new_layer(
+                                            app_ctx.renderer,
+                                            app_ctx.framework,
+                                        );
+                                        doc.mutate_selection(
+                                            |sel| sel.clear(),
+                                            app_ctx.renderer,
+                                            app_ctx.framework,
+                                        );
+                                    });
+                                }
+                            });
+                        });
                         ui.horizontal(|ui| {
                             app_ctx.toolbox.for_each_tool(|id, tool| {
                                 let button = egui::Button::new(tool.name());
@@ -112,6 +130,7 @@ impl EguiUI {
                     })
                     .unwrap(),
             );
+
             let window_hovered = windows.iter().any(|win| {
                 win.response.rect.contains(Pos2 {
                     x: app_ctx.input_state.mouse_position().x,

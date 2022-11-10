@@ -71,7 +71,7 @@ impl Tool for RectSelectionTool {
 
         context.image_editor.mutate_document(|doc| {
             doc.mutate_selection(
-                |selection| selection.set(SelectionShape::Rectangle(rect)),
+                |selection| selection.extend(SelectionShape::Rectangle(rect)),
                 context.renderer,
                 context.framework,
             );
