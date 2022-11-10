@@ -8,12 +8,12 @@ use crate::{
 };
 use cgmath::{point2, vec2, Vector2};
 use framework::{
-    framework::BufferId,
-    renderer::draw_command::{DrawCommand, DrawMode, OptionalDrawData, PrimitiveType},
-    Box2d, DepthStencilTextureConfiguration, Framework, Texture2dConfiguration,
+    framework::TextureId, renderer::renderer::Renderer, scene::Camera2d, BufferConfiguration,
 };
 use framework::{
-    framework::TextureId, renderer::renderer::Renderer, scene::Camera2d, BufferConfiguration,
+    framework::{BufferId, DepthStencilTextureId},
+    renderer::draw_command::{DrawCommand, DrawMode, OptionalDrawData, PrimitiveType},
+    Box2d, DepthStencilTextureConfiguration, Framework, Texture2dConfiguration,
 };
 use image::{DynamicImage, ImageBuffer};
 
@@ -46,6 +46,7 @@ pub struct Document {
 
     current_layer_index: LayerIndex,
     selection: Selection,
+    stencil_texture: DepthStencilTextureId,
 }
 
 pub struct DocumentCreationInfo {
@@ -85,7 +86,13 @@ impl Document {
         );
 
         let first_layer_index = LayerIndex(1);
-
+        let stencil_texture =
+            framework.allocate_depth_stencil_texture(DepthStencilTextureConfiguration {
+                debug_name: Some("Selection tool depth stencil texture"),
+                width: config.width,
+                height: config.height,
+                is_stencil: true,
+            });
         let mut document = Self {
             layers_created: 0,
             document_size: vec2(config.width, config.height),
@@ -100,6 +107,7 @@ impl Document {
             tree_root: RootLayer(vec![]),
             buffering_step: BufferingStep::First,
             selection: Selection::default(),
+            stencil_texture,
         };
 
         document.add_layer(
@@ -156,8 +164,50 @@ impl Document {
         mutate_fn(layer);
     }
 
-    pub fn mutate_selection<F: FnMut(&mut Selection)>(&mut self, mut callback: F) {
+    pub fn mutate_selection<F: FnMut(&mut Selection)>(
+        &mut self,
+        mut callback: F,
+        renderer: &mut Renderer,
+        framework: &mut Framework,
+    ) {
         callback(&mut self.selection);
+        self.update_selection_buffer(renderer, framework);
+    }
+
+    fn update_selection_buffer(&self, renderer: &mut Renderer, framework: &mut Framework) {
+        renderer.begin(
+            &self.final_layer().camera(),
+            Some(wgpu::Color::TRANSPARENT),
+            framework,
+        );
+        renderer.set_stencil_clear(Some(0));
+        renderer.set_stencil_reference(255);
+        renderer.set_draw_debug_name("Selection tool: draw selection on stencil buffer");
+
+        for shape in self.selection.shapes.iter() {
+            match shape {
+                crate::selection::SelectionShape::Rectangle(rect) => {
+                    renderer.draw(DrawCommand {
+                        primitives: PrimitiveType::Rect {
+                            rects: vec![rect.clone()],
+                            multiply_color: wgpu::Color::GREEN,
+                        },
+                        draw_mode: DrawMode::Single,
+                        additional_data: OptionalDrawData::just_shader(Some(
+                            global_selection_data()
+                                .draw_on_stencil_buffer_shader_id
+                                .clone(),
+                        )),
+                    });
+                }
+            }
+        }
+
+        renderer.end(
+            &self.buffer_layer.texture(),
+            Some(&self.stencil_texture),
+            framework,
+        );
     }
 
     pub fn selection(&self) -> &Selection {
@@ -186,18 +236,11 @@ impl Document {
     pub fn copy_layer_selection_to_new_layer(
         &mut self,
         renderer: &mut Renderer,
-        rect: Box2d,
         framework: &mut Framework,
     ) {
         let current_layer = self.current_layer();
         let (width, height) = framework.texture2d_dimensions(current_layer.bitmap.texture());
-        let stencil_texture =
-            framework.allocate_depth_stencil_texture(DepthStencilTextureConfiguration {
-                debug_name: Some("Selection tool depth stencil texture"),
-                width,
-                height,
-                is_stencil: true,
-            });
+
         let format = framework.texture2d_format(current_layer.bitmap.texture());
         let new_texture = framework.allocate_texture2d(
             Texture2dConfiguration {
@@ -224,29 +267,7 @@ impl Document {
             None,
         );
 
-        // 1. Draw the selection rect on the stencil buffer
-        renderer.begin(
-            &current_layer.bitmap.camera(),
-            Some(wgpu::Color::TRANSPARENT),
-            framework,
-        );
-        renderer.set_stencil_clear(Some(0));
-        renderer.set_stencil_reference(255);
-        renderer.set_draw_debug_name("Selection tool: draw selection on stencil buffer");
-        renderer.draw(DrawCommand {
-            primitives: PrimitiveType::Rect {
-                rects: vec![rect],
-                multiply_color: wgpu::Color::GREEN,
-            },
-            draw_mode: DrawMode::Single,
-            additional_data: OptionalDrawData::just_shader(Some(
-                global_selection_data()
-                    .draw_on_stencil_buffer_shader_id
-                    .clone(),
-            )),
-        });
-        renderer.end(&new_texture, Some(&stencil_texture), framework);
-        // 2. Draw layer using the rect stencil buffer, this is the selection. Store it into a new texture
+        // 1. Draw layer using the rect stencil buffer, this is the selection. Store it into a new texture
         renderer.begin(
             &current_layer.bitmap.camera(),
             Some(wgpu::Color::TRANSPARENT),
@@ -269,8 +290,8 @@ impl Document {
                     .clone(),
             )),
         });
-        renderer.end(&new_texture, Some(&stencil_texture), framework);
-        // 3. Draw the layer using the inverted stencil buffer: this is the remaining part of the texture
+        renderer.end(&new_texture, Some(&self.stencil_texture), framework);
+        // 2. Draw the layer using the inverted stencil buffer: this is the remaining part of the texture
 
         renderer.begin(
             &current_layer.bitmap.camera(),
@@ -294,7 +315,7 @@ impl Document {
                     .clone(),
             )),
         });
-        renderer.end(&old_texture_copy, Some(&stencil_texture), framework);
+        renderer.end(&old_texture_copy, Some(&self.stencil_texture), framework);
 
         //5. Now add the new layer
         let (width, height) = framework.texture2d_dimensions(&new_texture);
