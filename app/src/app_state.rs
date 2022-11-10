@@ -153,7 +153,7 @@ impl ImageApplication {
     pub(crate) fn on_resized(
         &mut self,
         new_size: winit::dpi::PhysicalSize<u32>,
-        framework: &Framework,
+        framework: &mut Framework,
     ) {
         if new_size.width == 0 || new_size.height == 0 {
             return;
@@ -180,7 +180,8 @@ impl ImageApplication {
         self.final_surface
             .configure(&framework.device, &new_surface_configuration);
         self.final_surface_configuration = new_surface_configuration;
-        self.image_editor.on_resize(left_right_top_bottom);
+        self.image_editor
+            .on_resize(left_right_top_bottom, framework);
     }
 
     pub(crate) fn on_event(

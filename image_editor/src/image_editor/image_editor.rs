@@ -4,7 +4,7 @@ use framework::renderer::draw_command::{DrawCommand, DrawMode, OptionalDrawData,
 use framework::renderer::renderer::Renderer;
 use framework::scene::Camera2d;
 use framework::shader::{BindElement, ShaderCreationInfo};
-use framework::{Framework, Transform2d};
+use framework::{Framework, Texture2dConfiguration, Transform2d};
 use wgpu::TextureFormat;
 
 use crate::document::DocumentCreationInfo;
@@ -28,6 +28,7 @@ pub struct ImageEditor {
     layer_draw_shader: ShaderId,
 
     document: Document,
+    output_texture: TextureId,
     final_present_shader: ShaderId,
 }
 
@@ -78,11 +79,26 @@ impl ImageEditor {
                 .with_bind_element(BindElement::Texture) // Top layer
                 .with_bind_element(BindElement::UniformBuffer); // Blend settings
         let layer_draw_shader = framework.create_shader(fucking_shader_info);
+
+        let output_texture = framework.allocate_texture2d(
+            Texture2dConfiguration {
+                debug_name: Some("Final output".to_string()),
+                width: pan_camera.width() as u32,
+                height: pan_camera.height() as u32,
+                format: TextureFormat::Rgba8Unorm,
+                allow_cpu_write: false,
+                allow_cpu_read: false,
+                allow_use_as_render_target: true,
+            },
+            None,
+        );
+
         ImageEditor {
             pan_camera,
             document: test_document,
             final_present_shader,
             layer_draw_shader,
+            output_texture,
         }
     }
 
@@ -125,8 +141,20 @@ impl ImageEditor {
         self.document.delete_layer(layer_idx);
     }
 
-    pub fn on_resize(&mut self, new_bounds: [f32; 4]) {
+    pub fn on_resize(&mut self, new_bounds: [f32; 4], framework: &mut Framework) {
         self.pan_camera.set_new_bounds(new_bounds);
+        self.output_texture = framework.allocate_texture2d(
+            Texture2dConfiguration {
+                debug_name: Some("Final output".to_string()),
+                width: self.pan_camera.width() as u32,
+                height: self.pan_camera.height() as u32,
+                format: TextureFormat::Rgba8UnormSrgb,
+                allow_cpu_write: false,
+                allow_cpu_read: false,
+                allow_use_as_render_target: true,
+            },
+            None,
+        );
     }
 
     pub fn update_layers(&mut self, renderer: &mut Renderer, framework: &mut Framework) {
@@ -145,6 +173,7 @@ impl ImageEditor {
         framework: &mut Framework,
     ) {
         renderer.begin(&self.pan_camera, Some(wgpu::Color::TRANSPARENT), framework);
+
         renderer.draw(DrawCommand {
             primitives: PrimitiveType::Texture2D {
                 texture_id: self.document.final_layer().texture().clone(),
@@ -156,14 +185,33 @@ impl ImageEditor {
                 multiply_color: wgpu::Color::WHITE,
             },
             draw_mode: DrawMode::Single,
+            additional_data: OptionalDrawData::default(),
+        });
+
+        self.render_ui(renderer);
+
+        renderer.end(&self.output_texture, None, framework);
+
+        renderer.begin(&Camera2d::unit(), Some(wgpu::Color::TRANSPARENT), framework);
+        renderer.draw(DrawCommand {
+            primitives: PrimitiveType::Texture2D {
+                texture_id: self.output_texture.clone(),
+                instances: vec![Transform2d::default()],
+                flip_uv_y: true,
+                multiply_color: wgpu::Color::WHITE,
+            },
+            draw_mode: DrawMode::Single,
             additional_data: OptionalDrawData {
                 additional_vertex_buffers: vec![],
                 additional_bindable_resource: vec![],
                 shader: Some(self.final_present_shader.clone()),
             },
         });
-
         renderer.end(output_canvas, None, framework);
+    }
+
+    fn render_ui(&mut self, renderer: &mut Renderer) {
+        self.document.draw_selection(renderer);
     }
 
     pub fn get_full_image_texture(&self) -> &BitmapLayer {
