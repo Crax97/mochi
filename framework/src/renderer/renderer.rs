@@ -168,6 +168,7 @@ impl Renderer {
         self.clear_color = clear_color;
         framework
             .buffer_write_sync::<Camera2dUniformBlock>(&self.camera_buffer_id, vec![camera.into()]);
+        self.draw_queue.clear();
     }
 
     pub fn set_viewport(&mut self, viewport: Option<(f32, f32, f32, f32)>) {
