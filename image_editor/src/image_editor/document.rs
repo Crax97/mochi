@@ -15,7 +15,7 @@ use framework::{
     renderer::draw_command::{DrawCommand, DrawMode, OptionalDrawData, PrimitiveType},
     Box2d, DepthStencilTextureConfiguration, Framework, Texture2dConfiguration,
 };
-use image::{DynamicImage, ImageBuffer};
+use image::{DynamicImage, ImageBuffer, RgbaImage};
 
 use framework::framework::ShaderId;
 use std::collections::HashMap;
@@ -80,7 +80,7 @@ impl Document {
                 label: "Draw Buffer Layer".to_owned(),
                 width: config.width,
                 height: config.height,
-                initial_background_color: [0.5, 0.5, 0.5, 1.0],
+                initial_background_color: [0.0, 0.0, 0.0, 0.0],
             },
             framework,
         );
@@ -176,13 +176,13 @@ impl Document {
 
     fn update_selection_buffer(&self, renderer: &mut Renderer, framework: &mut Framework) {
         renderer.begin(
-            &self.final_layer().camera(),
+            &self.buffer_layer.camera(),
             Some(wgpu::Color::TRANSPARENT),
             framework,
         );
+        renderer.set_draw_debug_name("Selection tool: draw selection on stencil buffer");
         renderer.set_stencil_clear(Some(0));
         renderer.set_stencil_reference(255);
-        renderer.set_draw_debug_name("Selection tool: draw selection on stencil buffer");
 
         for shape in self.selection.shapes.iter() {
             match shape {
@@ -286,11 +286,12 @@ impl Document {
             draw_mode: DrawMode::Single,
             additional_data: OptionalDrawData::just_shader(Some(
                 global_selection_data()
-                    .draw_on_stencil_buffer_shader_id
+                    .draw_masked_stencil_buffer_shader_id
                     .clone(),
             )),
         });
         renderer.end(&new_texture, Some(&self.stencil_texture), framework);
+
         // 2. Draw the layer using the inverted stencil buffer: this is the remaining part of the texture
 
         renderer.begin(
@@ -311,7 +312,7 @@ impl Document {
             draw_mode: DrawMode::Single,
             additional_data: OptionalDrawData::just_shader(Some(
                 global_selection_data()
-                    .draw_on_stencil_buffer_shader_id
+                    .draw_masked_inverted_stencil_buffer_shader_id
                     .clone(),
             )),
         });
@@ -334,6 +335,7 @@ impl Document {
         self.mutate_layer(&self.current_layer_index(), |layer| {
             layer.replace_texture(old_texture_copy.clone())
         });
+
         self.select_layer(new_index);
     }
 
