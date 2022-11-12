@@ -24,7 +24,7 @@ impl<L: Texel, T: Texture<L>> GpuTexture<L, T> {
     pub(crate) fn new<'a>(
         texture: T,
         config: TextureConfiguration<'a>,
-        device: &wgpu::Device,
+        framework: &Framework,
     ) -> GpuTexture<L, T> {
         let size = Extent3d {
             width: texture.width(),
@@ -42,10 +42,10 @@ impl<L: Texel, T: Texture<L>> GpuTexture<L, T> {
             usage: config.usage.to_wgpu_texture_usage(),
         };
 
-        let wgpu_texture = device.create_texture(&tex_descriptor);
-        let binding_infos = texture.create_binding_info(&wgpu_texture, device);
+        let wgpu_texture = framework.device.create_texture(&tex_descriptor);
+        let binding_infos = texture.create_binding_info(&wgpu_texture, &framework.device);
 
-        GpuTexture {
+        let mut gpu_texture = GpuTexture {
             phant_data: PhantomData,
             label,
             wgpu_texture,
@@ -53,7 +53,11 @@ impl<L: Texel, T: Texture<L>> GpuTexture<L, T> {
             height: texture.height(),
             layers: texture.layers(),
             binding_infos,
+        };
+        if let Some(data) = texture.data() {
+            gpu_texture.write_data(data, framework);
         }
+        gpu_texture
     }
 
     pub(crate) fn height(&self) -> u32 {
@@ -144,20 +148,20 @@ impl<L: Texel, T: Texture<L>> GpuTexture<L, T> {
         L::from_bytes(&color_bytes)
     }
 
-    pub(crate) fn write_data<B: Into<Vec<u8>>>(&self, bytes: B, framework: &Framework) {
-        self.write_region(bytes, (0, 0, self.width(), self.height()), framework);
+    pub(crate) fn write_data(&self, texels: &[L], framework: &Framework) {
+        self.write_region(texels, (0, 0, self.width(), self.height()), framework);
     }
 
-    pub(crate) fn write_region<B: Into<Vec<u8>>>(
+    pub(crate) fn write_region(
         &self,
-        texels: B,
+        texels: &[L],
         region_rect: (u32, u32, u32, u32),
         framework: &Framework,
     ) {
         let (x, y, w, h) = region_rect;
         let total_size_to_copy = w * h * 4;
         let buffer_offset = x * y * 4;
-        let region_bytes: Vec<u8> = texels.into();
+        let region_bytes = bytemuck::cast_slice(texels);
         assert!(total_size_to_copy as usize <= region_bytes.len());
 
         let texture_region = wgpu::ImageCopyTexture {

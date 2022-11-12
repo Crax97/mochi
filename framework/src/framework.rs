@@ -163,7 +163,7 @@ impl<'a> Framework {
                 },
                 mip_count: None,
             },
-            &self.device,
+            self,
         );
         self.allocated_textures.insert(gpu_tex)
     }

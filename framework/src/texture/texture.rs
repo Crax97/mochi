@@ -65,6 +65,7 @@ pub trait Texture<T: Texel> {
     where
         Self: Sized;
     fn empty(size: Self::SamplingExtentsType) -> Self;
+    fn data(&self) -> Option<&[T]>;
     fn width(&self) -> u32;
     fn height(&self) -> u32;
     fn layers(&self) -> u32;
@@ -76,7 +77,7 @@ pub trait Texture<T: Texel> {
 }
 
 pub struct Texture2D<T: Texel> {
-    pub data: Vec<T>,
+    data: Option<Vec<T>>,
     width: u32,
     height: u32,
 }
@@ -164,6 +165,10 @@ impl<T: Texel> Texture<T> for Texture2D<T> {
         }]
     }
 
+    fn data(&self) -> Option<&[T]> {
+        self.data.as_deref()
+    }
+
     fn width(&self) -> u32 {
         self.width
     }
@@ -183,9 +188,13 @@ impl<T: Texel> Texture<T> for Texture2D<T> {
     where
         Self: Sized,
     {
+        if texels.len() < (size.0 * size.1) as usize {
+            return Err(TexelConversionError::NotEnoughData);
+        }
+
         let extents = size.extents();
         Ok(Self {
-            data: texels,
+            data: Some(texels),
             width: extents.width,
             height: extents.height,
         })
@@ -193,7 +202,7 @@ impl<T: Texel> Texture<T> for Texture2D<T> {
     fn empty(size: Self::SamplingExtentsType) -> Self {
         let extents = size.extents();
         Self {
-            data: vec![],
+            data: None,
             width: extents.width,
             height: extents.height,
         }

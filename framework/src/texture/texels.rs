@@ -8,7 +8,7 @@ pub struct BindingInfo {
     pub(crate) bind_group: BindGroup,
 }
 
-pub trait Texel {
+pub trait Texel: bytemuck::Pod + bytemuck::Zeroable {
     fn from_bytes(bytes: &[u8]) -> Result<Self, TexelConversionError>
     where
         Self: Sized;
@@ -21,6 +21,8 @@ pub trait Texel {
     fn bytes(&self) -> &[u8];
 }
 
+#[repr(C)]
+#[derive(bytemuck::Pod, bytemuck::Zeroable, Clone, Copy)]
 pub struct RgbaU8([u8; 4]);
 
 impl Texel for RgbaU8 {
