@@ -272,8 +272,8 @@ impl<'a> Framework {
             .unwrap()
             .wgpu_color()
     }
-    pub fn texture2d_read_data(&self, id: &TextureId) -> GpuImageData {
-        todo!()
+    pub fn texture2d_read_data(&self, id: &TextureId) -> RgbaTexture2D {
+        self.texture2d(id).read_data(self).unwrap()
     }
     pub fn texture2d_copy_subregion(
         &mut self,

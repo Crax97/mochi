@@ -9,6 +9,7 @@ use crate::{
 use cgmath::{point2, vec2, Vector2};
 use framework::{
     framework::TextureId, renderer::renderer::Renderer, scene::Camera2d, BufferConfiguration,
+    Texel, Texture,
 };
 use framework::{
     framework::{BufferId, DepthStencilTextureId},
@@ -572,11 +573,19 @@ impl Document {
     }
 
     pub fn final_image_bytes(&self, framework: &Framework) -> DynamicImage {
-        let bytes = framework.texture2d_read_data(self.final_layer().texture());
-        let width = bytes.width;
-        let height = bytes.height;
-        let data = bytes.to_bytes(true);
-        let raw_image = ImageBuffer::from_raw(width, height, data).unwrap();
+        let texture = framework.texture2d_read_data(self.final_layer().texture());
+        let width = texture.width();
+        let height = texture.height();
+        let bytes = texture
+            .data()
+            .expect("A texture just read from the GPU doesn'thave any bytes, wtf?");
+        let bytes = bytes
+            .iter()
+            .map(|texel| texel.bytes())
+            .fold(vec![], |acc, res| {
+                [acc, res.iter().map(|b| *b).collect()].concat()
+            });
+        let raw_image = ImageBuffer::from_raw(width, height, bytes).unwrap();
         DynamicImage::ImageRgba8(raw_image)
     }
 
