@@ -284,16 +284,19 @@ impl Document {
                 multiply_color: wgpu::Color::WHITE,
             },
             draw_mode: DrawMode::Single,
-            additional_data: OptionalDrawData::just_shader(Some(
+            additional_data: OptionalDrawData::just_shader(Some(if self.selection.inverted {
+                global_selection_data()
+                    .draw_masked_inverted_stencil_buffer_shader_id
+                    .clone()
+            } else {
                 global_selection_data()
                     .draw_masked_stencil_buffer_shader_id
-                    .clone(),
-            )),
+                    .clone()
+            })),
         });
         renderer.end(&new_texture, Some(&self.stencil_texture), framework);
 
         // 2. Draw the layer using the inverted stencil buffer: this is the remaining part of the texture
-
         renderer.begin(
             &current_layer.bitmap.camera(),
             Some(wgpu::Color::TRANSPARENT),
@@ -310,11 +313,15 @@ impl Document {
                 multiply_color: wgpu::Color::WHITE,
             },
             draw_mode: DrawMode::Single,
-            additional_data: OptionalDrawData::just_shader(Some(
+            additional_data: OptionalDrawData::just_shader(Some(if self.selection.inverted {
+                global_selection_data()
+                    .draw_masked_stencil_buffer_shader_id
+                    .clone()
+            } else {
                 global_selection_data()
                     .draw_masked_inverted_stencil_buffer_shader_id
-                    .clone(),
-            )),
+                    .clone()
+            })),
         });
         renderer.end(&old_texture_copy, Some(&self.stencil_texture), framework);
 
