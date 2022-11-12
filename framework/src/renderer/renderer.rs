@@ -10,8 +10,8 @@ use crate::{
     framework::{BufferId, DepthStencilTextureId, MeshId, ShaderId, TextureId},
     shader::{Shader, ShaderCreationInfo},
     Buffer, BufferConfiguration, BufferType, Camera2d, Camera2dUniformBlock, DepthStencilTexture,
-    Framework, Mesh, MeshConstructionDetails, MeshInstance2D, Texture2d, Texture2dConfiguration,
-    Vertex,
+    Framework, GpuRgbaTexture2D, Mesh, MeshConstructionDetails, MeshInstance2D, Texture2d,
+    Texture2dConfiguration, Vertex,
 };
 
 use super::draw_command::{BindableResource, DrawCommand, DrawMode, PrimitiveType};
@@ -19,7 +19,7 @@ use super::draw_command::{BindableResource, DrawCommand, DrawMode, PrimitiveType
 enum ResolvedResourceType<'a> {
     UniformBuffer(&'a Buffer),
     EmptyBindGroup,
-    Texture(&'a Texture2d),
+    Texture(&'a GpuRgbaTexture2D),
 }
 
 enum DrawType {
@@ -216,7 +216,7 @@ impl Renderer {
         let draw_commands_with_buffers = self.generate_partial_draws(framework);
         let commands = self.resolve_draw_commands(framework, draw_commands_with_buffers);
 
-        let texture = &framework.texture2d(output).texture_view;
+        let texture = &framework.texture2d(output).texture_view(0);
         let depth_texture_view =
             depth_stencil_output.map(|tex_id| framework.depth_stencil_texture(tex_id));
         self.execute_draw_queue(
@@ -396,7 +396,7 @@ impl Renderer {
     ) {
         let bind_group = match resource {
             ResolvedResourceType::UniformBuffer(buffer) => buffer.bind_group.as_ref().unwrap(),
-            ResolvedResourceType::Texture(texture) => texture.bind_group(),
+            ResolvedResourceType::Texture(texture) => texture.bind_group(0),
             ResolvedResourceType::EmptyBindGroup => &self.empty_bind_group,
         };
         render_pass.set_bind_group(idx, bind_group, &[])

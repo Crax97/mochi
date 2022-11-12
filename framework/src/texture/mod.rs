@@ -15,10 +15,9 @@ pub struct TextureUsage {
 
 #[derive(Debug, Default)]
 pub struct TextureConfiguration<'a> {
-    label: Option<&'a str>,
-    usage: TextureUsage,
-
-    mip_count: Option<u32>,
+    pub label: Option<&'a str>,
+    pub usage: TextureUsage,
+    pub mip_count: Option<u32>,
 }
 
 impl TextureUsage {
@@ -57,7 +56,11 @@ impl TextureUsage {
                 self.use_as_render_target,
                 wgpu::TextureUsages::RENDER_ATTACHMENT,
             )
+            | wgpu::TextureUsages::TEXTURE_BINDING
     }
 }
 
 pub type RgbaTexture2D = Texture2D<RgbaU8>;
+pub type GpuRgbaTexture2D = GpuTexture<RgbaU8, RgbaTexture2D>;
+
+impl GpuRgbaTexture2D {}

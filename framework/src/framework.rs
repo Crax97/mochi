@@ -6,15 +6,17 @@ use wgpu::*;
 use crate::{
     buffer::BufferInitialSetup,
     shader::{Shader, ShaderCompiler, ShaderCreationInfo},
+    texture,
     texture2d::GpuImageData,
-    AssetId, AssetMap, AssetsLibrary, DepthStencilTexture, DepthStencilTextureConfiguration, Mesh,
-    MeshConstructionDetails, Texture2d, Texture2dConfiguration,
+    AssetId, AssetMap, AssetsLibrary, DepthStencilTexture, DepthStencilTextureConfiguration,
+    GpuRgbaTexture2D, GpuTexture, Mesh, MeshConstructionDetails, RgbaTexture2D, RgbaU8, Texel,
+    TexelConversionError, Texture, Texture2dConfiguration,
 };
 
 use super::buffer::{Buffer, BufferConfiguration};
 
-pub type TextureId = AssetId<Texture2d>;
-type TextureMap = AssetMap<Texture2d>;
+pub type TextureId = AssetId<GpuRgbaTexture2D>;
+type TextureMap = AssetMap<GpuRgbaTexture2D>;
 
 pub type DepthStencilTextureId = AssetId<DepthStencilTexture>;
 type DepthStencilTextureMap = AssetMap<DepthStencilTexture>;
@@ -140,15 +142,30 @@ impl<'a> Framework {
         initial_data: Option<&[u8]>,
     ) -> TextureId {
         let allow_cpu_write = tex_info.allow_cpu_write;
-        let tex = Texture2d::new(&self, tex_info);
-        if let Some(data) = initial_data {
-            debug_assert!(
-                allow_cpu_write,
-                "Having initial data set to Some(...) implies allow_cpu_write = true"
-            );
-            tex.write_data(data, &self);
-        }
-        self.allocated_textures.insert(tex)
+        let cpu_tex = if let Some(bytes) = initial_data {
+            let texels: Result<Vec<RgbaU8>, TexelConversionError> = bytes
+                .chunks(RgbaU8::channel_count() as usize * RgbaU8::channel_size_bytes() as usize)
+                .map(|chunk| RgbaU8::from_bytes(bytes))
+                .collect();
+            let texels = texels.unwrap();
+            RgbaTexture2D::from_texels(texels, (tex_info.width, tex_info.height)).unwrap()
+        } else {
+            RgbaTexture2D::empty((tex_info.width, tex_info.height))
+        };
+        let gpu_tex = GpuTexture::new(
+            cpu_tex,
+            texture::TextureConfiguration {
+                label: tex_info.debug_name.as_deref(),
+                usage: crate::TextureUsage {
+                    cpu_write: tex_info.allow_cpu_write,
+                    cpu_read: tex_info.allow_cpu_read,
+                    use_as_render_target: tex_info.allow_use_as_render_target,
+                },
+                mip_count: None,
+            },
+            &self.device,
+        );
+        self.allocated_textures.insert(gpu_tex)
     }
 
     pub fn with_external_texture<F: FnMut(&TextureId, &mut Framework)>(
@@ -156,13 +173,18 @@ impl<'a> Framework {
         view: TextureView,
         mut f: F,
     ) -> TextureView {
+        todo!()
+        /*
         let tex = Texture2d::new_external(view);
         let id = self.allocated_textures.insert(tex);
         f(&id, self);
         self.take_external_texture2d_view(id)
+        */
     }
 
     fn take_external_texture2d_view(&mut self, view: TextureId) -> TextureView {
+        todo!()
+        /*
         let tex = self.allocated_textures.take(view);
         match tex.tex_type {
             crate::texture2d::TextureType::Managed { .. } => {
@@ -170,9 +192,10 @@ impl<'a> Framework {
             }
             crate::texture2d::TextureType::External => tex.texture_view,
         }
+        */
     }
 
-    pub(crate) fn texture2d(&self, id: &TextureId) -> &Texture2d {
+    pub(crate) fn texture2d(&self, id: &TextureId) -> &GpuTexture<RgbaU8, RgbaTexture2D> {
         self.allocated_textures.get(id)
     }
 
@@ -267,14 +290,17 @@ impl<'a> Framework {
         self.texture2d(id).height()
     }
     pub fn texture2d_format(&self, id: &TextureId) -> TextureFormat {
-        self.texture2d(id).format()
+        RgbaU8::wgpu_texture_format()
     }
 
     pub fn texture2d_sample_pixel(&self, id: &TextureId, x: u32, y: u32) -> wgpu::Color {
-        self.texture2d(id).sample_pixel(x, y, self)
+        self.texture2d(id)
+            .sample((x, y), self)
+            .unwrap()
+            .wgpu_color()
     }
     pub fn texture2d_read_data(&self, id: &TextureId) -> GpuImageData {
-        self.texture2d(id).read_data(self)
+        todo!()
     }
     pub fn texture2d_copy_subregion(
         &mut self,
@@ -284,22 +310,12 @@ impl<'a> Framework {
         width: u32,
         height: u32,
     ) -> TextureId {
-        let format = { self.texture2d(id).format() };
-        let output_texture = self.allocate_texture2d(
-            crate::Texture2dConfiguration {
-                debug_name: Some("Tex Subregion".into()),
-                width,
-                height,
-                format,
-                allow_cpu_write: true,
-                allow_cpu_read: true,
-                allow_use_as_render_target: true,
-            },
-            None,
-        );
-        self.texture2d(id)
-            .read_subregion_texture2d(x, y, width, height, &output_texture, self);
-        output_texture
+        let format = { RgbaU8::wgpu_texture_format() };
+        let new_texture = self
+            .texture2d(id)
+            .clone_subregion((x, y), (width, height), self);
+
+        self.allocated_textures.insert(new_texture)
     }
 }
 

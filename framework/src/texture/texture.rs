@@ -49,6 +49,7 @@ impl SamplingExtents for (u32, u32, u32) {
     }
 }
 
+#[derive(Debug)]
 pub enum TexelConversionError {
     NotEnoughData,
 }
@@ -63,6 +64,7 @@ pub trait Texture<T: Texel> {
     ) -> Result<Self, TexelConversionError>
     where
         Self: Sized;
+    fn empty(size: Self::SamplingExtentsType) -> Self;
     fn width(&self) -> u32;
     fn height(&self) -> u32;
     fn layers(&self) -> u32;
@@ -187,5 +189,13 @@ impl<T: Texel> Texture<T> for Texture2D<T> {
             width: extents.width,
             height: extents.height,
         })
+    }
+    fn empty(size: Self::SamplingExtentsType) -> Self {
+        let extents = size.extents();
+        Self {
+            data: vec![],
+            width: extents.width,
+            height: extents.height,
+        }
     }
 }
