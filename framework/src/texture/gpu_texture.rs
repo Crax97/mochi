@@ -72,14 +72,26 @@ impl<L: Texel, T: Texture<L>> GpuTexture<L, T> {
     }
 
     pub(crate) fn texture_view(&self, index: usize) -> &wgpu::TextureView {
-        &self.binding_infos.get(index).unwrap().view
+        &self
+            .binding_infos
+            .get(index)
+            .unwrap_or_else(|| panic!("This Texture doesn't have a TextureView at index {}", index))
+            .view
     }
     pub(crate) fn sampler(&self, index: usize) -> &wgpu::Sampler {
-        &self.binding_infos.get(index).unwrap().sampler
+        &self
+            .binding_infos
+            .get(index)
+            .unwrap_or_else(|| panic!("This Texture doesn't have a Sampler at index {}", index))
+            .sampler
     }
 
     pub(crate) fn bind_group(&self, index: usize) -> &wgpu::BindGroup {
-        &self.binding_infos.get(index).unwrap().bind_group
+        &self
+            .binding_infos
+            .get(index)
+            .unwrap_or_else(|| panic!("This Texture doesn't have a BindGroupg at index {}", index))
+            .bind_group
     }
 
     fn convert_region_y_to_wgpu_y(&self, y: u32, region_height: u32) -> u32 {
