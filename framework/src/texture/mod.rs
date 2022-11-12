@@ -6,7 +6,7 @@ pub use gpu_texture::*;
 pub use texels::*;
 pub use texture::*;
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone, Copy)]
 pub struct TextureUsage {
     pub cpu_write: bool,
     pub cpu_read: bool,

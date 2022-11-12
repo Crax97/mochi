@@ -1,10 +1,10 @@
 use std::{marker::PhantomData, num::NonZeroU32};
 
-use wgpu::{Extent3d, ImageCopyBuffer, ImageDataLayout, TextureDescriptor};
+use wgpu::{Extent3d, ImageCopyBuffer, ImageDataLayout, Origin3d, TextureDescriptor};
 
 use crate::{
     BindingInfo, Framework, SamplingExtents, SamplingOrigin, TexelConversionError,
-    TextureConfiguration,
+    TextureConfiguration, TextureUsage,
 };
 
 use super::{Texel, Texture};
@@ -16,6 +16,8 @@ pub struct GpuTexture<L: Texel, T: Texture<L>> {
     pub(crate) height: u32,
     pub(crate) layers: u32,
     pub(crate) wgpu_texture: wgpu::Texture,
+    pub(crate) usage: TextureUsage,
+    pub(crate) mip_count: Option<u32>,
 
     pub(crate) binding_infos: Vec<BindingInfo>,
 }
@@ -52,6 +54,8 @@ impl<L: Texel, T: Texture<L>> GpuTexture<L, T> {
             width: texture.width(),
             height: texture.height(),
             layers: texture.layers(),
+            usage: config.usage,
+            mip_count: config.mip_count,
             binding_infos,
         };
         if let Some(data) = texture.data() {
@@ -267,36 +271,38 @@ impl<L: Texel, T: Texture<L>> GpuTexture<L, T> {
                     label: Some("copy texture to buffer"),
                 });
 
+        let wgpu_extents = extents.extents();
         let mut origin = origin.origin();
-        let extents = extents.extents();
-
+        origin.y = self.convert_region_y_to_wgpu_y(origin.y, wgpu_extents.height);
         // Needed because textures in wgpu go from bottom to top, and we
         // pass coords from top to bottom
-        origin.y = self.convert_region_y_to_wgpu_y(origin.y, extents.height);
 
-        todo!()
-        /*
-        let oneshot_texture = framework.texture2d(output_texture);
+        let new_texture = GpuTexture::new(
+            T::empty(extents),
+            TextureConfiguration {
+                label: self.label.clone().map(|label| label + " clone").as_deref(),
+                usage: self.usage.clone(),
+                mip_count: self.mip_count.clone(),
+            },
+            framework,
+        );
+
         encoder.copy_texture_to_texture(
             wgpu::ImageCopyTexture {
                 texture: &self.texture(),
                 mip_level: 0,
-                origin: Origin3d { x, y: real_y, z: 0 },
+                origin,
                 aspect: wgpu::TextureAspect::All,
             },
             wgpu::ImageCopyTexture {
-                texture: &oneshot_texture.texture(),
+                texture: &new_texture.texture(),
                 mip_level: 0,
                 origin: Origin3d::ZERO,
                 aspect: wgpu::TextureAspect::All,
             },
-            wgpu::Extent3d {
-                width,
-                height,
-                depth_or_array_layers: 1,
-            },
+            wgpu_extents,
         );
         framework.queue.submit(std::iter::once(encoder.finish()));
-         */
+        new_texture
     }
 }

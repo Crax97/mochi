@@ -283,7 +283,6 @@ impl<'a> Framework {
         width: u32,
         height: u32,
     ) -> TextureId {
-        let format = { RgbaU8::wgpu_texture_format() };
         let new_texture = self
             .texture2d(id)
             .clone_subregion((x, y), (width, height), self);
