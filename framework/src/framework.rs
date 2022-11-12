@@ -168,33 +168,6 @@ impl<'a> Framework {
         self.allocated_textures.insert(gpu_tex)
     }
 
-    pub fn with_external_texture<F: FnMut(&TextureId, &mut Framework)>(
-        &mut self,
-        view: TextureView,
-        mut f: F,
-    ) -> TextureView {
-        todo!()
-        /*
-        let tex = Texture2d::new_external(view);
-        let id = self.allocated_textures.insert(tex);
-        f(&id, self);
-        self.take_external_texture2d_view(id)
-        */
-    }
-
-    fn take_external_texture2d_view(&mut self, view: TextureId) -> TextureView {
-        todo!()
-        /*
-        let tex = self.allocated_textures.take(view);
-        match tex.tex_type {
-            crate::texture2d::TextureType::Managed { .. } => {
-                panic!("Cannot treat a managed texture2d as external!")
-            }
-            crate::texture2d::TextureType::External => tex.texture_view,
-        }
-        */
-    }
-
     pub(crate) fn texture2d(&self, id: &TextureId) -> &GpuTexture<RgbaU8, RgbaTexture2D> {
         self.allocated_textures.get(id)
     }

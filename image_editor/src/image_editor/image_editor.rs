@@ -5,7 +5,7 @@ use framework::renderer::renderer::Renderer;
 use framework::scene::Camera2d;
 use framework::shader::{BindElement, ShaderCreationInfo};
 use framework::{Framework, Texture2dConfiguration, Transform2d};
-use wgpu::TextureFormat;
+use wgpu::{TextureFormat, TextureView};
 
 use crate::document::DocumentCreationInfo;
 use crate::image_editor;
@@ -169,7 +169,7 @@ impl ImageEditor {
     pub fn render_canvas(
         &mut self,
         renderer: &mut Renderer,
-        output_canvas: &TextureId,
+        output_canvas: &TextureView,
         framework: &mut Framework,
     ) {
         renderer.begin(&self.pan_camera, Some(wgpu::Color::TRANSPARENT), framework);
@@ -207,7 +207,7 @@ impl ImageEditor {
                 shader: Some(self.final_present_shader.clone()),
             },
         });
-        renderer.end(output_canvas, None, framework);
+        renderer.end_on_external_texture(output_canvas, framework);
     }
 
     fn render_ui(&mut self, renderer: &mut Renderer) {

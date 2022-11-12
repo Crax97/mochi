@@ -228,6 +228,22 @@ impl Renderer {
         );
         self.submit_frame(command_encoder, framework);
     }
+    pub fn end_on_external_texture(&mut self, output: &TextureView, framework: &mut Framework) {
+        // let texture = framework.allocated_textures.map.get(&output.index).unwrap();
+        // self.end(&texture.value.texture_view, None, framework);
+        let command_encoder_description = CommandEncoderDescriptor {
+            label: Some("Framework Renderer command descriptor"),
+        };
+        let mut command_encoder = framework
+            .device
+            .create_command_encoder(&command_encoder_description);
+
+        let draw_commands_with_buffers = self.generate_partial_draws(framework);
+        let commands = self.resolve_draw_commands(framework, draw_commands_with_buffers);
+
+        self.execute_draw_queue(&mut command_encoder, output, None, commands, framework);
+        self.submit_frame(command_encoder, framework);
+    }
 
     fn generate_partial_draws(
         &mut self,
