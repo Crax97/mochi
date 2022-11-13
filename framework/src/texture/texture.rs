@@ -149,9 +149,9 @@ impl<T: Texel> Texture<T> for Texture2D<T> {
         for aspect in aspects {
             let view = texture.create_view(&wgpu::TextureViewDescriptor {
                 label: Some(format!("Texture2D view aspect: {:?}", aspect).as_str()),
-                format: Some(T::wgpu_texture_format()),
+                format: Some(aspect.format),
                 dimension: Some(wgpu::TextureViewDimension::D2),
-                aspect: *aspect,
+                aspect: aspect.aspect,
                 base_mip_level: 0,
                 mip_level_count: None,
                 base_array_layer: 0,

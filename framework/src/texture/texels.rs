@@ -22,6 +22,12 @@ impl ChannelType {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct AspectInfo {
+    pub aspect: TextureAspect,
+    pub format: TextureFormat,
+}
+
 pub trait Texel: bytemuck::Pod + bytemuck::Zeroable {
     fn from_bytes(bytes: &[u8]) -> Result<Self, TexelConversionError>
     where
@@ -37,7 +43,7 @@ pub trait Texel: bytemuck::Pod + bytemuck::Zeroable {
             .fold(0usize, |acc, curr| acc + curr.size_bytes())
     }
     fn wgpu_texture_format() -> TextureFormat;
-    fn supported_aspects() -> &'static [TextureAspect];
+    fn supported_aspects() -> &'static [AspectInfo];
 
     fn wgpu_color(&self) -> wgpu::Color;
     fn bytes(&self) -> &[u8];
@@ -70,8 +76,11 @@ impl Texel for RgbaU8 {
         wgpu::TextureFormat::Rgba8UnormSrgb
     }
 
-    fn supported_aspects() -> &'static [TextureAspect] {
-        static ASPECTS: &[TextureAspect] = &[TextureAspect::All];
+    fn supported_aspects() -> &'static [AspectInfo] {
+        static ASPECTS: &[AspectInfo] = &[AspectInfo {
+            aspect: TextureAspect::All,
+            format: wgpu::TextureFormat::Rgba8UnormSrgb,
+        }];
         ASPECTS
     }
 
@@ -112,8 +121,17 @@ impl Texel for DepthStencilTexel {
     fn wgpu_texture_format() -> TextureFormat {
         TextureFormat::Depth24PlusStencil8
     }
-    fn supported_aspects() -> &'static [TextureAspect] {
-        static ASPECTS: &[TextureAspect] = &[TextureAspect::DepthOnly, TextureAspect::StencilOnly];
+    fn supported_aspects() -> &'static [AspectInfo] {
+        static ASPECTS: &[AspectInfo] = &[
+            AspectInfo {
+                aspect: TextureAspect::DepthOnly,
+                format: wgpu::TextureFormat::Depth24PlusStencil8,
+            },
+            AspectInfo {
+                aspect: TextureAspect::StencilOnly,
+                format: wgpu::TextureFormat::Depth24PlusStencil8,
+            },
+        ];
         ASPECTS
     }
 

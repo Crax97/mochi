@@ -9,10 +9,13 @@ use crate::{
 use cgmath::{point2, vec2, Vector2};
 use framework::{
     framework::TextureId,
-    renderer::renderer::{DepthStencilUsage, Renderer},
+    renderer::{
+        draw_command::BindableResource,
+        renderer::{DepthStencilUsage, Renderer},
+    },
     scene::Camera2d,
-    BufferConfiguration, DepthStencilTexture2D, RgbaTexture2D, Texture, TextureConfiguration,
-    TextureUsage,
+    Box2d, BufferConfiguration, DepthStencilTexture2D, RgbaTexture2D, Texture,
+    TextureConfiguration, TextureUsage,
 };
 use framework::{
     framework::{BufferId, DepthStencilTextureId},
@@ -220,22 +223,24 @@ impl Document {
     }
 
     pub fn draw_selection(&self, renderer: &mut Renderer) {
-        for shape in self.selection.shapes.iter() {
-            match shape {
-                crate::selection::SelectionShape::Rectangle(rect) => {
-                    renderer.draw(DrawCommand {
-                        primitives: PrimitiveType::Rect {
-                            rects: vec![rect.clone()],
-                            multiply_color: wgpu::Color::RED,
-                        },
-                        draw_mode: DrawMode::Single,
-                        additional_data: OptionalDrawData::just_shader(Some(
-                            global_selection_data().dotted_shader.clone(),
-                        )),
-                    });
-                }
-            }
-        }
+        let extents = self.final_layer().size() * 0.5;
+        renderer.draw(DrawCommand {
+            primitives: PrimitiveType::Rect {
+                rects: vec![Box2d {
+                    center: point2(0.0, 0.0),
+                    extents,
+                }],
+                multiply_color: wgpu::Color::RED,
+            },
+            draw_mode: DrawMode::Single,
+            additional_data: OptionalDrawData {
+                additional_vertex_buffers: vec![],
+                additional_bindable_resource: vec![BindableResource::StencilTexture(
+                    self.stencil_texture.clone(),
+                )],
+                shader: Some(global_selection_data().dotted_shader.clone()),
+            },
+        });
     }
 
     pub fn copy_layer_selection_to_new_layer(
