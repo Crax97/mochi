@@ -144,73 +144,79 @@ impl<T: Texel> Texture<T> for Texture2D<T> {
         texture: &wgpu::Texture,
         device: &wgpu::Device,
     ) -> Vec<BindingInfo> {
-        let view = texture.create_view(&wgpu::TextureViewDescriptor {
-            label: Some("Framework Texture view"),
-            format: Some(T::wgpu_texture_format()),
-            dimension: Some(wgpu::TextureViewDimension::D2),
-            aspect: wgpu::TextureAspect::All,
-            base_mip_level: 0,
-            mip_level_count: None,
-            base_array_layer: 0,
-            array_layer_count: None,
-        });
-        let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-            label: Some("Framework Texture sampler"),
-            address_mode_u: wgpu::AddressMode::ClampToEdge,
-            address_mode_v: wgpu::AddressMode::ClampToEdge,
-            address_mode_w: wgpu::AddressMode::ClampToEdge,
-            mag_filter: wgpu::FilterMode::Linear,
-            min_filter: wgpu::FilterMode::Linear,
-            mipmap_filter: wgpu::FilterMode::Linear,
-            lod_min_clamp: 0.0,
-            lod_max_clamp: 0.0,
-            compare: None,
-            anisotropy_clamp: NonZeroU8::new(1),
-            border_color: None,
-        });
+        let aspects = T::supported_aspects();
+        let mut binding_infos = vec![];
+        for aspect in aspects {
+            let view = texture.create_view(&wgpu::TextureViewDescriptor {
+                label: Some(format!("Texture2D view aspect: {:?}", aspect).as_str()),
+                format: Some(T::wgpu_texture_format()),
+                dimension: Some(wgpu::TextureViewDimension::D2),
+                aspect: *aspect,
+                base_mip_level: 0,
+                mip_level_count: None,
+                base_array_layer: 0,
+                array_layer_count: None,
+            });
+            let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+                label: Some(format!("Texture2D sampler, aspect: {:?}", aspect).as_str()),
+                address_mode_u: wgpu::AddressMode::ClampToEdge,
+                address_mode_v: wgpu::AddressMode::ClampToEdge,
+                address_mode_w: wgpu::AddressMode::ClampToEdge,
+                mag_filter: wgpu::FilterMode::Linear,
+                min_filter: wgpu::FilterMode::Linear,
+                mipmap_filter: wgpu::FilterMode::Linear,
+                lod_min_clamp: 0.0,
+                lod_max_clamp: 0.0,
+                compare: None,
+                anisotropy_clamp: NonZeroU8::new(1),
+                border_color: None,
+            });
 
-        let texture_bind_group_layout =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: Some("RgbaU8 Bind Group layout"),
-                entries: &[
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
-                        ty: wgpu::BindingType::Texture {
-                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                            view_dimension: wgpu::TextureViewDimension::D2,
-                            multisampled: false,
+            let texture_bind_group_layout =
+                device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                    label: Some(
+                        format!("Texture2D BindGroup Layout, aspect: {:?}", aspect).as_str(),
+                    ),
+                    entries: &[
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 0,
+                            visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+                            ty: wgpu::BindingType::Texture {
+                                sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                                view_dimension: wgpu::TextureViewDimension::D2,
+                                multisampled: false,
+                            },
+                            count: None,
                         },
-                        count: None,
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 1,
+                            visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+                            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                            count: None,
+                        },
+                    ],
+                });
+            let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some(format!("Texture2D BindGroup, aspect: {:?}", aspect).as_str()),
+                layout: &texture_bind_group_layout,
+                entries: &[
+                    wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: wgpu::BindingResource::TextureView(&view),
                     },
-                    wgpu::BindGroupLayoutEntry {
+                    wgpu::BindGroupEntry {
                         binding: 1,
-                        visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
-                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                        count: None,
+                        resource: wgpu::BindingResource::Sampler(&sampler),
                     },
                 ],
             });
-        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("RgbaU8 Bind Group"),
-            layout: &texture_bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Sampler(&sampler),
-                },
-            ],
-        });
-
-        vec![BindingInfo {
-            view,
-            sampler,
-            bind_group,
-        }]
+            binding_infos.push(BindingInfo {
+                view,
+                sampler,
+                bind_group,
+            });
+        }
+        binding_infos
     }
 
     fn data(&self) -> Option<&[T]> {

@@ -1,4 +1,4 @@
-use wgpu::{BindGroup, Sampler, TextureFormat, TextureView};
+use wgpu::{BindGroup, Sampler, TextureAspect, TextureFormat, TextureView};
 
 use super::texture::TexelConversionError;
 
@@ -37,6 +37,7 @@ pub trait Texel: bytemuck::Pod + bytemuck::Zeroable {
             .fold(0usize, |acc, curr| acc + curr.size_bytes())
     }
     fn wgpu_texture_format() -> TextureFormat;
+    fn supported_aspects() -> &'static [TextureAspect];
 
     fn wgpu_color(&self) -> wgpu::Color;
     fn bytes(&self) -> &[u8];
@@ -48,7 +49,7 @@ pub struct RgbaU8([u8; 4]);
 
 impl Texel for RgbaU8 {
     fn from_bytes(bytes: &[u8]) -> Result<Self, TexelConversionError> {
-        if bytes.len() < Self::channel_count() as usize {
+        if bytes.len() < Self::total_texel_size_bytes() as usize {
             return Err(TexelConversionError::NotEnoughData);
         }
 
@@ -67,6 +68,11 @@ impl Texel for RgbaU8 {
 
     fn wgpu_texture_format() -> wgpu::TextureFormat {
         wgpu::TextureFormat::Rgba8UnormSrgb
+    }
+
+    fn supported_aspects() -> &'static [TextureAspect] {
+        static ASPECTS: &[TextureAspect] = &[TextureAspect::All];
+        ASPECTS
     }
 
     fn wgpu_color(&self) -> wgpu::Color {
@@ -92,7 +98,7 @@ impl Texel for DepthStencilTexel {
     where
         Self: Sized,
     {
-        if bytes.len() < Self::channel_count() as usize {
+        if bytes.len() < Self::total_texel_size_bytes() as usize {
             return Err(TexelConversionError::NotEnoughData);
         }
         Ok(DepthStencilTexel([bytes[0], bytes[1], bytes[2], bytes[3]]))
@@ -105,6 +111,10 @@ impl Texel for DepthStencilTexel {
 
     fn wgpu_texture_format() -> TextureFormat {
         TextureFormat::Depth24PlusStencil8
+    }
+    fn supported_aspects() -> &'static [TextureAspect] {
+        static ASPECTS: &[TextureAspect] = &[TextureAspect::DepthOnly, TextureAspect::StencilOnly];
+        ASPECTS
     }
 
     fn wgpu_color(&self) -> wgpu::Color {
