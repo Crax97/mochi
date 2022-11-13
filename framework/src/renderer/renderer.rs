@@ -9,9 +9,9 @@ use crate::{
     buffer::BufferInitialSetup,
     framework::{BufferId, DepthStencilTextureId, MeshId, ShaderId, TextureId},
     shader::{Shader, ShaderCreationInfo},
-    Buffer, BufferConfiguration, BufferType, Camera2d, Camera2dUniformBlock, DepthStencilTexture,
-    Framework, GpuRgbaTexture2D, Mesh, MeshConstructionDetails, MeshInstance2D, RgbaTexture2D,
-    Texture, Vertex,
+    Buffer, BufferConfiguration, BufferType, Camera2d, Camera2dUniformBlock,
+    DepthStencilTextureOld, Framework, GpuRgbaTexture2D, Mesh, MeshConstructionDetails,
+    MeshInstance2D, RgbaTexture2D, Texture, Vertex,
 };
 
 use super::draw_command::{BindableResource, DrawCommand, DrawMode, PrimitiveType};
@@ -285,7 +285,7 @@ impl Renderer {
         &mut self,
         command_encoder: &mut CommandEncoder,
         output: &TextureView,
-        depth_output: Option<&DepthStencilTexture>,
+        depth_output: Option<&DepthStencilTextureOld>,
         commands: Vec<ResolvedDrawCommand>,
         framework: &Framework,
     ) {

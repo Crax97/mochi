@@ -10,8 +10,8 @@ pub struct DepthStencilTextureConfiguration<'a> {
     pub height: u32,
     pub is_stencil: bool,
 }
-
-pub struct DepthStencilTexture {
+#[deprecated]
+pub struct DepthStencilTextureOld {
     pub(crate) depth_stencil_texture: Texture,
 
     pub(crate) depth_view: TextureView,
@@ -27,7 +27,7 @@ pub struct DepthStencilTexture {
     pub(crate) is_stencil: bool,
 }
 
-impl DepthStencilTexture {
+impl DepthStencilTextureOld {
     pub(crate) fn new(framework: &Framework, config: DepthStencilTextureConfiguration) -> Self {
         let format = wgpu::TextureFormat::Depth24PlusStencil8;
 
