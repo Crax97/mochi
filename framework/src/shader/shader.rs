@@ -230,26 +230,16 @@ impl Shader {
                         .device
                         .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                             label: Some("Stencil Texture Bindg layout"),
-                            entries: &[
-                                wgpu::BindGroupLayoutEntry {
-                                    binding: 0,
-                                    visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
-                                    ty: wgpu::BindingType::Texture {
-                                        sample_type: wgpu::TextureSampleType::Uint,
-                                        view_dimension: wgpu::TextureViewDimension::D2,
-                                        multisampled: false,
-                                    },
-                                    count: None,
+                            entries: &[wgpu::BindGroupLayoutEntry {
+                                binding: 0,
+                                visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+                                ty: wgpu::BindingType::Texture {
+                                    sample_type: wgpu::TextureSampleType::Uint,
+                                    view_dimension: wgpu::TextureViewDimension::D2,
+                                    multisampled: false,
                                 },
-                                wgpu::BindGroupLayoutEntry {
-                                    binding: 1,
-                                    visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
-                                    ty: wgpu::BindingType::Sampler(
-                                        wgpu::SamplerBindingType::Filtering,
-                                    ),
-                                    count: None,
-                                },
-                            ],
+                                count: None,
+                            }],
                         })
                 }
             })

@@ -5,7 +5,6 @@
 @group(2) @binding(1) var s_diffuse: sampler;
 
 @group(3) @binding(0) var stencil: texture_2d<u32>;
-@group(3) @binding(1) var s_stencil: sampler;
 
 fn stencil_sample(uv: vec2<f32>) -> f32 {
 

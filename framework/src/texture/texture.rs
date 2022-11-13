@@ -1,6 +1,6 @@
 use std::num::NonZeroU8;
 
-use wgpu::{BindGroupLayout, Extent3d, Origin3d, TextureDimension};
+use wgpu::{BindGroupLayout, Extent3d, Origin3d, TextureDimension, TextureSampleType};
 
 use crate::{BindingInfo, Framework, Texel};
 
@@ -157,59 +157,101 @@ impl<T: Texel> Texture<T> for Texture2D<T> {
                 base_array_layer: 0,
                 array_layer_count: None,
             });
-            let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-                label: Some(format!("Texture2D sampler, aspect: {:?}", aspect).as_str()),
-                address_mode_u: wgpu::AddressMode::ClampToEdge,
-                address_mode_v: wgpu::AddressMode::ClampToEdge,
-                address_mode_w: wgpu::AddressMode::ClampToEdge,
-                mag_filter: wgpu::FilterMode::Linear,
-                min_filter: wgpu::FilterMode::Linear,
-                mipmap_filter: wgpu::FilterMode::Linear,
-                lod_min_clamp: 0.0,
-                lod_max_clamp: 0.0,
-                compare: None,
-                anisotropy_clamp: NonZeroU8::new(1),
-                border_color: None,
-            });
+            let sampler = if aspect.create_sampler {
+                Some(device.create_sampler(&wgpu::SamplerDescriptor {
+                    label: Some(format!("Texture2D sampler, aspect: {:?}", aspect).as_str()),
+                    address_mode_u: wgpu::AddressMode::ClampToEdge,
+                    address_mode_v: wgpu::AddressMode::ClampToEdge,
+                    address_mode_w: wgpu::AddressMode::ClampToEdge,
+                    mag_filter: wgpu::FilterMode::Linear,
+                    min_filter: wgpu::FilterMode::Linear,
+                    mipmap_filter: wgpu::FilterMode::Linear,
+                    lod_min_clamp: 0.0,
+                    lod_max_clamp: 0.0,
+                    compare: None,
+                    anisotropy_clamp: NonZeroU8::new(1),
+                    border_color: None,
+                }))
+            } else {
+                None
+            };
 
-            let texture_bind_group_layout =
-                device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    label: Some(
-                        format!("Texture2D BindGroup Layout, aspect: {:?}", aspect).as_str(),
-                    ),
-                    entries: &[
-                        wgpu::BindGroupLayoutEntry {
-                            binding: 0,
-                            visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
-                            ty: wgpu::BindingType::Texture {
-                                sample_type: aspect.sample_type,
-                                view_dimension: wgpu::TextureViewDimension::D2,
-                                multisampled: false,
+            let bind_group = match &sampler {
+                Some(sampler) => {
+                    let layout =
+                        device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                            label: Some(
+                                format!("Texture2D BindGroup Layout, aspect: {:?}", aspect)
+                                    .as_str(),
+                            ),
+                            entries: &[
+                                wgpu::BindGroupLayoutEntry {
+                                    binding: 0,
+                                    visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+                                    ty: wgpu::BindingType::Texture {
+                                        sample_type: aspect.sample_type,
+                                        view_dimension: wgpu::TextureViewDimension::D2,
+                                        multisampled: false,
+                                    },
+                                    count: None,
+                                },
+                                wgpu::BindGroupLayoutEntry {
+                                    binding: 1,
+                                    visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+                                    ty: wgpu::BindingType::Sampler(
+                                        wgpu::SamplerBindingType::Filtering,
+                                    ),
+                                    count: None,
+                                },
+                            ],
+                        });
+                    device.create_bind_group(&wgpu::BindGroupDescriptor {
+                        label: Some(format!("Texture2D BindGroup, aspect: {:?}", aspect).as_str()),
+                        layout: &layout,
+                        entries: &[
+                            wgpu::BindGroupEntry {
+                                binding: 0,
+                                resource: wgpu::BindingResource::TextureView(&view),
                             },
-                            count: None,
-                        },
-                        wgpu::BindGroupLayoutEntry {
-                            binding: 1,
-                            visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
-                            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                            count: None,
-                        },
-                    ],
-                });
-            let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some(format!("Texture2D BindGroup, aspect: {:?}", aspect).as_str()),
-                layout: &texture_bind_group_layout,
-                entries: &[
-                    wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: wgpu::BindingResource::TextureView(&view),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 1,
-                        resource: wgpu::BindingResource::Sampler(&sampler),
-                    },
-                ],
-            });
+                            wgpu::BindGroupEntry {
+                                binding: 1,
+                                resource: wgpu::BindingResource::Sampler(&sampler),
+                            },
+                        ],
+                    })
+                }
+                None => {
+                    let layout =
+                        device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                            label: Some(
+                                format!(
+                                    "Texture2D BindGroup Layout, aspect: {:?} no sampler",
+                                    aspect
+                                )
+                                .as_str(),
+                            ),
+                            entries: &[wgpu::BindGroupLayoutEntry {
+                                binding: 0,
+                                visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+                                ty: wgpu::BindingType::Texture {
+                                    sample_type: aspect.sample_type,
+                                    view_dimension: wgpu::TextureViewDimension::D2,
+                                    multisampled: false,
+                                },
+                                count: None,
+                            }],
+                        });
+
+                    device.create_bind_group(&wgpu::BindGroupDescriptor {
+                        label: Some(format!("Texture2D BindGroup, aspect: {:?}", aspect).as_str()),
+                        layout: &layout,
+                        entries: &[wgpu::BindGroupEntry {
+                            binding: 0,
+                            resource: wgpu::BindingResource::TextureView(&view),
+                        }],
+                    })
+                }
+            };
             binding_infos.push(BindingInfo {
                 view,
                 sampler,

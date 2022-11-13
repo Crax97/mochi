@@ -4,7 +4,7 @@ use super::texture::TexelConversionError;
 
 pub struct BindingInfo {
     pub(crate) view: TextureView,
-    pub(crate) sampler: Sampler,
+    pub(crate) sampler: Option<Sampler>,
     pub(crate) bind_group: BindGroup,
 }
 
@@ -29,6 +29,7 @@ pub struct AspectInfo {
     pub aspect: TextureAspect,
     pub format: TextureFormat,
     pub sample_type: TextureSampleType,
+    pub create_sampler: bool,
 }
 
 pub trait Texel: bytemuck::Pod + bytemuck::Zeroable {
@@ -84,6 +85,7 @@ impl Texel for RgbaU8 {
             aspect: TextureAspect::All,
             format: wgpu::TextureFormat::Rgba8UnormSrgb,
             sample_type: TextureSampleType::Float { filterable: true },
+            create_sampler: true,
         }];
         ASPECTS
     }
@@ -131,11 +133,13 @@ impl Texel for DepthStencilTexel {
                 aspect: TextureAspect::DepthOnly,
                 format: wgpu::TextureFormat::Depth24PlusStencil8,
                 sample_type: TextureSampleType::Depth,
+                create_sampler: true,
             },
             AspectInfo {
                 aspect: TextureAspect::StencilOnly,
                 format: wgpu::TextureFormat::Depth24PlusStencil8,
-                sample_type: TextureSampleType::Uint,
+                sample_type: wgpu::TextureSampleType::Uint,
+                create_sampler: false,
             },
         ];
         ASPECTS

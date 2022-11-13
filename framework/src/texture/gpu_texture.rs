@@ -92,6 +92,8 @@ impl<L: Texel, T: Texture<L>> GpuTexture<L, T> {
             .get(index)
             .unwrap_or_else(|| panic!("This Texture doesn't have a Sampler at index {}", index))
             .sampler
+            .as_ref()
+            .unwrap_or_else(|| panic!("This Texture doesn't support sampling at index {}", index))
     }
 
     pub(crate) fn bind_group(&self, index: usize) -> &wgpu::BindGroup {
