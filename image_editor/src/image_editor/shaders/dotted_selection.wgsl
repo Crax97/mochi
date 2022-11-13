@@ -4,22 +4,25 @@
 @group(2) @binding(0) var diffuse: texture_2d<f32>;
 @group(2) @binding(1) var s_diffuse: sampler;
 
-@group(3) @binding(0) var stencil: texture_2d<f32>;
+@group(3) @binding(0) var stencil: texture_2d<u32>;
 @group(3) @binding(1) var s_stencil: sampler;
 
 fn stencil_sample(uv: vec2<f32>) -> f32 {
 
     let stencil_dimensions = textureDimensions(stencil);
-    let texel_size = vec2<f32>(1.0 / f32(stencil_dimensions.x), 1.0 / f32(stencil_dimensions.y));
+    let x = uv.x * f32(stencil_dimensions.x);
+    let y = (1.0 - uv.y) * f32(stencil_dimensions.y);
+    let texel_position = vec2(i32(x), i32(y));
 
-    let up_sample = textureSample(stencil, s_stencil, uv + vec2<f32>(0.0, 1.0) * texel_size);
-    let down_sample = textureSample(stencil, s_stencil, uv + vec2<f32>(0.0, -1.0) * texel_size);
-    let left_sample = textureSample(stencil, s_stencil, uv + vec2<f32>(-1.0, 0.0) * texel_size);
-    let right_sample = textureSample(stencil, s_stencil, uv + vec2<f32>(1.0, 0.0) * texel_size);
+    let up_sample = textureLoad(stencil, texel_position + vec2<i32>(0, 1), 0);
+    let down_sample = textureLoad(stencil,  texel_position + vec2<i32>(0, -1), 0);
+    let left_sample = textureLoad(stencil,  texel_position + vec2<i32>(-1, 0), 0);
+    let right_sample = textureLoad(stencil,  texel_position + vec2<i32>(1, 0), 0);
     let up_down = down_sample + up_sample;
     let left_right = right_sample + left_sample;
     let sampled_component = up_down - left_right;
-    return textureSample(stencil, s_stencil, uv).r;
+    
+    return f32(sampled_component.r);
 }
 
 fn checkerboard(el: i32, span: i32) -> f32 {
@@ -40,12 +43,7 @@ fn fragment(in: FragmentInput) -> @location(0) vec4<f32> {
     let span = 2.0;
     let i_x_span = 15;
     let i_y_span = 15;
-    let point_inside_border = 
-        f32((midpoint.x < span)  || (midpoint.x >= scale.x * 2.0 - span))+
-        f32((midpoint.y < span)  || (midpoint.y >= scale.y * 2.0 - span))
-    ;
     let ss = stencil_sample(in.tex_uv);
-
-    // return mix(vec4(0.0), vec4(1.0, 0.0, 0.0, 1.0), stencil_sample(in.tex_uv));
-    return vec4<f32>(ss, ss, ss, ss);
+    let checker = checkerboard(i32(midpoint.x + midpoint.y), i_x_span);
+    return mix(vec4(0.0), vec4(0.0, 0.0, 0.0, 1.0), checker * ss);
 }

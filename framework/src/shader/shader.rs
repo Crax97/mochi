@@ -13,6 +13,8 @@ pub trait ShaderLayout {
 pub enum BindElement {
     UniformBuffer,
     Texture,
+    DepthTexture,
+    StencilTexture,
     None,
 }
 
@@ -206,6 +208,60 @@ impl Shader {
                         .create_bind_group_layout(&BindGroupLayoutDescriptor {
                             label: None,
                             entries: &[],
+                        })
+                }
+                BindElement::DepthTexture => {
+                    framework
+                        .device
+                        .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                            label: Some("Depth Texture Bindg layout"),
+                            entries: &[
+                                wgpu::BindGroupLayoutEntry {
+                                    binding: 0,
+                                    visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+                                    ty: wgpu::BindingType::Texture {
+                                        sample_type: wgpu::TextureSampleType::Depth,
+                                        view_dimension: wgpu::TextureViewDimension::D2,
+                                        multisampled: false,
+                                    },
+                                    count: None,
+                                },
+                                wgpu::BindGroupLayoutEntry {
+                                    binding: 1,
+                                    visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+                                    ty: wgpu::BindingType::Sampler(
+                                        wgpu::SamplerBindingType::Filtering,
+                                    ),
+                                    count: None,
+                                },
+                            ],
+                        })
+                }
+                BindElement::StencilTexture => {
+                    framework
+                        .device
+                        .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                            label: Some("Stencil Texture Bindg layout"),
+                            entries: &[
+                                wgpu::BindGroupLayoutEntry {
+                                    binding: 0,
+                                    visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+                                    ty: wgpu::BindingType::Texture {
+                                        sample_type: wgpu::TextureSampleType::Uint,
+                                        view_dimension: wgpu::TextureViewDimension::D2,
+                                        multisampled: false,
+                                    },
+                                    count: None,
+                                },
+                                wgpu::BindGroupLayoutEntry {
+                                    binding: 1,
+                                    visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+                                    ty: wgpu::BindingType::Sampler(
+                                        wgpu::SamplerBindingType::Filtering,
+                                    ),
+                                    count: None,
+                                },
+                            ],
                         })
                 }
             })

@@ -170,7 +170,7 @@ impl ImageEditor {
         framework: &mut Framework,
     ) {
         renderer.begin(&self.pan_camera, Some(wgpu::Color::TRANSPARENT), framework);
-
+        renderer.set_draw_debug_name("Canvas rendering");
         renderer.draw(DrawCommand {
             primitives: PrimitiveType::Texture2D {
                 texture_id: self.document.final_layer().texture().clone(),

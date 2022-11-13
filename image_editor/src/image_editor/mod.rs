@@ -114,7 +114,7 @@ fn make_globals(framework: &mut Framework) -> ImageEditorGlobals {
         .unwrap();
     let dotted_info = ShaderCreationInfo::using_default_vertex(dotted_module_descriptor, framework)
         .with_bind_element(BindElement::Texture) // 2: diffuse texture + sampler
-        .with_bind_element(BindElement::Texture); // 3: Stencil texture + sampler
+        .with_bind_element(BindElement::StencilTexture); // 3: Stencil texture + sampler
     let dotted_shader = framework.create_shader(dotted_info);
 
     ImageEditorGlobals {

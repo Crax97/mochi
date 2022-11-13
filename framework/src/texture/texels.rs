@@ -1,4 +1,4 @@
-use wgpu::{BindGroup, Sampler, TextureAspect, TextureFormat, TextureView};
+use wgpu::{BindGroup, Sampler, TextureAspect, TextureFormat, TextureSampleType, TextureView};
 
 use super::texture::TexelConversionError;
 
@@ -11,6 +11,7 @@ pub struct BindingInfo {
 pub enum ChannelType {
     U8,
     F24,
+    F32,
 }
 
 impl ChannelType {
@@ -18,6 +19,7 @@ impl ChannelType {
         match self {
             ChannelType::U8 => 1,
             ChannelType::F24 => 3,
+            ChannelType::F32 => 4,
         }
     }
 }
@@ -26,6 +28,7 @@ impl ChannelType {
 pub struct AspectInfo {
     pub aspect: TextureAspect,
     pub format: TextureFormat,
+    pub sample_type: TextureSampleType,
 }
 
 pub trait Texel: bytemuck::Pod + bytemuck::Zeroable {
@@ -80,6 +83,7 @@ impl Texel for RgbaU8 {
         static ASPECTS: &[AspectInfo] = &[AspectInfo {
             aspect: TextureAspect::All,
             format: wgpu::TextureFormat::Rgba8UnormSrgb,
+            sample_type: TextureSampleType::Float { filterable: true },
         }];
         ASPECTS
     }
@@ -114,7 +118,7 @@ impl Texel for DepthStencilTexel {
     }
 
     fn channels() -> &'static [ChannelType] {
-        static DEPTH_STENCIL_CHANNELS: &[ChannelType] = &[ChannelType::F24, ChannelType::U8];
+        static DEPTH_STENCIL_CHANNELS: &[ChannelType] = &[ChannelType::F32, ChannelType::U8];
         DEPTH_STENCIL_CHANNELS
     }
 
@@ -126,10 +130,12 @@ impl Texel for DepthStencilTexel {
             AspectInfo {
                 aspect: TextureAspect::DepthOnly,
                 format: wgpu::TextureFormat::Depth24PlusStencil8,
+                sample_type: TextureSampleType::Depth,
             },
             AspectInfo {
                 aspect: TextureAspect::StencilOnly,
                 format: wgpu::TextureFormat::Depth24PlusStencil8,
+                sample_type: TextureSampleType::Uint,
             },
         ];
         ASPECTS

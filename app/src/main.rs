@@ -25,7 +25,7 @@ async fn run_app() -> anyhow::Result<()> {
     let framework = Box::leak(Box::new({
         let framework = Framework::new(&wgpu::DeviceDescriptor {
             label: Some("Image Editor framework"),
-            features: wgpu::Features::empty(),
+            features: wgpu::Features::DEPTH32FLOAT_STENCIL8,
             limits: wgpu::Limits {
                 max_bind_groups: 5,
                 ..Default::default()

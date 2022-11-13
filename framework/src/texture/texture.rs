@@ -182,7 +182,7 @@ impl<T: Texel> Texture<T> for Texture2D<T> {
                             binding: 0,
                             visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
                             ty: wgpu::BindingType::Texture {
-                                sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                                sample_type: aspect.sample_type,
                                 view_dimension: wgpu::TextureViewDimension::D2,
                                 multisampled: false,
                             },
