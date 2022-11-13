@@ -6,11 +6,9 @@ use wgpu::*;
 use crate::{
     buffer::BufferInitialSetup,
     shader::{Shader, ShaderCompiler, ShaderCreationInfo},
-    texture,
-    texture2d::GpuImageData,
     AssetId, AssetMap, AssetsLibrary, DepthStencilTexture, DepthStencilTextureConfiguration,
     GpuRgbaTexture2D, GpuTexture, Mesh, MeshConstructionDetails, RgbaTexture2D, RgbaU8, Texel,
-    TexelConversionError, Texture, Texture2dConfiguration,
+    TextureConfiguration,
 };
 
 use super::buffer::{Buffer, BufferConfiguration};
@@ -138,27 +136,10 @@ impl<'a> Framework {
 
     pub fn allocate_texture2d<'r>(
         &mut self,
-        tex_info: Texture2dConfiguration,
-        initial_data: Option<&[u8]>,
+        texture: RgbaTexture2D,
+        config: TextureConfiguration,
     ) -> TextureId {
-        let cpu_tex = if let Some(bytes) = initial_data {
-            RgbaTexture2D::from_bytes(bytes, (tex_info.width, tex_info.height)).unwrap()
-        } else {
-            RgbaTexture2D::empty((tex_info.width, tex_info.height))
-        };
-        let gpu_tex = GpuTexture::new(
-            cpu_tex,
-            texture::TextureConfiguration {
-                label: tex_info.debug_name.as_deref(),
-                usage: crate::TextureUsage {
-                    cpu_write: tex_info.allow_cpu_write,
-                    cpu_read: tex_info.allow_cpu_read,
-                    use_as_render_target: tex_info.allow_use_as_render_target,
-                },
-                mip_count: None,
-            },
-            self,
-        );
+        let gpu_tex = GpuTexture::new(texture, config, self);
         self.allocated_textures.insert(gpu_tex)
     }
 

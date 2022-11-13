@@ -2,7 +2,7 @@ use std::num::NonZeroU8;
 
 use wgpu::{BindGroup, Sampler, Texture, TextureAspect, TextureView};
 
-use crate::{Framework, Texture2d};
+use crate::Framework;
 
 pub struct DepthStencilTextureConfiguration<'a> {
     pub debug_name: Option<&'a str>,
@@ -84,7 +84,33 @@ impl DepthStencilTexture {
                 anisotropy_clamp: NonZeroU8::new(1),
                 border_color: None,
             });
-            let texture_bind_group_layout = Texture2d::bind_group_layout(framework);
+
+            let texture_bind_group_layout =
+                framework
+                    .device
+                    .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                        label: Some("Depth Texture Bindg layout"),
+                        entries: &[
+                            wgpu::BindGroupLayoutEntry {
+                                binding: 0,
+                                visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+                                ty: wgpu::BindingType::Texture {
+                                    sample_type: wgpu::TextureSampleType::Float {
+                                        filterable: true,
+                                    },
+                                    view_dimension: wgpu::TextureViewDimension::D2,
+                                    multisampled: false,
+                                },
+                                count: None,
+                            },
+                            wgpu::BindGroupLayoutEntry {
+                                binding: 1,
+                                visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+                                ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                                count: None,
+                            },
+                        ],
+                    });
             let bind_group = framework
                 .device
                 .create_bind_group(&wgpu::BindGroupDescriptor {

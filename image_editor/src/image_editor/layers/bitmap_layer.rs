@@ -1,15 +1,15 @@
-use cgmath::{num_traits::ToPrimitive, Point3, Rad, Vector2};
+use cgmath::{Point3, Rad, Vector2};
 use framework::framework::{BufferId, ShaderId};
 use framework::renderer::draw_command::BindableResource;
-use framework::Framework;
 use framework::{
     framework::TextureId,
     renderer::{
         draw_command::{DrawCommand, DrawMode, OptionalDrawData, PrimitiveType},
         renderer::Renderer,
     },
-    Camera2d, Texture2dConfiguration, Transform2d,
+    Camera2d, Transform2d,
 };
+use framework::{Framework, RgbaTexture2D, Texture, TextureConfiguration, TextureUsage};
 
 pub struct BitmapLayerConfiguration {
     pub label: String,
@@ -39,19 +39,13 @@ impl BitmapLayer {
         configuration: BitmapLayerConfiguration,
         framework: &mut Framework,
     ) -> Self {
-        let format = wgpu::TextureFormat::Rgba8UnormSrgb;
-
         let texture = framework.allocate_texture2d(
-            Texture2dConfiguration {
-                debug_name: Some(configuration.label.clone() + " Texture"),
-                width: configuration.width,
-                height: configuration.height,
-                format,
-                allow_cpu_write: true,
-                allow_cpu_read: true,
-                allow_use_as_render_target: true,
+            RgbaTexture2D::from_bytes(bytes, (configuration.width, configuration.height)).unwrap(),
+            TextureConfiguration {
+                label: Some(&(configuration.label.clone() + " texture")),
+                usage: TextureUsage::RWRT,
+                mip_count: None,
             },
-            Some(bytes),
         );
 
         Self {

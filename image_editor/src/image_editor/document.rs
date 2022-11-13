@@ -9,14 +9,14 @@ use crate::{
 use cgmath::{point2, vec2, Vector2};
 use framework::{
     framework::TextureId, renderer::renderer::Renderer, scene::Camera2d, BufferConfiguration,
-    Texel, Texture,
+    RgbaTexture2D, Texture, TextureConfiguration, TextureUsage,
 };
 use framework::{
     framework::{BufferId, DepthStencilTextureId},
     renderer::draw_command::{DrawCommand, DrawMode, OptionalDrawData, PrimitiveType},
-    Box2d, DepthStencilTextureConfiguration, Framework, Texture2dConfiguration,
+    DepthStencilTextureConfiguration, Framework,
 };
-use image::{DynamicImage, ImageBuffer, RgbaImage};
+use image::{DynamicImage, ImageBuffer};
 
 use framework::framework::ShaderId;
 use std::collections::HashMap;
@@ -240,32 +240,23 @@ impl Document {
         framework: &mut Framework,
     ) {
         let current_layer = self.current_layer();
-        let (width, height) = framework.texture2d_dimensions(current_layer.bitmap.texture());
+        let dims = framework.texture2d_dimensions(current_layer.bitmap.texture());
 
-        let format = framework.texture2d_format(current_layer.bitmap.texture());
         let new_texture = framework.allocate_texture2d(
-            Texture2dConfiguration {
-                debug_name: None,
-                width,
-                height,
-                format,
-                allow_cpu_write: true,
-                allow_cpu_read: true,
-                allow_use_as_render_target: true,
+            RgbaTexture2D::empty(dims),
+            TextureConfiguration {
+                label: Some(&(current_layer.settings().clone().name + " clone texture")),
+                usage: TextureUsage::RWRT,
+                mip_count: None,
             },
-            None,
         );
         let old_texture_copy = framework.allocate_texture2d(
-            Texture2dConfiguration {
-                debug_name: None,
-                width,
-                height,
-                format,
-                allow_cpu_write: true,
-                allow_cpu_read: true,
-                allow_use_as_render_target: true,
+            RgbaTexture2D::empty(dims),
+            TextureConfiguration {
+                label: Some(&(current_layer.settings().clone().name + " texture")),
+                usage: TextureUsage::RWRT,
+                mip_count: None,
             },
-            None,
         );
 
         // 1. Draw layer using the rect stencil buffer, this is the selection. Store it into a new texture

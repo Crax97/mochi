@@ -10,8 +10,8 @@ use crate::{
     framework::{BufferId, DepthStencilTextureId, MeshId, ShaderId, TextureId},
     shader::{Shader, ShaderCreationInfo},
     Buffer, BufferConfiguration, BufferType, Camera2d, Camera2dUniformBlock, DepthStencilTexture,
-    Framework, GpuRgbaTexture2D, Mesh, MeshConstructionDetails, MeshInstance2D, Texture2d,
-    Texture2dConfiguration, Vertex,
+    Framework, GpuRgbaTexture2D, Mesh, MeshConstructionDetails, MeshInstance2D, RgbaTexture2D,
+    Texture, Vertex,
 };
 
 use super::draw_command::{BindableResource, DrawCommand, DrawMode, PrimitiveType};
@@ -127,17 +127,14 @@ impl Renderer {
         let quad_mesh_id = Renderer::construct_initial_quad(framework);
         let empty_bind_group = Renderer::empty_bind_group(framework);
 
+        let white_cpu_texture = RgbaTexture2D::from_bytes(&[255, 255, 255, 255], (1, 1)).unwrap();
         let white_texture_id = framework.allocate_texture2d(
-            Texture2dConfiguration {
-                debug_name: Some("White texture".to_string()),
-                width: 1,
-                height: 1,
-                format: wgpu::TextureFormat::Rgba8Unorm,
-                allow_cpu_write: true,
-                allow_cpu_read: false,
-                allow_use_as_render_target: false,
+            white_cpu_texture,
+            crate::TextureConfiguration {
+                label: Some("White texture"),
+                usage: crate::texture::TextureUsage::READ_WRITE,
+                mip_count: None,
             },
-            Some(&[255, 255, 255, 255]),
         );
 
         Self {

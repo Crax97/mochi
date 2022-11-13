@@ -4,7 +4,9 @@ use framework::renderer::draw_command::{DrawCommand, DrawMode, OptionalDrawData,
 use framework::renderer::renderer::Renderer;
 use framework::scene::Camera2d;
 use framework::shader::{BindElement, ShaderCreationInfo};
-use framework::{Framework, Texture2dConfiguration, Transform2d};
+use framework::{
+    Framework, RgbaTexture2D, Texture, TextureConfiguration, TextureUsage, Transform2d,
+};
 use wgpu::{TextureFormat, TextureView};
 
 use crate::document::DocumentCreationInfo;
@@ -81,16 +83,12 @@ impl ImageEditor {
         let layer_draw_shader = framework.create_shader(fucking_shader_info);
 
         let output_texture = framework.allocate_texture2d(
-            Texture2dConfiguration {
-                debug_name: Some("Final output".to_string()),
-                width: pan_camera.width() as u32,
-                height: pan_camera.height() as u32,
-                format: TextureFormat::Rgba8Unorm,
-                allow_cpu_write: false,
-                allow_cpu_read: false,
-                allow_use_as_render_target: true,
+            RgbaTexture2D::empty((pan_camera.width() as u32, pan_camera.height() as u32)),
+            TextureConfiguration {
+                label: Some("ImageEditor final rendering texture"),
+                usage: TextureUsage::RWRT,
+                mip_count: None,
             },
-            None,
         );
 
         ImageEditor {
@@ -144,16 +142,15 @@ impl ImageEditor {
     pub fn on_resize(&mut self, new_bounds: [f32; 4], framework: &mut Framework) {
         self.pan_camera.set_new_bounds(new_bounds);
         self.output_texture = framework.allocate_texture2d(
-            Texture2dConfiguration {
-                debug_name: Some("Final output".to_string()),
-                width: self.pan_camera.width() as u32,
-                height: self.pan_camera.height() as u32,
-                format: TextureFormat::Rgba8UnormSrgb,
-                allow_cpu_write: false,
-                allow_cpu_read: false,
-                allow_use_as_render_target: true,
+            RgbaTexture2D::empty((
+                self.pan_camera.width() as u32,
+                self.pan_camera.height() as u32,
+            )),
+            TextureConfiguration {
+                label: Some("ImageEditor final rendering texture"),
+                usage: TextureUsage::RWRT,
+                mip_count: None,
             },
-            None,
         );
     }
 

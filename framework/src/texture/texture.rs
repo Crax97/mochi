@@ -1,8 +1,8 @@
 use std::num::NonZeroU8;
 
-use wgpu::{Extent3d, Origin3d, TextureDimension};
+use wgpu::{BindGroupLayout, Extent3d, Origin3d, TextureDimension};
 
-use crate::{BindingInfo, Texel};
+use crate::{BindingInfo, Framework, Texel};
 
 pub trait SamplingOrigin {
     fn origin(&self) -> Origin3d;
@@ -102,6 +102,32 @@ pub struct Texture2D<T: Texel> {
     data: Option<Vec<T>>,
     width: u32,
     height: u32,
+}
+
+pub fn texture2d_bind_group_layout(framework: &Framework) -> BindGroupLayout {
+    framework
+        .device
+        .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("Depth Texture Bindg layout"),
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        multisampled: false,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    count: None,
+                },
+            ],
+        })
 }
 
 impl<T: Texel> Texture2D<T> {}

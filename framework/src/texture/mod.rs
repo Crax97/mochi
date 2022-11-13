@@ -21,22 +21,22 @@ pub struct TextureConfiguration<'a> {
 }
 
 impl TextureUsage {
-    const RWRT: TextureUsage = TextureUsage {
+    pub const RWRT: TextureUsage = TextureUsage {
         cpu_write: true,
         cpu_read: true,
         use_as_render_target: true,
     };
-    const READ_WRITE: TextureUsage = TextureUsage {
+    pub const READ_WRITE: TextureUsage = TextureUsage {
         cpu_write: true,
         cpu_read: true,
         use_as_render_target: false,
     };
-    const READ_ONLY: TextureUsage = TextureUsage {
+    pub const READ_ONLY: TextureUsage = TextureUsage {
         cpu_write: false,
         cpu_read: true,
         use_as_render_target: false,
     };
-    const WRITE_ONLY: TextureUsage = TextureUsage {
+    pub const WRITE_ONLY: TextureUsage = TextureUsage {
         cpu_write: true,
         cpu_read: false,
         use_as_render_target: false,

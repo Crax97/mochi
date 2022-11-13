@@ -4,7 +4,7 @@ use wgpu::{
     VertexBufferLayout, VertexState,
 };
 
-use crate::{Buffer, Framework, Mesh, MeshInstance2D, Texture2d};
+use crate::{Buffer, Framework, Mesh, MeshInstance2D};
 
 pub trait ShaderLayout {
     fn layout() -> VertexBufferLayout<'static>;
@@ -199,7 +199,7 @@ impl Shader {
             .iter()
             .map(|e| match e {
                 BindElement::UniformBuffer => Buffer::bind_group_layout(framework),
-                BindElement::Texture => Texture2d::bind_group_layout(framework),
+                BindElement::Texture => crate::texture2d_bind_group_layout(framework),
                 BindElement::None => {
                     framework
                         .device
