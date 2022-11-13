@@ -8,13 +8,34 @@ pub struct BindingInfo {
     pub(crate) bind_group: BindGroup,
 }
 
+pub enum ChannelType {
+    U8,
+    F24,
+}
+
+impl ChannelType {
+    fn size_bytes(&self) -> usize {
+        match self {
+            ChannelType::U8 => 1,
+            ChannelType::F24 => 3,
+        }
+    }
+}
+
 pub trait Texel: bytemuck::Pod + bytemuck::Zeroable {
     fn from_bytes(bytes: &[u8]) -> Result<Self, TexelConversionError>
     where
         Self: Sized;
 
-    fn channel_count() -> u32;
-    fn channel_size_bytes() -> u32;
+    fn channels() -> &'static [ChannelType];
+    fn channel_count() -> usize {
+        Self::channels().len()
+    }
+    fn total_texel_size_bytes() -> usize {
+        Self::channels()
+            .iter()
+            .fold(0usize, |acc, curr| acc + curr.size_bytes())
+    }
     fn wgpu_texture_format() -> TextureFormat;
 
     fn wgpu_color(&self) -> wgpu::Color;
@@ -34,12 +55,14 @@ impl Texel for RgbaU8 {
         Ok(RgbaU8([bytes[0], bytes[1], bytes[2], bytes[3]]))
     }
 
-    fn channel_count() -> u32 {
-        4
-    }
-
-    fn channel_size_bytes() -> u32 {
-        1
+    fn channels() -> &'static [ChannelType] {
+        static RGBA_CHANNELS: &[ChannelType] = &[
+            ChannelType::U8,
+            ChannelType::U8,
+            ChannelType::U8,
+            ChannelType::U8,
+        ];
+        RGBA_CHANNELS
     }
 
     fn wgpu_texture_format() -> wgpu::TextureFormat {
@@ -57,5 +80,54 @@ impl Texel for RgbaU8 {
 
     fn bytes(&self) -> &[u8] {
         &self.0
+    }
+}
+
+#[repr(C)]
+#[derive(bytemuck::Pod, bytemuck::Zeroable, Clone, Copy)]
+pub struct DepthStencilTexel([u8; 4]);
+
+impl Texel for DepthStencilTexel {
+    fn from_bytes(bytes: &[u8]) -> Result<Self, TexelConversionError>
+    where
+        Self: Sized,
+    {
+        if bytes.len() < Self::channel_count() as usize {
+            return Err(TexelConversionError::NotEnoughData);
+        }
+        Ok(DepthStencilTexel([bytes[0], bytes[1], bytes[2], bytes[3]]))
+    }
+
+    fn channels() -> &'static [ChannelType] {
+        static DEPTH_STENCIL_CHANNELS: &[ChannelType] = &[ChannelType::F24, ChannelType::U8];
+        DEPTH_STENCIL_CHANNELS
+    }
+
+    fn wgpu_texture_format() -> TextureFormat {
+        TextureFormat::Depth24PlusStencil8
+    }
+
+    fn wgpu_color(&self) -> wgpu::Color {
+        wgpu::Color {
+            r: self.0[0] as f64 / 255.0,
+            g: self.0[1] as f64 / 255.0,
+            b: self.0[2] as f64 / 255.0,
+            a: self.0[3] as f64 / 255.0,
+        }
+    }
+
+    fn bytes(&self) -> &[u8] {
+        &self.0
+    }
+}
+
+impl DepthStencilTexel {
+    pub fn depth(&self) -> f32 {
+        const MAX_DEPTH: u32 = 2u32.pow(24);
+        let depth = u32::from_le_bytes([self.0[0], self.0[1], self.0[2], 0]) as f32;
+        depth / MAX_DEPTH as f32
+    }
+    pub fn stencil(&self) -> u8 {
+        self.0[3]
     }
 }

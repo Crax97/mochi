@@ -171,9 +171,8 @@ impl<L: Texel, T: Texture<L>> GpuTexture<L, T> {
         let wgpu_origin = region_origin.origin();
         let wgpu_extents = region_extents.extents();
         let total_size_to_copy =
-            wgpu_extents.width * wgpu_extents.height * L::channel_count() * L::channel_size_bytes();
-        let buffer_offset =
-            wgpu_origin.x * wgpu_origin.y * L::channel_count() * L::channel_size_bytes();
+            wgpu_extents.width * wgpu_extents.height * L::total_texel_size_bytes() as u32;
+        let buffer_offset = wgpu_origin.x * wgpu_origin.y * L::total_texel_size_bytes() as u32;
         let region_bytes = bytemuck::cast_slice(texels);
         assert!(total_size_to_copy as usize <= region_bytes.len());
 
@@ -189,9 +188,7 @@ impl<L: Texel, T: Texture<L>> GpuTexture<L, T> {
             &region_bytes,
             wgpu::ImageDataLayout {
                 offset: buffer_offset as u64,
-                bytes_per_row: NonZeroU32::new(
-                    self.width() * L::channel_count() * L::channel_size_bytes(),
-                ),
+                bytes_per_row: NonZeroU32::new(self.width() * L::total_texel_size_bytes() as u32),
                 rows_per_image: NonZeroU32::new(self.height()),
             },
             wgpu_extents,
@@ -226,7 +223,7 @@ impl<L: Texel, T: Texture<L>> GpuTexture<L, T> {
         // pass coords from top to bottom
         wgpu_origin.y = self.convert_region_y_to_wgpu_y(wgpu_origin.y, wgpu_extents.height);
 
-        let unpadded_width = wgpu_extents.width * L::channel_count() * L::channel_size_bytes();
+        let unpadded_width = wgpu_extents.width * L::total_texel_size_bytes() as u32;
         let pad_bytes = (wgpu::COPY_BYTES_PER_ROW_ALIGNMENT
             - (unpadded_width % wgpu::COPY_BYTES_PER_ROW_ALIGNMENT))
             % wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
@@ -320,9 +317,9 @@ fn correct_bytes_for_padding<L: Texel>(
     wgpu_extents: Extent3d,
 ) -> Vec<u8> {
     let padded_rows = bytes.chunks((padded_width) as usize);
-    let unpadded_rows = padded_rows.into_iter().map(|c| {
-        c.chunks((wgpu_extents.width * L::channel_count() * L::channel_size_bytes()) as usize)
-    });
+    let unpadded_rows = padded_rows
+        .into_iter()
+        .map(|c| c.chunks(wgpu_extents.width as usize * L::total_texel_size_bytes()));
     unpadded_rows.fold(vec![], |vec, mut c| {
         let row_bytes = c.next().unwrap().to_owned();
         [vec, row_bytes].concat()

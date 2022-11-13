@@ -263,7 +263,7 @@ impl<T: Texel> Texture<T> for Texture2D<T> {
     where
         Self: Sized,
     {
-        if bytes.len() < (size.0 * size.1 * T::channel_count() * T::channel_size_bytes()) as usize {
+        if bytes.len() < (size.0 * size.1) as usize * T::total_texel_size_bytes() {
             return Err(TexelConversionError::NotEnoughData);
         }
         let texels: &[T] = bytemuck::cast_slice(bytes);
