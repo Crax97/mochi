@@ -10,3 +10,16 @@ members = [
 strip = true
 opt-level = "z"
 lto = true
+
+[patch.crates-io.wgpu]
+git = "https://www.github.com/Crax97/wgpu"
+rev="32378a0de6091391e1e230cf935a6dbb5f7ce1f9"
+
+[patch.crates-io.wgpu-core]
+git = "https://www.github.com/Crax97/wgpu"
+rev="32378a0de6091391e1e230cf935a6dbb5f7ce1f9"
+
+[patch.crates-io.naga]
+git = "https://github.com/gfx-rs/naga"
+rev = "c52d9102"
+version = "0.10"

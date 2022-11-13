@@ -1138,8 +1138,7 @@ dependencies = [
 [[package]]
 name = "naga"
 version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "262d2840e72dbe250e8cf2f522d080988dfca624c4112c096238a4845f591707"
+source = "git+https://github.com/gfx-rs/naga?rev=c52d9102#c52d91023d43092323615fcc746162e478033f26"
 dependencies = [
  "bit-set",
  "bitflags",
@@ -2060,14 +2059,13 @@ dependencies = [
 [[package]]
 name = "wgpu"
 version = "0.14.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c2272b17bffc8a0c7d53897435da7c1db587c87d3a14e8dae9cdb8d1d210fc0f"
+source = "git+https://www.github.com/Crax97/wgpu?rev=32378a0de6091391e1e230cf935a6dbb5f7ce1f9#32378a0de6091391e1e230cf935a6dbb5f7ce1f9"
 dependencies = [
  "arrayvec 0.7.2",
  "js-sys",
  "log",
  "naga",
- "parking_lot 0.12.1",
+ "parking_lot 0.11.2",
  "raw-window-handle 0.5.0",
  "smallvec",
  "static_assertions",
@@ -2082,8 +2080,7 @@ dependencies = [
 [[package]]
 name = "wgpu-core"
 version = "0.14.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "73d14cad393054caf992ee02b7da6a372245d39a484f7461c1f44f6f6359bd28"
+source = "git+https://www.github.com/Crax97/wgpu?rev=32378a0de6091391e1e230cf935a6dbb5f7ce1f9#32378a0de6091391e1e230cf935a6dbb5f7ce1f9"
 dependencies = [
  "arrayvec 0.7.2",
  "bit-vec",
@@ -2093,7 +2090,7 @@ dependencies = [
  "fxhash",
  "log",
  "naga",
- "parking_lot 0.12.1",
+ "parking_lot 0.11.2",
  "profiling",
  "raw-window-handle 0.5.0",
  "smallvec",
@@ -2106,8 +2103,7 @@ dependencies = [
 [[package]]
 name = "wgpu-hal"
 version = "0.14.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3cc320a61acb26be4f549c9b1b53405c10a223fbfea363ec39474c32c348d12f"
+source = "git+https://www.github.com/Crax97/wgpu?rev=32378a0de6091391e1e230cf935a6dbb5f7ce1f9#32378a0de6091391e1e230cf935a6dbb5f7ce1f9"
 dependencies = [
  "android_system_properties",
  "arrayvec 0.7.2",
@@ -2129,7 +2125,7 @@ dependencies = [
  "metal",
  "naga",
  "objc",
- "parking_lot 0.12.1",
+ "parking_lot 0.11.2",
  "profiling",
  "range-alloc",
  "raw-window-handle 0.5.0",
@@ -2145,8 +2141,7 @@ dependencies = [
 [[package]]
 name = "wgpu-types"
 version = "0.14.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fb6b28ef22cac17b9109b25b3bf8c9a103eeb293d7c5f78653979b09140375f6"
+source = "git+https://www.github.com/Crax97/wgpu?rev=32378a0de6091391e1e230cf935a6dbb5f7ce1f9#32378a0de6091391e1e230cf935a6dbb5f7ce1f9"
 dependencies = [
  "bitflags",
 ]
