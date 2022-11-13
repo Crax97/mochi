@@ -6,9 +6,9 @@ use wgpu::*;
 use crate::{
     buffer::BufferInitialSetup,
     shader::{Shader, ShaderCompiler, ShaderCreationInfo},
-    AssetId, AssetMap, AssetsLibrary, DepthStencilTexture2D, DepthStencilTextureConfiguration,
-    GpuDepthStencilTexture2D, GpuRgbaTexture2D, GpuTexture, Mesh, MeshConstructionDetails,
-    RgbaTexture2D, RgbaU8, Texel, TextureConfiguration,
+    AssetId, AssetMap, AssetsLibrary, DepthStencilTexture2D, GpuDepthStencilTexture2D,
+    GpuRgbaTexture2D, GpuTexture, Mesh, MeshConstructionDetails, RgbaTexture2D, RgbaU8, Texel,
+    TextureConfiguration,
 };
 
 use super::buffer::{Buffer, BufferConfiguration};
