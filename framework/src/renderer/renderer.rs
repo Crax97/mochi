@@ -26,6 +26,8 @@ enum ResolvedResourceType<'a> {
     UniformBuffer(&'a Buffer),
     EmptyBindGroup,
     Texture(&'a GpuRgbaTexture2D),
+    DepthTexture(&'a GpuDepthStencilTexture2D),
+    StencilTexture(&'a GpuDepthStencilTexture2D),
 }
 
 enum DrawType {
@@ -417,6 +419,8 @@ impl Renderer {
             ResolvedResourceType::UniformBuffer(buffer) => buffer.bind_group.as_ref().unwrap(),
             ResolvedResourceType::Texture(texture) => texture.bind_group(0),
             ResolvedResourceType::EmptyBindGroup => &self.empty_bind_group,
+            ResolvedResourceType::DepthTexture(gpu_texture) => gpu_texture.depth_bind_group(),
+            ResolvedResourceType::StencilTexture(gpu_texture) => gpu_texture.stencil_bind_group(),
         };
         render_pass.set_bind_group(idx, bind_group, &[])
     }
@@ -508,6 +512,16 @@ impl Renderer {
                         }
                         BindableResource::Texture(tex_id) => {
                             ResolvedResourceType::Texture(framework.texture2d(tex_id))
+                        }
+                        BindableResource::StencilTexture(tex_id) => {
+                            ResolvedResourceType::StencilTexture(
+                                framework.depth_stencil_texture(&tex_id),
+                            )
+                        }
+                        BindableResource::DepthTexture(tex_id) => {
+                            ResolvedResourceType::DepthTexture(
+                                framework.depth_stencil_texture(&tex_id),
+                            )
                         }
                     },
                 )

@@ -5,7 +5,7 @@ mod texture;
 pub use gpu_texture::*;
 pub use texels::*;
 pub use texture::*;
-use wgpu::TextureView;
+use wgpu::{BindGroup, TextureView};
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct TextureUsage {
@@ -73,5 +73,11 @@ impl GpuDepthStencilTexture2D {
     }
     pub(crate) fn stencil_view(&self) -> &TextureView {
         self.texture_view(1)
+    }
+    pub(crate) fn depth_bind_group(&self) -> &BindGroup {
+        self.bind_group(0)
+    }
+    pub(crate) fn stencil_bind_group(&self) -> &BindGroup {
+        self.bind_group(1)
     }
 }

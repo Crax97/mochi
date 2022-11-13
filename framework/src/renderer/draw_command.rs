@@ -1,5 +1,5 @@
 use crate::{
-    framework::{BufferId, ShaderId, TextureId},
+    framework::{BufferId, DepthStencilTextureId, ShaderId, TextureId},
     Box2d, Transform2d,
 };
 
@@ -33,6 +33,8 @@ pub enum PrimitiveType {
 pub enum BindableResource {
     UniformBuffer(BufferId),
     Texture(TextureId),
+    StencilTexture(DepthStencilTextureId),
+    DepthTexture(DepthStencilTextureId),
 }
 
 #[derive(Default, Clone)]
