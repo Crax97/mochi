@@ -8,13 +8,16 @@ use crate::{
 };
 use cgmath::{point2, vec2, Vector2};
 use framework::{
-    framework::TextureId, renderer::renderer::Renderer, scene::Camera2d, BufferConfiguration,
-    RgbaTexture2D, Texture, TextureConfiguration, TextureUsage,
+    framework::TextureId,
+    renderer::renderer::{DepthStencilUsage, Renderer},
+    scene::Camera2d,
+    BufferConfiguration, DepthStencilTexture2D, RgbaTexture2D, Texture, TextureConfiguration,
+    TextureUsage,
 };
 use framework::{
     framework::{BufferId, DepthStencilTextureId},
     renderer::draw_command::{DrawCommand, DrawMode, OptionalDrawData, PrimitiveType},
-    DepthStencilTextureConfiguration, Framework,
+    Framework,
 };
 use image::{DynamicImage, ImageBuffer};
 
@@ -87,13 +90,14 @@ impl Document {
         );
 
         let first_layer_index = LayerIndex(1);
-        let stencil_texture =
-            framework.allocate_depth_stencil_texture(DepthStencilTextureConfiguration {
-                debug_name: Some("Selection tool depth stencil texture"),
-                width: config.width,
-                height: config.height,
-                is_stencil: true,
-            });
+        let stencil_texture = framework.allocate_depth_stencil_texture(
+            DepthStencilTexture2D::empty((config.width, config.height)),
+            TextureConfiguration {
+                label: Some("Selection stencil texture"),
+                usage: TextureUsage::RWRT,
+                mip_count: None,
+            },
+        );
         let mut document = Self {
             layers_created: 0,
             document_size: vec2(config.width, config.height),
@@ -206,7 +210,7 @@ impl Document {
 
         renderer.end(
             &self.buffer_layer.texture(),
-            Some(&self.stencil_texture),
+            Some((&self.stencil_texture, DepthStencilUsage::Stencil)),
             framework,
         );
     }
@@ -286,7 +290,11 @@ impl Document {
                     .clone()
             })),
         });
-        renderer.end(&new_texture, Some(&self.stencil_texture), framework);
+        renderer.end(
+            &new_texture,
+            Some((&self.stencil_texture, DepthStencilUsage::Stencil)),
+            framework,
+        );
 
         // 2. Draw the layer using the inverted stencil buffer: this is the remaining part of the texture
         renderer.begin(
@@ -315,7 +323,11 @@ impl Document {
                     .clone()
             })),
         });
-        renderer.end(&old_texture_copy, Some(&self.stencil_texture), framework);
+        renderer.end(
+            &old_texture_copy,
+            Some((&self.stencil_texture, DepthStencilUsage::Stencil)),
+            framework,
+        );
 
         //5. Now add the new layer
         let (width, height) = framework.texture2d_dimensions(&new_texture);

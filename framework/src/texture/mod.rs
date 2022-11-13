@@ -5,6 +5,7 @@ mod texture;
 pub use gpu_texture::*;
 pub use texels::*;
 pub use texture::*;
+use wgpu::TextureView;
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct TextureUsage {
@@ -63,4 +64,14 @@ impl TextureUsage {
 pub type RgbaTexture2D = Texture2D<RgbaU8>;
 pub type GpuRgbaTexture2D = GpuTexture<RgbaU8, RgbaTexture2D>;
 
-impl GpuRgbaTexture2D {}
+pub type DepthStencilTexture2D = Texture2D<DepthStencilTexel>;
+pub type GpuDepthStencilTexture2D = GpuTexture<DepthStencilTexel, DepthStencilTexture2D>;
+
+impl GpuDepthStencilTexture2D {
+    pub(crate) fn depth_view(&self) -> &TextureView {
+        self.texture_view(0)
+    }
+    pub(crate) fn stencil_view(&self) -> &TextureView {
+        self.texture_view(1)
+    }
+}

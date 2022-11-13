@@ -6,9 +6,9 @@ use wgpu::*;
 use crate::{
     buffer::BufferInitialSetup,
     shader::{Shader, ShaderCompiler, ShaderCreationInfo},
-    AssetId, AssetMap, AssetsLibrary, DepthStencilTextureConfiguration, DepthStencilTextureOld,
-    GpuRgbaTexture2D, GpuTexture, Mesh, MeshConstructionDetails, RgbaTexture2D, RgbaU8, Texel,
-    TextureConfiguration,
+    AssetId, AssetMap, AssetsLibrary, DepthStencilTexture2D, DepthStencilTextureConfiguration,
+    GpuDepthStencilTexture2D, GpuRgbaTexture2D, GpuTexture, Mesh, MeshConstructionDetails,
+    RgbaTexture2D, RgbaU8, Texel, TextureConfiguration,
 };
 
 use super::buffer::{Buffer, BufferConfiguration};
@@ -16,8 +16,8 @@ use super::buffer::{Buffer, BufferConfiguration};
 pub type TextureId = AssetId<GpuRgbaTexture2D>;
 type TextureMap = AssetMap<GpuRgbaTexture2D>;
 
-pub type DepthStencilTextureId = AssetId<DepthStencilTextureOld>;
-type DepthStencilTextureMap = AssetMap<DepthStencilTextureOld>;
+pub type DepthStencilTextureId = AssetId<GpuDepthStencilTexture2D>;
+type DepthStencilTextureMap = AssetMap<GpuDepthStencilTexture2D>;
 
 pub type BufferId = AssetId<Buffer>;
 type BufferMap = AssetMap<Buffer>;
@@ -270,13 +270,14 @@ impl<'a> Framework {
 impl<'a> Framework {
     pub fn allocate_depth_stencil_texture(
         &mut self,
-        config: DepthStencilTextureConfiguration,
+        texture: DepthStencilTexture2D,
+        config: TextureConfiguration,
     ) -> DepthStencilTextureId {
-        let depth_stencil = DepthStencilTextureOld::new(&self, config);
+        let depth_stencil = GpuDepthStencilTexture2D::new(texture, config, self);
         self.allocated_depth_stencil_textures.insert(depth_stencil)
     }
 
-    pub fn depth_stencil_texture(&self, id: &DepthStencilTextureId) -> &DepthStencilTextureOld {
+    pub fn depth_stencil_texture(&self, id: &DepthStencilTextureId) -> &GpuDepthStencilTexture2D {
         self.allocated_depth_stencil_textures.get(id)
     }
 }

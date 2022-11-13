@@ -10,11 +10,17 @@ use crate::{
     framework::{BufferId, DepthStencilTextureId, MeshId, ShaderId, TextureId},
     shader::{Shader, ShaderCreationInfo},
     Buffer, BufferConfiguration, BufferType, Camera2d, Camera2dUniformBlock,
-    DepthStencilTextureOld, Framework, GpuRgbaTexture2D, Mesh, MeshConstructionDetails,
-    MeshInstance2D, RgbaTexture2D, Texture, Vertex,
+    DepthStencilTextureOld, Framework, GpuDepthStencilTexture2D, GpuRgbaTexture2D, Mesh,
+    MeshConstructionDetails, MeshInstance2D, RgbaTexture2D, Texture, Vertex,
 };
 
 use super::draw_command::{BindableResource, DrawCommand, DrawMode, PrimitiveType};
+
+#[derive(Clone, Debug, Copy, PartialEq, Eq)]
+pub enum DepthStencilUsage {
+    Depth,
+    Stencil,
+}
 
 enum ResolvedResourceType<'a> {
     UniformBuffer(&'a Buffer),
@@ -198,7 +204,7 @@ impl Renderer {
     pub fn end(
         &mut self,
         output: &TextureId,
-        depth_stencil_output: Option<&DepthStencilTextureId>,
+        depth_stencil_output: Option<(&DepthStencilTextureId, DepthStencilUsage)>,
         framework: &mut Framework,
     ) {
         // let texture = framework.allocated_textures.map.get(&output.index).unwrap();
@@ -214,8 +220,8 @@ impl Renderer {
         let commands = self.resolve_draw_commands(framework, draw_commands_with_buffers);
 
         let texture = &framework.texture2d(output).texture_view(0);
-        let depth_texture_view =
-            depth_stencil_output.map(|tex_id| framework.depth_stencil_texture(tex_id));
+        let depth_texture_view = depth_stencil_output
+            .map(|tex_id| (framework.depth_stencil_texture(tex_id.0), tex_id.1));
         self.execute_draw_queue(
             &mut command_encoder,
             texture,
@@ -285,7 +291,7 @@ impl Renderer {
         &mut self,
         command_encoder: &mut CommandEncoder,
         output: &TextureView,
-        depth_output: Option<&DepthStencilTextureOld>,
+        depth_output: Option<(&GpuDepthStencilTexture2D, DepthStencilUsage)>,
         commands: Vec<ResolvedDrawCommand>,
         framework: &Framework,
     ) {
@@ -319,12 +325,12 @@ impl Renderer {
                 resolve_target: None,
                 ops: Operations { load, store: true },
             })],
-            depth_stencil_attachment: if let Some(texture) = depth_output {
+            depth_stencil_attachment: if let Some((texture, usage)) = depth_output {
                 Some(RenderPassDepthStencilAttachment {
-                    view: if texture.is_stencil {
-                        &texture.stencil_view
+                    view: if usage == DepthStencilUsage::Depth {
+                        texture.depth_view()
                     } else {
-                        &texture.depth_view
+                        texture.stencil_view()
                     },
                     depth_ops: Some(depth_load),
                     stencil_ops: Some(stencil_load),
