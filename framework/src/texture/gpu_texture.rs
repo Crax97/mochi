@@ -226,7 +226,7 @@ impl<L: Texel, T: Texture<L>> GpuTexture<L, T> {
         // pass coords from top to bottom
         wgpu_origin.y = self.convert_region_y_to_wgpu_y(wgpu_origin.y, wgpu_extents.height);
 
-        let unpadded_width = wgpu_extents.width * L::channel_count();
+        let unpadded_width = wgpu_extents.width * L::channel_count() * L::channel_size_bytes();
         let pad_bytes = (wgpu::COPY_BYTES_PER_ROW_ALIGNMENT
             - (unpadded_width % wgpu::COPY_BYTES_PER_ROW_ALIGNMENT))
             % wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
@@ -258,15 +258,11 @@ impl<L: Texel, T: Texture<L>> GpuTexture<L, T> {
         );
         framework.queue.submit(std::iter::once(encoder.finish()));
 
-        let bytes = oneshot_buffer.read_all_sync(framework);
-        let texels: Result<Vec<L>, TexelConversionError> = bytes
-            .chunks(L::channel_count() as usize * L::channel_size_bytes() as usize)
-            .map(|chunk| L::from_bytes(chunk))
-            .collect();
-        match texels {
-            Ok(texels) => T::from_texels(texels, extents),
-            Err(e) => Err(e),
+        let mut bytes = oneshot_buffer.read_all_sync(framework);
+        if padded_width != unpadded_width {
+            bytes = correct_bytes_for_padding::<L>(bytes, padded_width, wgpu_extents);
         }
+        T::from_bytes(&bytes, extents)
     }
 
     pub(crate) fn clone_subregion(
@@ -316,4 +312,19 @@ impl<L: Texel, T: Texture<L>> GpuTexture<L, T> {
         framework.queue.submit(std::iter::once(encoder.finish()));
         new_texture
     }
+}
+
+fn correct_bytes_for_padding<L: Texel>(
+    bytes: Vec<u8>,
+    padded_width: u32,
+    wgpu_extents: Extent3d,
+) -> Vec<u8> {
+    let padded_rows = bytes.chunks((padded_width) as usize);
+    let unpadded_rows = padded_rows.into_iter().map(|c| {
+        c.chunks((wgpu_extents.width * L::channel_count() * L::channel_size_bytes()) as usize)
+    });
+    unpadded_rows.fold(vec![], |vec, mut c| {
+        let row_bytes = c.next().unwrap().to_owned();
+        [vec, row_bytes].concat()
+    })
 }

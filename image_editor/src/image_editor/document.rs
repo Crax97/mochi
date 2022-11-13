@@ -579,12 +579,7 @@ impl Document {
         let bytes = texture
             .data()
             .expect("A texture just read from the GPU doesn'thave any bytes, wtf?");
-        let bytes = bytes
-            .iter()
-            .map(|texel| texel.bytes())
-            .fold(vec![], |acc, res| {
-                [acc, res.iter().map(|b| *b).collect()].concat()
-            });
+        let bytes = bytemuck::cast_slice(bytes).to_owned();
         let raw_image = ImageBuffer::from_raw(width, height, bytes).unwrap();
         DynamicImage::ImageRgba8(raw_image)
     }
