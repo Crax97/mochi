@@ -68,13 +68,10 @@ impl ImageEditor {
         println!("Initial scale: {initial_camera_scale}");
         //pan_camera.set_scale(initial_camera_scale);
 
-        let layer_draw_shader = framework
-            .shader_compiler
-            .compile_into_shader_description(
-                "Layer draw shader",
-                include_str!("layers/layer_fragment.wgsl"),
-            )
-            .unwrap();
+        let layer_draw_shader = framework.shader_compiler.compile_into_shader_description(
+            "Layer draw shader",
+            include_str!("layers/layer_fragment.wgsl"),
+        );
         let fucking_shader_info =
             ShaderCreationInfo::using_default_vertex(layer_draw_shader, framework)
                 .with_bind_element(BindElement::Texture) // Bottom layer

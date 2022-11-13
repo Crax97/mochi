@@ -115,8 +115,7 @@ impl StrokingEngine {
     pub fn new(initial_stamp: Stamp, framework: &mut Framework) -> Self {
         let brush_fragment = framework
             .shader_compiler
-            .compile(include_str!("brush_fragment.wgsl"))
-            .unwrap();
+            .compile(include_str!("brush_fragment.wgsl"));
         let brush_shader_info = ShaderCreationInfo::using_default_vertex_instanced(
             ShaderModuleDescriptor {
                 label: Some("Brush shader"),
@@ -142,8 +141,7 @@ impl StrokingEngine {
 
         let brush_fragment = framework
             .shader_compiler
-            .compile(include_str!("brush_fragment.wgsl"))
-            .unwrap();
+            .compile(include_str!("brush_fragment.wgsl"));
         let eraser_shader_info = ShaderCreationInfo::using_default_vertex_instanced(
             ShaderModuleDescriptor {
                 label: Some("Eraser shader"),

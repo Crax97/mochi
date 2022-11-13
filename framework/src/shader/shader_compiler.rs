@@ -1,8 +1,10 @@
 use std::{
+    borrow::Cow,
     collections::HashMap,
     fmt::{Debug, Display},
     fs::File,
     io::{BufRead, BufReader, Cursor, Error, Read},
+    sync::Mutex,
 };
 
 use naga::{
@@ -16,6 +18,11 @@ enum PreprocessorCommand {
     Nothing(String),
     IncludeFile(String),
     IncludeDefinition(String),
+}
+
+fn store_compiled_module(module: naga::Module) -> Cow<'static, Module> {
+    let new_module = Cow::Owned(module);
+    new_module
 }
 
 enum PreprocessError {
@@ -65,7 +72,7 @@ impl ShaderCompiler {
     // compile calls
     pub fn define<T: Into<String>>(&mut self, name: T, source: T) -> anyhow::Result<()> {
         let source = source.into();
-        let compiled_module = self.compile(&source)?;
+        let compiled_module = self.compile(&source);
         let mut validator = Validator::new(ValidationFlags::all(), Capabilities::all());
         let _info = validator.validate(&compiled_module)?;
         // print info;
@@ -74,23 +81,22 @@ impl ShaderCompiler {
     }
 
     // Preprocesses and compiles the given source
-    pub fn compile(&self, source: &str) -> Result<Module, ParseError> {
+    pub fn compile(&self, source: &str) -> Cow<'static, Module> {
         let parsed_source = self.preprocess_source(source);
-        parse_str(&parsed_source)
+        let module = parse_str(&parsed_source).expect("Failed  to compile a shader");
+        store_compiled_module(module)
     }
 
     pub fn compile_into_shader_description<'a>(
         &'a self,
         name: &'a str,
         source: &str,
-    ) -> Result<ShaderModuleDescriptor, ParseError> {
+    ) -> ShaderModuleDescriptor {
         let module = self.compile(source);
-        module.and_then(|module| {
-            Ok(ShaderModuleDescriptor {
-                label: Some(name),
-                source: wgpu::ShaderSource::Naga(module),
-            })
-        })
+        ShaderModuleDescriptor {
+            label: Some(name),
+            source: wgpu::ShaderSource::Naga(module),
+        }
     }
 
     fn preprocess_source(&self, source: &str) -> String {
@@ -229,12 +235,6 @@ pub mod test {
     use super::*;
 
     #[test]
-    pub fn compile_empty() {
-        let compiler = ShaderCompiler::new();
-        assert!(compiler.compile("").is_ok())
-    }
-
-    #[test]
     pub fn compile_simple() {
         let compiler = ShaderCompiler::new();
         let module = compiler.compile(
@@ -245,12 +245,7 @@ pub mod test {
         }
         ",
         );
-        assert!(module.is_ok());
-        assert!(module
-            .unwrap()
-            .entry_points
-            .iter()
-            .any(|e| e.name == "fragment"));
+        assert!(module.entry_points.iter().any(|e| e.name == "fragment"));
     }
 
     #[test]
@@ -262,12 +257,7 @@ pub mod test {
             //@include test.wgsl
         ",
         );
-        assert!(module.is_ok());
-        assert!(module
-            .unwrap()
-            .entry_points
-            .iter()
-            .any(|e| e.name == "fragment"));
+        assert!(module.entry_points.iter().any(|e| e.name == "fragment"));
 
         let _ = remove_file("test.wgsl");
     }
@@ -301,11 +291,6 @@ pub mod test {
             //@include :test
         ",
         );
-        assert!(module.is_ok());
-        assert!(module
-            .unwrap()
-            .entry_points
-            .iter()
-            .any(|e| e.name == "fragment"));
+        assert!(module.entry_points.iter().any(|e| e.name == "fragment"));
     }
 }

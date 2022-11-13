@@ -105,13 +105,10 @@ fn make_globals(framework: &mut Framework) -> ImageEditorGlobals {
     ));
     let draw_masked_inverted_stencil_buffer_shader_id = framework.create_shader(info);
 
-    let dotted_module_descriptor = framework
-        .shader_compiler
-        .compile_into_shader_description(
-            "Dotted shader",
-            include_str!("shaders/dotted_selection.wgsl"),
-        )
-        .unwrap();
+    let dotted_module_descriptor = framework.shader_compiler.compile_into_shader_description(
+        "Dotted shader",
+        include_str!("shaders/dotted_selection.wgsl"),
+    );
     let dotted_info = ShaderCreationInfo::using_default_vertex(dotted_module_descriptor, framework)
         .with_bind_element(BindElement::Texture) // 2: diffuse texture + sampler
         .with_bind_element(BindElement::StencilTexture); // 3: Stencil texture + sampler

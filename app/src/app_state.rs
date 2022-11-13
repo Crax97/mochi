@@ -97,6 +97,7 @@ impl ImageApplication {
             width: window.inner_size().width,
             height: window.inner_size().height,
             present_mode: wgpu::PresentMode::Fifo,
+            alpha_mode: wgpu::CompositeAlphaMode::Opaque,
         };
 
         let image_editor = ImageEditor::new(framework, &[1024.0, 1024.0]);
@@ -176,6 +177,7 @@ impl ImageApplication {
             width: new_size.width as u32,
             height: new_size.height as u32,
             present_mode: wgpu::PresentMode::Fifo,
+            alpha_mode: wgpu::CompositeAlphaMode::Opaque,
         };
         self.final_surface
             .configure(&framework.device, &new_surface_configuration);

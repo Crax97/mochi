@@ -11,7 +11,7 @@ crate-type=["staticlib", "lib"]
 [dependencies]
 env_logger = "0.9"
 log = "0.4"
-wgpu = "0.13"
+wgpu = "0.14.0"
 bytemuck = {version = "1.12.1", features = [ "derive" ] }
 cgmath="0.18.0"
 rfd = "0.10.0"
