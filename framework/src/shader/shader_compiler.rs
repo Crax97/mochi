@@ -20,7 +20,7 @@ enum PreprocessorCommand {
     IncludeDefinition(String),
 }
 
-fn store_compiled_module(module: naga::Module) -> Cow<'static, Module> {
+fn store_compiled_module(module: naga::Module) -> Cow<'static, naga::Module> {
     let new_module = Cow::Owned(module);
     new_module
 }
@@ -81,7 +81,7 @@ impl ShaderCompiler {
     }
 
     // Preprocesses and compiles the given source
-    pub fn compile(&self, source: &str) -> Cow<'static, Module> {
+    pub fn compile(&self, source: &str) -> Cow<'static, naga::Module> {
         let parsed_source = self.preprocess_source(source);
         let module = parse_str(&parsed_source).expect("Failed  to compile a shader");
         store_compiled_module(module)

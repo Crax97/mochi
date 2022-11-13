@@ -30,7 +30,7 @@ features = ["naga"]
 
 [dependencies.naga]
 version="0.10.0"
-features = ["span", "validate", "wgsl-in"]
+features = ["span", "validate", "wgsl-in", "clone"]
 
 
 [dependencies.uuid]

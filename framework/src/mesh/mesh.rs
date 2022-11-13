@@ -54,7 +54,6 @@ impl Mesh {
                     label: None,
                     contents: &bytemuck::cast_slice(&construction_details.vertices.0),
                     usage: wgpu::BufferUsages::VERTEX
-                        | wgpu::BufferUsages::MAP_READ
                         | if construction_details.allow_editing {
                             wgpu::BufferUsages::MAP_WRITE | wgpu::BufferUsages::COPY_DST
                         } else {
@@ -67,7 +66,6 @@ impl Mesh {
                 label: None,
                 contents: &bytemuck::cast_slice(&construction_details.indices.0),
                 usage: wgpu::BufferUsages::INDEX
-                    | wgpu::BufferUsages::MAP_READ
                     | if construction_details.allow_editing {
                         wgpu::BufferUsages::MAP_WRITE | wgpu::BufferUsages::COPY_DST
                     } else {

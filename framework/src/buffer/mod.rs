@@ -92,12 +92,12 @@ where
     let buffer_usage: BufferUsages = config.buffer_type.into();
     let usage: BufferUsages = buffer_usage
         | if config.allow_write {
-            BufferUsages::MAP_WRITE | BufferUsages::COPY_DST
+            BufferUsages::COPY_DST
         } else {
             BufferUsages::empty()
         }
         | if config.allow_read {
-            BufferUsages::MAP_READ | BufferUsages::COPY_SRC
+            BufferUsages::COPY_SRC
         } else {
             BufferUsages::empty()
         };
