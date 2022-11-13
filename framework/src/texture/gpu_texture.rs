@@ -122,8 +122,10 @@ impl<L: Texel, T: Texture<L>> GpuTexture<L, T> {
                 wgpu::COPY_BYTES_PER_ROW_ALIGNMENT as u64,
             ),
             buffer_type: crate::BufferType::Oneshot,
-            allow_write: true,
-            allow_read: true,
+            gpu_copy_dest: true,
+            gpu_copy_source: false,
+            cpu_copy_dest: false,
+            cpu_copy_source: true,
         });
         let mut encoder =
             framework
@@ -233,8 +235,10 @@ impl<L: Texel, T: Texture<L>> GpuTexture<L, T> {
                 (padded_width * wgpu_extents.height) as u64,
             ),
             buffer_type: crate::BufferType::Oneshot,
-            allow_write: true,
-            allow_read: true,
+            gpu_copy_dest: true,
+            gpu_copy_source: false,
+            cpu_copy_dest: false,
+            cpu_copy_source: true,
         });
         encoder.copy_texture_to_buffer(
             wgpu::ImageCopyTexture {

@@ -423,8 +423,10 @@ impl Document {
             framework.allocate_typed_buffer(BufferConfiguration::<BlendSettingsUniform> {
                 initial_setup: framework::buffer::BufferInitialSetup::Data(&vec![settings]),
                 buffer_type: framework::BufferType::Uniform,
-                allow_write: true,
-                allow_read: false,
+                gpu_copy_dest: true,
+                gpu_copy_source: false,
+                cpu_copy_dest: false,
+                cpu_copy_source: false,
             });
 
         let layer_draw_info = LayerDrawInfo {

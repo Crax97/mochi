@@ -170,8 +170,10 @@ impl StrokingEngine {
                     BrushUniformData::from(stamp_config.clone()),
                 ]),
                 buffer_type: framework::BufferType::Uniform,
-                allow_write: true,
-                allow_read: false,
+                gpu_copy_dest: true,
+                gpu_copy_source: false,
+                cpu_copy_dest: false,
+                cpu_copy_source: false,
             });
 
         Self {

@@ -122,8 +122,10 @@ impl Renderer {
             framework.allocate_typed_buffer(BufferConfiguration::<Camera2dUniformBlock> {
                 initial_setup: BufferInitialSetup::Count(1),
                 buffer_type: BufferType::Uniform,
-                allow_write: true,
-                allow_read: false,
+                gpu_copy_dest: true,
+                gpu_copy_source: false,
+                cpu_copy_dest: false,
+                cpu_copy_source: false,
             });
         let texture2d_instanced_shader_id = framework.create_shader(
             ShaderCreationInfo::using_default_vertex_fragment_instanced(&framework),
@@ -611,8 +613,10 @@ impl Renderer {
                 let buffer_id = framework.allocate_typed_buffer(BufferConfiguration {
                     initial_setup: BufferInitialSetup::Data(&mesh_instances_2d),
                     buffer_type: BufferType::Vertex,
-                    allow_write: false,
-                    allow_read: true,
+                    gpu_copy_dest: false,
+                    gpu_copy_source: true,
+                    cpu_copy_dest: false,
+                    cpu_copy_source: false,
                 });
                 DrawType::Instanced {
                     buffer: buffer_id,
@@ -638,8 +642,10 @@ impl Renderer {
                 let buffer_id = framework.allocate_typed_buffer(BufferConfiguration {
                     initial_setup: BufferInitialSetup::Data(&mesh_instances_2d),
                     buffer_type: BufferType::Vertex,
-                    allow_write: false,
-                    allow_read: true,
+                    gpu_copy_dest: false,
+                    gpu_copy_source: true,
+                    cpu_copy_dest: false,
+                    cpu_copy_source: false,
                 });
                 DrawType::Instanced {
                     buffer: buffer_id,
@@ -676,8 +682,10 @@ impl Renderer {
                     let buffer_id = framework.allocate_typed_buffer(BufferConfiguration {
                         initial_setup: BufferInitialSetup::Data(&vec![instance]),
                         buffer_type: BufferType::Uniform,
-                        allow_write: false,
-                        allow_read: true,
+                        gpu_copy_dest: false,
+                        gpu_copy_source: true,
+                        cpu_copy_dest: false,
+                        cpu_copy_source: false,
                     });
                     buffer_ids.push(buffer_id);
                 }
@@ -701,8 +709,10 @@ impl Renderer {
                     let buffer_id = framework.allocate_typed_buffer(BufferConfiguration {
                         initial_setup: BufferInitialSetup::Data(&vec![instance]),
                         buffer_type: BufferType::Uniform,
-                        allow_write: false,
-                        allow_read: true,
+                        gpu_copy_dest: false,
+                        gpu_copy_source: true,
+                        cpu_copy_dest: false,
+                        cpu_copy_source: false,
                     });
                     buffer_ids.push(buffer_id);
                 }

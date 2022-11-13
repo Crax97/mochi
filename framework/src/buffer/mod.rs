@@ -22,8 +22,10 @@ pub(crate) struct BufferInfo {
 #[derive(Clone)]
 pub struct InnerBufferConfiguration {
     pub buffer_type: BufferType,
-    pub allow_write: bool,
-    pub allow_read: bool,
+    pub gpu_allow_write: bool,
+    pub gpu_allow_read: bool,
+    pub cpu_allow_write: bool,
+    pub cpu_allow_read: bool,
 }
 pub struct Buffer {
     pub(crate) buffer: BufferInfo,
@@ -77,8 +79,10 @@ where
 {
     pub initial_setup: BufferInitialSetup<'create, T>,
     pub buffer_type: BufferType,
-    pub allow_write: bool,
-    pub allow_read: bool,
+    pub gpu_copy_dest: bool,
+    pub gpu_copy_source: bool,
+    pub cpu_copy_dest: bool,
+    pub cpu_copy_source: bool,
 }
 
 pub(crate) fn recreate_buffer<T>(
@@ -91,13 +95,23 @@ where
 {
     let buffer_usage: BufferUsages = config.buffer_type.into();
     let usage: BufferUsages = buffer_usage
-        | if config.allow_write {
+        | if config.gpu_allow_write {
             BufferUsages::COPY_DST
         } else {
             BufferUsages::empty()
         }
-        | if config.allow_read {
+        | if config.gpu_allow_read {
             BufferUsages::COPY_SRC
+        } else {
+            BufferUsages::empty()
+        }
+        | if config.cpu_allow_read {
+            BufferUsages::MAP_READ
+        } else {
+            BufferUsages::empty()
+        }
+        | if config.cpu_allow_write {
+            BufferUsages::MAP_WRITE
         } else {
             BufferUsages::empty()
         };
@@ -143,8 +157,10 @@ impl Buffer {
         T: bytemuck::Pod + bytemuck::Zeroable,
     {
         let configuration = InnerBufferConfiguration {
-            allow_read: initial_configuration.allow_read,
-            allow_write: initial_configuration.allow_write,
+            gpu_allow_read: initial_configuration.gpu_copy_source,
+            gpu_allow_write: initial_configuration.gpu_copy_dest,
+            cpu_allow_read: initial_configuration.cpu_copy_source,
+            cpu_allow_write: initial_configuration.cpu_copy_dest,
             buffer_type: initial_configuration.buffer_type,
         };
         let buffer = recreate_buffer(
