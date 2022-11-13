@@ -17,7 +17,7 @@ use super::{
 
 #[derive(Default)]
 pub struct LayerConstructionInfo {
-    pub initial_color: [f32; 4],
+    pub initial_color: [u8; 4],
     pub name: String,
     pub width: u32,
     pub height: u32,

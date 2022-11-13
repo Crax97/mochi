@@ -6,9 +6,11 @@ use crate::{BindingInfo, Texel};
 
 pub trait SamplingOrigin {
     fn origin(&self) -> Origin3d;
+    fn from_wgpu_origin(origin: Origin3d) -> Self;
 }
 pub trait SamplingExtents {
     fn extents(&self) -> Extent3d;
+    fn from_wgpu_extents(extents: Extent3d) -> Self;
 }
 
 impl SamplingOrigin for (u32, u32) {
@@ -19,6 +21,9 @@ impl SamplingOrigin for (u32, u32) {
             z: 0,
         }
     }
+    fn from_wgpu_origin(origin: Origin3d) -> Self {
+        (origin.x, origin.y)
+    }
 }
 impl SamplingOrigin for (u32, u32, u32) {
     fn origin(&self) -> Origin3d {
@@ -28,6 +33,9 @@ impl SamplingOrigin for (u32, u32, u32) {
             z: self.2,
         }
     }
+    fn from_wgpu_origin(origin: Origin3d) -> Self {
+        (origin.x, origin.y, origin.z)
+    }
 }
 
 impl SamplingExtents for (u32, u32) {
@@ -35,8 +43,12 @@ impl SamplingExtents for (u32, u32) {
         Extent3d {
             width: self.0,
             height: self.1,
-            depth_or_array_layers: 0,
+            depth_or_array_layers: 1,
         }
+    }
+
+    fn from_wgpu_extents(extents: Extent3d) -> Self {
+        (extents.width, extents.height)
     }
 }
 impl SamplingExtents for (u32, u32, u32) {
@@ -46,6 +58,10 @@ impl SamplingExtents for (u32, u32, u32) {
             height: self.1,
             depth_or_array_layers: self.2,
         }
+    }
+
+    fn from_wgpu_extents(extents: Extent3d) -> Self {
+        (extents.width, extents.height, extents.depth_or_array_layers)
     }
 }
 
@@ -60,6 +76,12 @@ pub trait Texture<T: Texel> {
     fn wgpu_texture_dimension() -> TextureDimension;
     fn from_texels(
         texels: Vec<T>,
+        size: Self::SamplingExtentsType,
+    ) -> Result<Self, TexelConversionError>
+    where
+        Self: Sized;
+    fn from_bytes(
+        bytes: &[u8],
         size: Self::SamplingExtentsType,
     ) -> Result<Self, TexelConversionError>
     where
@@ -206,5 +228,20 @@ impl<T: Texel> Texture<T> for Texture2D<T> {
             width: extents.width,
             height: extents.height,
         }
+    }
+
+    fn from_bytes(
+        bytes: &[u8],
+        size: Self::SamplingExtentsType,
+    ) -> Result<Self, TexelConversionError>
+    where
+        Self: Sized,
+    {
+        if bytes.len() < (size.0 * size.1 * T::channel_count() * T::channel_size_bytes()) as usize {
+            return Err(TexelConversionError::NotEnoughData);
+        }
+        let texels: &[T] = bytemuck::cast_slice(bytes);
+        let texels = Vec::from_iter(texels.iter().map(|t| t.clone()));
+        Self::from_texels(texels, size)
     }
 }

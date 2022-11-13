@@ -14,7 +14,7 @@ use framework::{
 pub struct BitmapLayerConfiguration {
     pub label: String,
     pub width: u32,
-    pub initial_background_color: [f32; 4],
+    pub initial_background_color: [u8; 4],
     pub height: u32,
 }
 pub struct BitmapLayer {
@@ -24,17 +24,13 @@ pub struct BitmapLayer {
 
 impl BitmapLayer {
     pub fn new(configuration: BitmapLayerConfiguration, framework: &mut Framework) -> Self {
-        let bytes: Vec<u32> = (1..(configuration.width * configuration.height) + 1)
-            .map(|_| {
-                let bg = configuration.initial_background_color;
-                let r = (bg[0].clamp(0.0, 1.0) * 255.0).to_u8().unwrap();
-                let g = (bg[1].clamp(0.0, 1.0) * 255.0).to_u8().unwrap();
-                let b = (bg[2].clamp(0.0, 1.0) * 255.0).to_u8().unwrap();
-                let a = (bg[3].clamp(0.0, 1.0) * 255.0).to_u8().unwrap();
-                u32::from_le_bytes([r, g, b, a])
+        let bytes: Vec<u8> = (0..(configuration.width * configuration.height) * 4)
+            .enumerate()
+            .map(|(i, _)| {
+                let bg = &configuration.initial_background_color;
+                bg[i % 4]
             })
             .collect();
-        let bytes = bytemuck::cast_slice(&bytes);
         Self::new_from_bytes(&bytes, configuration, framework)
     }
 

@@ -141,14 +141,8 @@ impl<'a> Framework {
         tex_info: Texture2dConfiguration,
         initial_data: Option<&[u8]>,
     ) -> TextureId {
-        let allow_cpu_write = tex_info.allow_cpu_write;
         let cpu_tex = if let Some(bytes) = initial_data {
-            let texels: Result<Vec<RgbaU8>, TexelConversionError> = bytes
-                .chunks(RgbaU8::channel_count() as usize * RgbaU8::channel_size_bytes() as usize)
-                .map(|chunk| RgbaU8::from_bytes(bytes))
-                .collect();
-            let texels = texels.unwrap();
-            RgbaTexture2D::from_texels(texels, (tex_info.width, tex_info.height)).unwrap()
+            RgbaTexture2D::from_bytes(bytes, (tex_info.width, tex_info.height)).unwrap()
         } else {
             RgbaTexture2D::empty((tex_info.width, tex_info.height))
         };

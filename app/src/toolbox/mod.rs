@@ -45,7 +45,7 @@ impl Toolbox {
             BitmapLayerConfiguration {
                 label: "Test brush".to_owned(),
                 width: image.width(),
-                initial_background_color: [0.0, 0.0, 0.0, 0.0],
+                initial_background_color: [0; 4],
                 height: image.height(),
             },
             framework,

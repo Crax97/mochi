@@ -12,9 +12,7 @@ use super::{Texel, Texture};
 pub struct GpuTexture<L: Texel, T: Texture<L>> {
     phant_data: PhantomData<(T, L)>,
     pub(crate) label: Option<String>,
-    pub(crate) width: u32,
-    pub(crate) height: u32,
-    pub(crate) layers: u32,
+    pub(crate) size: Extent3d,
     pub(crate) wgpu_texture: wgpu::Texture,
     pub(crate) usage: TextureUsage,
     pub(crate) mip_count: Option<u32>,
@@ -47,13 +45,15 @@ impl<L: Texel, T: Texture<L>> GpuTexture<L, T> {
         let wgpu_texture = framework.device.create_texture(&tex_descriptor);
         let binding_infos = texture.create_binding_info(&wgpu_texture, &framework.device);
 
-        let mut gpu_texture = GpuTexture {
+        let gpu_texture = GpuTexture {
             phant_data: PhantomData,
             label,
             wgpu_texture,
-            width: texture.width(),
-            height: texture.height(),
-            layers: texture.layers(),
+            size: Extent3d {
+                width: texture.width(),
+                height: texture.height(),
+                depth_or_array_layers: texture.layers(),
+            },
             usage: config.usage,
             mip_count: config.mip_count,
             binding_infos,
@@ -65,14 +65,14 @@ impl<L: Texel, T: Texture<L>> GpuTexture<L, T> {
     }
 
     pub(crate) fn height(&self) -> u32 {
-        self.height
+        self.size.height
     }
 
     pub(crate) fn width(&self) -> u32 {
-        self.width
+        self.size.width
     }
     pub(crate) fn layers(&self) -> u32 {
-        self.layers
+        self.size.depth_or_array_layers
     }
 
     pub(crate) fn texture(&self) -> &wgpu::Texture {
@@ -153,25 +153,34 @@ impl<L: Texel, T: Texture<L>> GpuTexture<L, T> {
     }
 
     pub(crate) fn write_data(&self, texels: &[L], framework: &Framework) {
-        self.write_region(texels, (0, 0, self.width(), self.height()), framework);
+        self.write_region(
+            texels,
+            T::SamplingPointType::from_wgpu_origin(Origin3d::ZERO),
+            T::SamplingExtentsType::from_wgpu_extents(self.size.clone()),
+            framework,
+        );
     }
 
     pub(crate) fn write_region(
         &self,
         texels: &[L],
-        region_rect: (u32, u32, u32, u32),
+        region_origin: T::SamplingPointType,
+        region_extents: T::SamplingExtentsType,
         framework: &Framework,
     ) {
-        let (x, y, w, h) = region_rect;
-        let total_size_to_copy = w * h * 4;
-        let buffer_offset = x * y * 4;
+        let wgpu_origin = region_origin.origin();
+        let wgpu_extents = region_extents.extents();
+        let total_size_to_copy =
+            wgpu_extents.width * wgpu_extents.height * L::channel_count() * L::channel_size_bytes();
+        let buffer_offset =
+            wgpu_origin.x * wgpu_origin.y * L::channel_count() * L::channel_size_bytes();
         let region_bytes = bytemuck::cast_slice(texels);
         assert!(total_size_to_copy as usize <= region_bytes.len());
 
         let texture_region = wgpu::ImageCopyTexture {
             texture: &self.texture(),
             mip_level: 0,
-            origin: wgpu::Origin3d { x, y, z: 0 },
+            origin: wgpu_origin,
             aspect: wgpu::TextureAspect::All,
         };
 
@@ -180,22 +189,24 @@ impl<L: Texel, T: Texture<L>> GpuTexture<L, T> {
             &region_bytes,
             wgpu::ImageDataLayout {
                 offset: buffer_offset as u64,
-                bytes_per_row: NonZeroU32::new(self.width() * 4),
+                bytes_per_row: NonZeroU32::new(
+                    self.width() * L::channel_count() * L::channel_size_bytes(),
+                ),
                 rows_per_image: NonZeroU32::new(self.height()),
             },
-            wgpu::Extent3d {
-                width: w,
-                height: h,
-                depth_or_array_layers: 1,
-            },
-        )
+            wgpu_extents,
+        );
     }
 
     pub(crate) fn read_data(&self, framework: &Framework) -> Result<T, TexelConversionError> {
-        todo!()
+        self.read_region(
+            T::SamplingPointType::from_wgpu_origin(Origin3d::ZERO),
+            T::SamplingExtentsType::from_wgpu_extents(self.size.clone()),
+            framework,
+        )
     }
 
-    pub(crate) fn read_subregion(
+    pub(crate) fn read_region(
         &self,
         origin: T::SamplingPointType,
         extents: T::SamplingExtentsType,

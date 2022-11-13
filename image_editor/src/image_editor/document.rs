@@ -63,7 +63,7 @@ impl Document {
                 label: "Double Buffering Layer 1".to_owned(),
                 width: config.width,
                 height: config.height,
-                initial_background_color: [0.5, 0.5, 0.5, 1.0],
+                initial_background_color: [127, 127, 127, 255],
             },
             framework,
         );
@@ -72,7 +72,7 @@ impl Document {
                 label: "Double Buffering Layer 2".to_owned(),
                 width: config.width,
                 height: config.height,
-                initial_background_color: [0.5, 0.5, 0.5, 1.0],
+                initial_background_color: [127, 127, 127, 127],
             },
             framework,
         );
@@ -81,7 +81,7 @@ impl Document {
                 label: "Draw Buffer Layer".to_owned(),
                 width: config.width,
                 height: config.height,
-                initial_background_color: [0.0, 0.0, 0.0, 0.0],
+                initial_background_color: [0, 0, 0, 0],
             },
             framework,
         );
@@ -113,7 +113,7 @@ impl Document {
 
         document.add_layer(
             LayerConstructionInfo {
-                initial_color: [1.0, 1.0, 1.0, 1.0],
+                initial_color: [255; 4],
                 name: "Background Layer".into(),
                 width: document.document_size.x,
                 height: document.document_size.y,
@@ -122,7 +122,7 @@ impl Document {
         );
         document.add_layer(
             LayerConstructionInfo {
-                initial_color: [0.0, 0.0, 0.0, 0.0],
+                initial_color: [0; 4],
                 name: "Layer 0".into(),
                 width: document.document_size.x,
                 height: document.document_size.y,
@@ -330,7 +330,7 @@ impl Document {
         let (width, height) = framework.texture2d_dimensions(&new_texture);
         let new_index = self.add_layer(
             LayerConstructionInfo {
-                initial_color: [0.0, 0.0, 0.0, 0.0],
+                initial_color: [0; 4],
                 name: current_layer.settings().name.clone() + " subregion",
                 width,
                 height,
@@ -404,7 +404,7 @@ impl Document {
                 label: config.name,
                 width: self.document_size.x,
                 height: self.document_size.y,
-                initial_background_color: [0.0; 4],
+                initial_background_color: [0; 4],
             },
             framework,
         );

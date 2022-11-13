@@ -308,7 +308,7 @@ impl EguiUI {
                 let layer_settings = self.new_layer_in_creation.as_mut().unwrap();
 
                 ui.label("Layer color?");
-                ui.color_edit_button_rgba_unmultiplied(&mut layer_settings.initial_color);
+                ui.color_edit_button_srgba_unmultiplied(&mut layer_settings.initial_color);
                 ui.label("Layer name?");
                 ui.text_edit_singleline(&mut layer_settings.name);
                 if layer_settings.name.is_empty() {

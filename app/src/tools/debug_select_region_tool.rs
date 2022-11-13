@@ -1,6 +1,7 @@
 use crate::tools::{EditorContext, PointerEvent};
 use cgmath::{ElementWise, Point2};
-use image::{DynamicImage, RgbaImage};
+use framework::{Texel, Texture};
+use image::{DynamicImage, ImageBuffer, RgbaImage};
 
 use super::{tool::Tool, EditorCommand};
 
@@ -77,13 +78,19 @@ impl Tool for DebugSelectRegionTool {
                         let subregion = context
                             .framework
                             .texture2d_read_data(&new_subregion_texture);
-                        let width = subregion.width;
-                        let height = subregion.height;
-
-                        let data = subregion.to_bytes(true);
-                        let dyn_image = DynamicImage::ImageRgba8(
-                            RgbaImage::from_vec(width, height, data).unwrap(),
-                        );
+                        let width = subregion.width();
+                        let height = subregion.height();
+                        let bytes = subregion
+                            .data()
+                            .expect("A texture just read from the GPU doesn'thave any bytes, wtf?");
+                        let bytes = bytes
+                            .iter()
+                            .map(|texel| texel.bytes())
+                            .fold(vec![], |acc, res| {
+                                [acc, res.iter().map(|b| *b).collect()].concat()
+                            });
+                        let raw_image = ImageBuffer::from_raw(width, height, bytes).unwrap();
+                        let dyn_image = DynamicImage::ImageRgba8(raw_image);
                         dyn_image
                             .save("test_reg.png")
                             .unwrap_or_else(|err| println!("Error happened: {err}"));
