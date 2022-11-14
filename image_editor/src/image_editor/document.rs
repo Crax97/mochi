@@ -3,7 +3,7 @@ use crate::{
     blend_settings::{BlendSettings, BlendSettingsUniform},
     global_selection_data,
     layers::{BitmapLayer, BitmapLayerConfiguration, LayerCreationInfo, LayerTree},
-    selection::{Selection, SelectionAddition},
+    selection::{Selection, SelectionAddition, SelectionShape},
     LayerConstructionInfo,
 };
 use cgmath::{point2, vec2, Vector2};
@@ -186,77 +186,63 @@ impl Document {
     }
 
     fn update_selection_buffer(&self, renderer: &mut Renderer, framework: &mut Framework) {
+        self.clear_stencil_buffer(renderer, framework);
+        self.draw_shapes_on_stencil_buffer(&self.selection.shapes, renderer, framework);
+        self.draw_shapes_on_stencil_buffer(&self.partial_selection.shapes, renderer, framework);
+    }
+
+    fn draw_shapes_on_stencil_buffer<'a, T: IntoIterator<Item = &'a SelectionShape>>(
+        &self,
+        shapes: T,
+        renderer: &mut Renderer,
+        framework: &mut Framework,
+    ) {
+        for shape in shapes.into_iter() {
+            let additive = shape.mode == SelectionAddition::Add;
+            renderer.begin(&self.buffer_layer.camera(), None, framework);
+            renderer.set_draw_debug_name(
+                format!(
+                    "Selection tool: draw shape {:?} [{:?}] on stencil buffer",
+                    shape.shape,
+                    if additive { "a" } else { "s" }
+                )
+                .as_str(),
+            );
+            renderer.set_stencil_clear(None);
+            renderer.set_stencil_reference(if additive { 255 } else { 0 });
+            match shape.shape {
+                crate::selection::Shape::Rectangle(rect) => {
+                    renderer.draw(DrawCommand {
+                        primitives: PrimitiveType::Rect {
+                            rects: vec![rect.clone()],
+                            multiply_color: wgpu::Color::GREEN,
+                        },
+                        draw_mode: DrawMode::Single,
+                        additional_data: OptionalDrawData::just_shader(Some(
+                            global_selection_data()
+                                .draw_on_stencil_buffer_shader_id
+                                .clone(),
+                        )),
+                    });
+                }
+            }
+
+            renderer.end(
+                &self.buffer_layer.texture(),
+                Some((&self.stencil_texture, DepthStencilUsage::Stencil)),
+                framework,
+            );
+        }
+    }
+
+    fn clear_stencil_buffer(&self, renderer: &mut Renderer, framework: &mut Framework) {
         renderer.begin(
             &self.buffer_layer.camera(),
             Some(wgpu::Color::TRANSPARENT),
             framework,
         );
-        renderer.set_draw_debug_name("Selection tool: draw selection on stencil buffer");
+        renderer.set_draw_debug_name("Selection tool: clear stencil buffer");
         renderer.set_stencil_clear(Some(0));
-        renderer.end(
-            &self.buffer_layer.texture(),
-            Some((&self.stencil_texture, DepthStencilUsage::Stencil)),
-            framework,
-        );
-        for shape in self.selection.shapes.iter() {
-            let additive = shape.mode == SelectionAddition::Add;
-            renderer.begin(&self.buffer_layer.camera(), None, framework);
-            renderer.set_draw_debug_name("Selection tool: draw selection on stencil buffer");
-            renderer.set_stencil_clear(None);
-            renderer.set_stencil_reference(if additive { 255 } else { 0 });
-            match shape.shape {
-                crate::selection::Shape::Rectangle(rect) => {
-                    renderer.draw(DrawCommand {
-                        primitives: PrimitiveType::Rect {
-                            rects: vec![rect.clone()],
-                            multiply_color: wgpu::Color::GREEN,
-                        },
-                        draw_mode: DrawMode::Single,
-                        additional_data: OptionalDrawData::just_shader(Some(
-                            global_selection_data()
-                                .draw_on_stencil_buffer_shader_id
-                                .clone(),
-                        )),
-                    });
-                }
-            }
-
-            renderer.end(
-                &self.buffer_layer.texture(),
-                Some((&self.stencil_texture, DepthStencilUsage::Stencil)),
-                framework,
-            );
-        }
-        for shape in self.partial_selection.shapes.iter() {
-            let additive = shape.mode == SelectionAddition::Add;
-            renderer.begin(&self.buffer_layer.camera(), None, framework);
-            renderer.set_draw_debug_name("Selection tool: draw selection on stencil buffer");
-            renderer.set_stencil_clear(None);
-            renderer.set_stencil_reference(if additive { 255 } else { 0 });
-            match shape.shape {
-                crate::selection::Shape::Rectangle(rect) => {
-                    renderer.draw(DrawCommand {
-                        primitives: PrimitiveType::Rect {
-                            rects: vec![rect.clone()],
-                            multiply_color: wgpu::Color::GREEN,
-                        },
-                        draw_mode: DrawMode::Single,
-                        additional_data: OptionalDrawData::just_shader(Some(
-                            global_selection_data()
-                                .draw_on_stencil_buffer_shader_id
-                                .clone(),
-                        )),
-                    });
-                }
-            }
-
-            renderer.end(
-                &self.buffer_layer.texture(),
-                Some((&self.stencil_texture, DepthStencilUsage::Stencil)),
-                framework,
-            );
-        }
-
         renderer.end(
             &self.buffer_layer.texture(),
             Some((&self.stencil_texture, DepthStencilUsage::Stencil)),
