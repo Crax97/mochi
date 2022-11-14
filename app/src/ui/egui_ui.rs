@@ -131,6 +131,11 @@ impl EguiUI {
                                         doc.mutate_selection(|sel| sel.invert());
                                     });
                                 }
+                                if ui.button("Clear selection").clicked() {
+                                    app_ctx.image_editor.mutate_document(|doc| {
+                                        doc.mutate_selection(|sel| sel.clear());
+                                    });
+                                }
                             });
                         });
                         ui.horizontal(|ui| {

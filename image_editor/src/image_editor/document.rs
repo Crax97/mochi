@@ -479,6 +479,7 @@ impl Document {
         if self.wants_selection_update {
             self.wants_selection_update = false;
             self.update_selection_buffer(renderer, framework);
+            self.partial_selection.clear();
         }
         for (_, layer) in self.layers.iter_mut() {
             let layer_info = self.layer_canvases.get(layer.uuid()).unwrap();
