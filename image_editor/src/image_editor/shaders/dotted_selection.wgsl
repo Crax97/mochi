@@ -39,10 +39,12 @@ fn fragment(in: FragmentInput) -> @location(0) vec4<f32> {
     let y = in.tex_uv.y;
     let midpoint = scale * 2.0 * vec2<f32>(x, y);
 
+    let animation_speed = 15.0;
     let span = 2.0;
     let i_x_span = 15;
     let i_y_span = 15;
     let ss = stencil_sample(in.tex_uv);
-    let checker = checkerboard(i32(midpoint.x + midpoint.y), i_x_span);
+    let time_step = i32(in.time * animation_speed);
+    let checker = checkerboard(i32(midpoint.x + midpoint.y) + time_step, i_x_span);
     return mix(vec4(0.0), vec4(0.0, 0.0, 0.0, 1.0), checker * ss);
 }
