@@ -1,5 +1,6 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, fmt::Display, ops::RangeInclusive, rc::Rc};
 
+use cgmath::num_traits::Num;
 use framework::{renderer::renderer::Renderer, Framework};
 use image_editor::ImageEditor;
 use wgpu::{CommandBuffer, SurfaceConfiguration, TextureView};
@@ -30,6 +31,21 @@ pub struct UiContext<'app> {
 pub trait Ui {
     fn begin(&mut self);
     fn on_new_winit_event(&mut self, event: &winit::event::Event<()>);
+
+    fn label<'a, S: Into<&'a str>>(&mut self, label: &str);
+    fn edit_label<'a, S: Into<String> + From<String>>(&mut self, label: &mut S);
+    fn button<'a, S: Into<&'a str>>(&mut self, label: S) -> bool;
+    fn dropdown<T: ToString>(&mut self, current: &mut T, allowed_values: &[T]);
+    fn slider<N: Num + Display>(&mut self, current: &mut N, range: RangeInclusive<N>) {
+        self.slider_formatted(current, range, |n| format!("{}", n));
+    }
+    fn slider_formatted<N: Num, F: FnOnce(&N) -> String>(
+        &mut self,
+        current: &mut N,
+        range: RangeInclusive<N>,
+        formatter: F,
+    );
+
     fn do_ui(&mut self, ctx: UiContext) -> bool;
     fn present(
         &mut self,

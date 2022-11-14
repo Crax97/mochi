@@ -425,4 +425,29 @@ impl Ui for EguiUI {
         }
         encoder.finish()
     }
+
+    fn label<'a, S: Into<&'a str>>(&mut self, label: &str) {
+        todo!()
+    }
+
+    fn edit_label<'a, S: Into<String> + From<String>>(&mut self, label: &mut S) {
+        todo!()
+    }
+
+    fn button<'a, S: Into<&'a str>>(&mut self, label: S) -> bool {
+        todo!()
+    }
+
+    fn dropdown<T: ToString>(&mut self, current: &mut T, allowed_values: &[T]) {
+        todo!()
+    }
+
+    fn slider_formatted<N: cgmath::num_traits::Num, F: FnOnce(&N) -> String>(
+        &mut self,
+        current: &mut N,
+        range: std::ops::RangeInclusive<N>,
+        formatter: F,
+    ) {
+        todo!()
+    }
 }

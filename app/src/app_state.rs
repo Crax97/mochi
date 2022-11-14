@@ -64,7 +64,37 @@ impl UndoStack {
     }
 }
 
-pub struct ImageApplication {
+fn read_action_bindings(action_map: &mut ActionMap<String>) {
+    // TODO: Action bindings aren't actually read from a file yet.
+    // In the future add something like an action_bindings.json file to read stuff
+    // + an ui to allow users to change the bindings
+    action_map.add_action_binding(
+        KeyBinding {
+            key: (Key::S, ActionState::Pressed),
+            modifiers: ModifierSet::new(false, false, true, false),
+        },
+        "save",
+    );
+    action_map.add_action_binding(
+        KeyBinding {
+            key: (Key::Z, ActionState::Pressed),
+            modifiers: ModifierSet::new(false, false, true, false),
+        },
+        "undo",
+    );
+    action_map.add_action_binding(
+        KeyBinding {
+            key: (Key::Z, ActionState::Pressed),
+            modifiers: ModifierSet::new(true, false, true, false),
+        },
+        "redo",
+    );
+    action_map.add_action_binding((Key::B, ActionState::Pressed), "pick_brush");
+    action_map.add_action_binding((Key::M, ActionState::Pressed), "pick_move");
+    action_map.add_action_binding((Key::E, ActionState::Pressed), "toggle_eraser");
+}
+
+pub struct ImageApplication<T: Ui> {
     pub(crate) window: Window,
     pub(crate) final_surface: Surface,
     pub(crate) final_surface_configuration: SurfaceConfiguration,
@@ -75,7 +105,7 @@ pub struct ImageApplication {
     image_editor: ImageEditor,
     input_state: InputState,
     toolbox: Toolbox,
-    ui: Box<dyn Ui>,
+    ui: T,
     stamping_engine: Rc<RefCell<StrokingEngine>>,
     brush_tool: Rc<RefCell<BrushTool>>,
     #[allow(dead_code)]
@@ -88,20 +118,16 @@ pub struct ImageApplication {
     #[allow(dead_code)]
     color_picker_id: ToolId,
 }
-impl ImageApplication {
-    pub(crate) fn new(window: Window, framework: &mut Framework) -> Self {
-        let final_surface = unsafe { framework.instance.create_surface(&window) };
-        let final_surface_configuration = SurfaceConfiguration {
-            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: final_surface.get_supported_formats(&framework.adapter)[0],
-            width: window.inner_size().width,
-            height: window.inner_size().height,
-            present_mode: wgpu::PresentMode::Fifo,
-            alpha_mode: wgpu::CompositeAlphaMode::Opaque,
-        };
 
+impl<T: Ui> ImageApplication<T> {
+    pub(crate) fn new(
+        window: Window,
+        framework: &mut Framework,
+        ui: T,
+        final_surface: Surface,
+        final_surface_configuration: SurfaceConfiguration,
+    ) -> Self {
         let image_editor = ImageEditor::new(framework, &[1024.0, 1024.0]);
-        final_surface.configure(&framework.device, &final_surface_configuration);
 
         let test_stamp = Toolbox::create_test_stamp(framework);
         let stamping_engine = StrokingEngine::new(test_stamp, framework);
@@ -122,9 +148,7 @@ impl ImageApplication {
 
         let mut action_map = ActionMap::default();
 
-        ImageApplication::read_action_bindings(&mut action_map);
-
-        let ui = ui::create_ui(&final_surface_configuration, &window, &framework);
+        read_action_bindings(&mut action_map);
 
         let instant_renderer = Renderer::new(framework);
         let deferred_renderer = Renderer::new(framework);
@@ -138,7 +162,7 @@ impl ImageApplication {
             image_editor,
             input_state: InputState::default(),
             toolbox,
-            ui: Box::new(ui),
+            ui,
             stamping_engine,
             brush_tool,
             hand_tool,
@@ -297,36 +321,6 @@ impl ImageApplication {
         self.window.request_redraw();
         framework.update_asset_maps();
         ControlFlow::Poll
-    }
-
-    fn read_action_bindings(action_map: &mut ActionMap<String>) {
-        // TODO: Action bindings aren't actually read from a file yet.
-        // In the future add something like an action_bindings.json file to read stuff
-        // + an ui to allow users to change the bindings
-        action_map.add_action_binding(
-            KeyBinding {
-                key: (Key::S, ActionState::Pressed),
-                modifiers: ModifierSet::new(false, false, true, false),
-            },
-            "save",
-        );
-        action_map.add_action_binding(
-            KeyBinding {
-                key: (Key::Z, ActionState::Pressed),
-                modifiers: ModifierSet::new(false, false, true, false),
-            },
-            "undo",
-        );
-        action_map.add_action_binding(
-            KeyBinding {
-                key: (Key::Z, ActionState::Pressed),
-                modifiers: ModifierSet::new(true, false, true, false),
-            },
-            "redo",
-        );
-        action_map.add_action_binding((Key::B, ActionState::Pressed), "pick_brush");
-        action_map.add_action_binding((Key::M, ActionState::Pressed), "pick_move");
-        action_map.add_action_binding((Key::E, ActionState::Pressed), "toggle_eraser");
     }
 
     fn dispatch_actions(&mut self, actions: Vec<String>, framework: &mut Framework) {
