@@ -69,6 +69,9 @@ impl Selection {
             }
         }
     }
+    pub fn is_empty(&self) -> bool {
+        self.shapes.is_empty()
+    }
 
     pub fn contains(&self, point: Point2<f32>) -> bool {
         let inside_selection = self.shapes.iter().any(|shape| match shape.shape {

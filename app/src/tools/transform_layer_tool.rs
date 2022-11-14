@@ -36,14 +36,16 @@ impl Tool for TransformLayerTool {
         if !self.is_active {
             return None;
         }
-        let mult = clamp(
-            1.0 / context.image_editor.camera().current_scale() * 0.5,
-            0.1,
-            0.2,
-        );
+
+        if !context.image_editor.document().selection().is_empty() {
+            context.image_editor.mutate_document(|doc| {
+                doc.copy_layer_selection_to_new_layer(context.renderer, context.framework);
+                doc.mutate_selection(|sel| sel.clear());
+            });
+        }
+
         let new_position = pointer_motion.new_pointer_location;
         let delta = new_position - self.last_frame_position;
-        let delta = delta * mult;
         if delta.magnitude2() > 0.5 {
             context.image_editor.mutate_document(|doc| {
                 doc.mutate_layer(&doc.current_layer_index(), |layer| {

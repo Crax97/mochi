@@ -1,5 +1,5 @@
 use crate::tools::{EditorContext, PointerEvent};
-use cgmath::{num_traits::clamp, point2, InnerSpace, Point2};
+use cgmath::{point2, InnerSpace, Point2};
 
 use super::{tool::Tool, EditorCommand};
 
