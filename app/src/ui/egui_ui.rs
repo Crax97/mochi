@@ -50,6 +50,29 @@ impl<'a> DynamicToolUi for DynamicEguiUi<'a> {
     fn label(&mut self, contents: &str) {
         self.ui.label(contents);
     }
+
+    fn dropdown(
+        &mut self,
+        label: &str,
+        current: usize,
+        values_fn: Box<dyn FnOnce() -> Vec<(usize, String)>>,
+    ) -> usize {
+        let values = values_fn();
+        let current = values
+            .iter()
+            .find(|(v, _)| *v == current)
+            .expect("Current value is not contained in valid values!");
+        let mut usize_number = current.0.clone();
+
+        egui::ComboBox::from_label(label)
+            .selected_text(current.1.clone())
+            .show_ui(self.ui, |ui| {
+                for (value, name) in values.iter() {
+                    ui.selectable_value(&mut usize_number, *value, name);
+                }
+            });
+        usize_number
+    }
 }
 
 impl EguiUI {

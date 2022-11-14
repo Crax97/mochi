@@ -1,15 +1,45 @@
+use std::fmt::Display;
+
 use crate::tools::{EditorContext, PointerEvent};
 use cgmath::{EuclideanSpace, Point2};
 
-use framework::{renderer::draw_command::DrawCommand, Box2d};
+use framework::Box2d;
 use image_editor::selection::SelectionShape;
 
-use super::{tool::Tool, EditorCommand};
+use super::{tool::Tool, DynamicToolUiHelpers, EditorCommand};
+use strum_macros::EnumIter;
+
+#[derive(Clone, Copy, Debug, EnumIter)]
+enum SelectionShapeUi {
+    Rectangle = 0,
+}
+
+impl From<usize> for SelectionShapeUi {
+    fn from(v: usize) -> Self {
+        match v {
+            0 => Self::Rectangle,
+            _ => unreachable!(),
+        }
+    }
+}
+impl From<SelectionShapeUi> for usize {
+    fn from(v: SelectionShapeUi) -> Self {
+        v as usize
+    }
+}
+impl Display for SelectionShapeUi {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            SelectionShapeUi::Rectangle => "Rectangle",
+        })
+    }
+}
 
 pub struct RectSelectionTool {
     is_active: bool,
     first_click_position: Point2<f32>,
     last_click_position: Point2<f32>,
+    selection_shape_ui: SelectionShapeUi,
 }
 
 impl RectSelectionTool {
@@ -18,6 +48,7 @@ impl RectSelectionTool {
             is_active: false,
             first_click_position: Point2::origin(),
             last_click_position: Point2::origin(),
+            selection_shape_ui: SelectionShapeUi::Rectangle,
         }
     }
 }
@@ -80,7 +111,8 @@ impl Tool for RectSelectionTool {
         None
     }
     fn ui(&mut self, ui: &mut dyn super::DynamicToolUi) {
-        ui.label("Yo i'm inside a tool!");
+        self.selection_shape_ui =
+            DynamicToolUiHelpers::dropdown(ui, "Selection shape", self.selection_shape_ui.clone());
     }
     fn name(&self) -> &'static str {
         "Rect Selection tool"

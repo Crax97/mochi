@@ -20,6 +20,34 @@ pub struct PointerEvent {
 
 pub trait DynamicToolUi {
     fn label(&mut self, contents: &str);
+    fn dropdown(
+        &mut self,
+        label: &str,
+        current: usize,
+        values_fn: Box<dyn FnOnce() -> Vec<(usize, String)>>,
+    ) -> usize;
+}
+
+pub mod DynamicToolUiHelpers {
+    use strum::IntoEnumIterator;
+
+    use super::DynamicToolUi;
+
+    pub fn dropdown<T: Copy + ToString + IntoEnumIterator + From<usize>>(
+        ui: &mut dyn DynamicToolUi,
+        label: &str,
+        current: T,
+    ) -> T
+    where
+        usize: From<T>,
+    {
+        let selection = ui.dropdown(
+            label,
+            usize::from(current),
+            Box::new(|| T::iter().map(|v| (usize::from(v), v.to_string())).collect()),
+        );
+        T::from(selection)
+    }
 }
 
 pub trait Tool {
