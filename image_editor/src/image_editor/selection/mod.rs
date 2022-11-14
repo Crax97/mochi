@@ -55,7 +55,7 @@ impl Selection {
     pub fn translate(&mut self, delta: Vector2<f32>) {
         for shape in self.shapes.iter_mut() {
             match shape.shape {
-                Shape::Rectangle(mut rect) => rect.center += delta,
+                Shape::Rectangle(ref mut rect) => rect.center += delta,
             }
         }
     }
@@ -63,7 +63,7 @@ impl Selection {
     pub fn expand(&mut self, amount_px: i32) {
         for shape in self.shapes.iter_mut() {
             match shape.shape {
-                Shape::Rectangle(mut rect) => {
+                Shape::Rectangle(ref mut rect) => {
                     rect.extents.add_assign_element_wise(amount_px as f32)
                 }
             }
