@@ -296,7 +296,7 @@ impl ImageApplication {
 
         self.window.request_redraw();
         framework.update_asset_maps();
-        ControlFlow::Wait
+        ControlFlow::Poll
     }
 
     fn read_action_bindings(action_map: &mut ActionMap<String>) {
