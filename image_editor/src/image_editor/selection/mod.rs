@@ -9,6 +9,28 @@ pub struct Selection {
     pub(crate) inverted: bool,
 }
 
+#[derive(Clone, Copy, strum_macros::EnumIter, strum_macros::Display)]
+pub enum SelectionAddition {
+    Add = 0,
+    Subtract = 1,
+}
+
+impl From<usize> for SelectionAddition {
+    fn from(n: usize) -> Self {
+        match n {
+            0 => Self::Add,
+            1 => Self::Subtract,
+            _ => unreachable!(),
+        }
+    }
+}
+
+impl From<SelectionAddition> for usize {
+    fn from(v: SelectionAddition) -> Self {
+        v as usize
+    }
+}
+
 impl Selection {
     pub fn set(&mut self, new_selection: SelectionShape) {
         self.shapes = vec![new_selection];

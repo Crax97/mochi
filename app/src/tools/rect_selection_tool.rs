@@ -4,7 +4,7 @@ use crate::tools::{EditorContext, PointerEvent};
 use cgmath::{EuclideanSpace, Point2};
 
 use framework::Box2d;
-use image_editor::selection::SelectionShape;
+use image_editor::selection::{SelectionAddition, SelectionShape};
 
 use super::{tool::Tool, DynamicToolUiHelpers, EditorCommand};
 use strum_macros::EnumIter;
@@ -40,6 +40,7 @@ pub struct RectSelectionTool {
     first_click_position: Point2<f32>,
     last_click_position: Point2<f32>,
     selection_shape_ui: SelectionShapeUi,
+    selection_addition: SelectionAddition,
 }
 
 impl RectSelectionTool {
@@ -49,6 +50,7 @@ impl RectSelectionTool {
             first_click_position: Point2::origin(),
             last_click_position: Point2::origin(),
             selection_shape_ui: SelectionShapeUi::Rectangle,
+            selection_addition: SelectionAddition::Add,
         }
     }
 }
@@ -112,7 +114,9 @@ impl Tool for RectSelectionTool {
     }
     fn ui(&mut self, ui: &mut dyn super::DynamicToolUi) {
         self.selection_shape_ui =
-            DynamicToolUiHelpers::dropdown(ui, "Selection shape", self.selection_shape_ui.clone());
+            DynamicToolUiHelpers::dropdown(ui, "Selection shape", self.selection_shape_ui);
+        self.selection_addition =
+            DynamicToolUiHelpers::dropdown(ui, "Selection mode", self.selection_addition);
     }
     fn name(&self) -> &'static str {
         "Rect Selection tool"
