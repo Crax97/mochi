@@ -1,7 +1,7 @@
 use crate::tools::{EditorContext, PointerEvent};
 use cgmath::{EuclideanSpace, Point2};
 
-use framework::Box2d;
+use framework::{renderer::draw_command::DrawCommand, Box2d};
 use image_editor::selection::SelectionShape;
 
 use super::{tool::Tool, EditorCommand};
@@ -43,6 +43,9 @@ impl Tool for RectSelectionTool {
         pointer_event: PointerEvent,
         context: &mut EditorContext,
     ) -> Option<Box<dyn EditorCommand>> {
+        if !self.is_active {
+            return None;
+        }
         let new_position = pointer_event.new_pointer_location_normalized;
         let new_position = context
             .image_editor
@@ -52,11 +55,15 @@ impl Tool for RectSelectionTool {
                 self.last_click_position = new_pos;
             }
             _ => {}
-        }
-        context
-            .image_editor
-            .document()
-            .draw_selection(context.renderer);
+        };
+        let rect = Box2d::from_points(self.first_click_position, self.last_click_position);
+        context.image_editor.mutate_document(|doc| {
+            doc.mutate_partial_selection(
+                |selection| selection.set(SelectionShape::Rectangle(rect)),
+                context.renderer,
+                context.framework,
+            );
+        });
         None
     }
 
@@ -78,8 +85,6 @@ impl Tool for RectSelectionTool {
         });
         None
     }
-
-    fn draw(&self, renderer: &mut framework::renderer::renderer::Renderer) {}
     fn name(&self) -> &'static str {
         "Rect Selection tool"
     }

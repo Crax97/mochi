@@ -53,6 +53,8 @@ pub struct Document {
 
     current_layer_index: LayerIndex,
     selection: Selection,
+    partial_selection: Selection,
+    wants_selection_update: bool,
     stencil_texture: DepthStencilTextureId,
 }
 
@@ -115,6 +117,8 @@ impl Document {
             tree_root: RootLayer(vec![]),
             buffering_step: BufferingStep::First,
             selection: Selection::default(),
+            partial_selection: Selection::default(),
+            wants_selection_update: false,
             stencil_texture,
         };
 
@@ -179,7 +183,16 @@ impl Document {
         framework: &mut Framework,
     ) {
         callback(&mut self.selection);
-        self.update_selection_buffer(renderer, framework);
+        self.wants_selection_update = true;
+    }
+    pub fn mutate_partial_selection<F: FnMut(&mut Selection)>(
+        &mut self,
+        mut callback: F,
+        renderer: &mut Renderer,
+        framework: &mut Framework,
+    ) {
+        callback(&mut self.partial_selection);
+        self.wants_selection_update = true;
     }
 
     fn update_selection_buffer(&self, renderer: &mut Renderer, framework: &mut Framework) {
@@ -193,6 +206,24 @@ impl Document {
         renderer.set_stencil_reference(255);
 
         for shape in self.selection.shapes.iter() {
+            match shape {
+                crate::selection::SelectionShape::Rectangle(rect) => {
+                    renderer.draw(DrawCommand {
+                        primitives: PrimitiveType::Rect {
+                            rects: vec![rect.clone()],
+                            multiply_color: wgpu::Color::GREEN,
+                        },
+                        draw_mode: DrawMode::Single,
+                        additional_data: OptionalDrawData::just_shader(Some(
+                            global_selection_data()
+                                .draw_on_stencil_buffer_shader_id
+                                .clone(),
+                        )),
+                    });
+                }
+            }
+        }
+        for shape in self.partial_selection.shapes.iter() {
             match shape {
                 crate::selection::SelectionShape::Rectangle(rect) => {
                     renderer.draw(DrawCommand {
@@ -444,6 +475,10 @@ impl Document {
     }
 
     pub(crate) fn update_layers(&mut self, renderer: &mut Renderer, framework: &mut Framework) {
+        if self.wants_selection_update {
+            self.wants_selection_update = false;
+            self.update_selection_buffer(renderer, framework);
+        }
         for (_, layer) in self.layers.iter_mut() {
             let layer_info = self.layer_canvases.get(layer.uuid()).unwrap();
             if layer.needs_settings_update() {
