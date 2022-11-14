@@ -10,7 +10,7 @@ use crate::{
     app_state::UndoStack,
     input_state::InputState,
     toolbox::Toolbox,
-    tools::{brush_engine::stamping_engine::StrokingEngine, BrushTool},
+    tools::{brush_engine::stamping_engine::StrokingEngine, BrushTool, Tool},
 };
 
 mod egui_ui;
@@ -28,17 +28,21 @@ pub struct UiContext<'app> {
     pub brush_tool: Rc<RefCell<BrushTool>>,
 }
 
+pub struct ToolUiContext<'app> {
+    pub framework: &'app mut Framework,
+    pub image_editor: &'app mut ImageEditor,
+    pub renderer: &'app mut Renderer,
+    pub deferred_renderer: &'app mut Renderer,
+    pub input_state: &'app InputState,
+    pub undo_stack: &'app mut UndoStack,
+
+    pub stamping_engine: Rc<RefCell<StrokingEngine>>,
+    pub brush_tool: Rc<RefCell<BrushTool>>,
+}
+
 pub trait Ui {
     fn begin(&mut self);
     fn on_new_winit_event(&mut self, event: &winit::event::Event<()>);
-
-    fn label<'a, S: Into<&'a str>>(&mut self, label: &str);
-    fn edit_label<'a, S: Into<String> + From<String>>(&mut self, label: &mut S);
-    fn button<'a, S: Into<&'a str>>(&mut self, label: S) -> bool;
-    fn dropdown<T: ToString>(&mut self, current: &mut T, allowed_values: &[T]);
-    fn slider<N: Num + Display>(&mut self, current: &mut N, range: RangeInclusive<N>) {
-        self.slider_formatted(current, range, |n| format!("{}", n));
-    }
     fn slider_formatted<N: Num, F: FnOnce(&N) -> String>(
         &mut self,
         current: &mut N,
@@ -47,6 +51,7 @@ pub trait Ui {
     );
 
     fn do_ui(&mut self, ctx: UiContext) -> bool;
+    fn do_tool_ui(&mut self, app_ctx: ToolUiContext, tool: &mut dyn Tool) -> bool;
     fn present(
         &mut self,
         window: &Window,

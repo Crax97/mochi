@@ -18,6 +18,10 @@ pub struct PointerEvent {
     pub window_width: Vector2<u32>,
 }
 
+pub trait DynamicToolUi {
+    fn label(&mut self, contents: &str);
+}
+
 pub trait Tool {
     fn name(&self) -> &'static str;
     fn on_selected(&mut self, _context: &mut EditorContext) -> Option<Box<dyn EditorCommand>> {
@@ -40,6 +44,9 @@ pub trait Tool {
     ) -> Option<Box<dyn EditorCommand>> {
         None
     }
+
+    fn ui(&mut self, ui: &mut dyn DynamicToolUi) {}
+
     fn on_pointer_release(
         &mut self,
         _pointer_release: PointerEvent,

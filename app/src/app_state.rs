@@ -1,3 +1,4 @@
+use std::ops::DerefMut;
 use std::{cell::RefCell, rc::Rc};
 
 use crate::input_state::{ActionMap, InputState};
@@ -7,7 +8,7 @@ use crate::tools::{
     BrushTool, ColorPicker, DebugSelectRegionTool, EditorCommand, EditorContext, HandTool,
     RectSelectionTool, TransformLayerTool,
 };
-use crate::ui::{self, Ui, UiContext};
+use crate::ui::{self, ToolUiContext, Ui, UiContext};
 use crate::{ActionState, Key, KeyBinding, ModifierSet};
 use framework::renderer::renderer::Renderer;
 use framework::Framework;
@@ -259,6 +260,21 @@ impl<T: Ui> ImageApplication<T> {
                     deferred_renderer: &mut self.deferred_renderer,
                 };
                 let block_editor = self.ui.do_ui(ui_ctx);
+
+                let ui_ctx = ToolUiContext {
+                    framework,
+                    image_editor: &mut self.image_editor,
+                    input_state: &self.input_state,
+                    stamping_engine: self.stamping_engine.clone(),
+                    brush_tool: self.brush_tool.clone(),
+                    undo_stack: &mut self.undo_stack,
+                    renderer: &mut self.instant_renderer,
+                    deferred_renderer: &mut self.deferred_renderer,
+                };
+                let block_editor = self
+                    .ui
+                    .do_tool_ui(ui_ctx, self.toolbox.primary_tool().deref_mut())
+                    || block_editor;
                 self.toolbox.set_is_blocked(block_editor);
                 self.image_editor
                     .update_layers(&mut self.instant_renderer, framework);

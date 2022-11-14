@@ -13,9 +13,12 @@ use strum::IntoEnumIterator;
 use wgpu::{CommandBuffer, SurfaceConfiguration, TextureView};
 use winit::window::Window;
 
-use crate::{toolbox::ToolId, tools::EditorContext};
+use crate::{
+    toolbox::ToolId,
+    tools::{DynamicToolUi, EditorContext, Tool},
+};
 
-use super::{Ui, UiContext};
+use super::{ToolUiContext, Ui, UiContext};
 enum LayerAction {
     NewLayerRequest,
     CancelNewLayerRequest,
@@ -32,6 +35,21 @@ pub struct EguiUI {
     backend_pass: RenderPass,
 
     new_layer_in_creation: Option<LayerConstructionInfo>,
+}
+
+pub struct DynamicEguiUi<'a> {
+    ui: &'a mut egui::Ui,
+}
+impl<'a> DynamicEguiUi<'a> {
+    fn new(ui: &'a mut egui::Ui) -> Self {
+        Self { ui }
+    }
+}
+
+impl<'a> DynamicToolUi for DynamicEguiUi<'a> {
+    fn label(&mut self, contents: &str) {
+        self.ui.label(contents);
+    }
 }
 
 impl EguiUI {
@@ -370,6 +388,23 @@ impl Ui for EguiUI {
         };
         block_editor
     }
+    fn do_tool_ui(&mut self, mut app_ctx: ToolUiContext, tool: &mut dyn Tool) -> bool {
+        let ctx = self.platform.context();
+        let window = egui::Window::new(tool.name()).show(&ctx, |ui| {
+            let mut dynamic_ui = DynamicEguiUi::new(ui);
+            tool.ui(&mut dynamic_ui);
+            // dynamic_ui.do_stuff();
+        });
+        if let Some(response) = window {
+            response.response.rect.contains(Pos2 {
+                x: app_ctx.input_state.mouse_position().x,
+                y: app_ctx.input_state.window_size().y as f32
+                    - app_ctx.input_state.mouse_position().y,
+            })
+        } else {
+            false
+        }
+    }
     fn present(
         &mut self,
         window: &Window,
@@ -416,22 +451,6 @@ impl Ui for EguiUI {
             warn!("While executing ui pass: {e}");
         }
         encoder.finish()
-    }
-
-    fn label<'a, S: Into<&'a str>>(&mut self, label: &str) {
-        todo!()
-    }
-
-    fn edit_label<'a, S: Into<String> + From<String>>(&mut self, label: &mut S) {
-        todo!()
-    }
-
-    fn button<'a, S: Into<&'a str>>(&mut self, label: S) -> bool {
-        todo!()
-    }
-
-    fn dropdown<T: ToString>(&mut self, current: &mut T, allowed_values: &[T]) {
-        todo!()
     }
 
     fn slider_formatted<N: cgmath::num_traits::Num, F: FnOnce(&N) -> String>(

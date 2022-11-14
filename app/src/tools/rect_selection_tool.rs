@@ -79,6 +79,9 @@ impl Tool for RectSelectionTool {
         });
         None
     }
+    fn ui(&mut self, ui: &mut dyn super::DynamicToolUi) {
+        ui.label("Yo i'm inside a tool!");
+    }
     fn name(&self) -> &'static str {
         "Rect Selection tool"
     }
