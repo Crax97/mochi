@@ -20,10 +20,11 @@ impl HandTool {
 impl Tool for HandTool {
     fn on_pointer_click(
         &mut self,
-        _: PointerEvent,
+        pointer_event: PointerEvent,
         _: &mut EditorContext,
     ) -> Option<Box<dyn EditorCommand>> {
         self.is_active = true;
+        self.last_frame_position = pointer_event.new_pointer_location;
         None
     }
 
@@ -35,14 +36,8 @@ impl Tool for HandTool {
         if !self.is_active {
             return None;
         }
-        let mult = clamp(
-            1.0 / context.image_editor.camera().current_scale() * 0.5,
-            0.1,
-            0.2,
-        );
         let new_position = pointer_motion.new_pointer_location;
         let delta = new_position - self.last_frame_position;
-        let delta = delta * mult;
         if delta.magnitude2() > 0.5 {
             context.image_editor.pan_camera(delta);
         }
