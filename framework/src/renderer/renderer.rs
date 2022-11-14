@@ -14,7 +14,10 @@ use crate::{
     RgbaTexture2D, Texture, Vertex,
 };
 
-use super::draw_command::{BindableResource, DrawCommand, DrawMode, PrimitiveType};
+use super::{
+    draw_command::{BindableResource, DrawCommand, DrawMode, PrimitiveType},
+    RenderCallPerFrameData,
+};
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq)]
 pub enum DepthStencilUsage {
@@ -119,7 +122,7 @@ impl Renderer {
 
     pub fn new(framework: &mut Framework) -> Self {
         let camera_buffer_id =
-            framework.allocate_typed_buffer(BufferConfiguration::<Camera2dUniformBlock> {
+            framework.allocate_typed_buffer(BufferConfiguration::<RenderCallPerFrameData> {
                 initial_setup: BufferInitialSetup::Count(1),
                 buffer_type: BufferType::Uniform,
                 gpu_copy_dest: true,
@@ -173,8 +176,13 @@ impl Renderer {
         framework: &mut Framework,
     ) {
         self.clear_color = clear_color;
-        framework
-            .buffer_write_sync::<Camera2dUniformBlock>(&self.camera_buffer_id, vec![camera.into()]);
+        let current_time =
+            std::time::Instant::now().duration_since(crate::FRAMEWORK_INIT_TIME.clone());
+        let current_time = current_time.as_secs_f32();
+        framework.buffer_write_sync::<RenderCallPerFrameData>(
+            &self.camera_buffer_id,
+            vec![RenderCallPerFrameData::new(&camera, current_time)],
+        );
         self.draw_queue.clear();
     }
 

@@ -9,8 +9,10 @@ struct FragmentInput {
     @location(1) scale: vec3<f32>,
     @location(2) tex_uv: vec2<f32>,
     @location(3) multiply_color: vec4<f32>,
+    @location(4) time: f32,
 }
 
 struct PerFrameData {
     vp: mat4x4<f32>,
+    time: vec4<f32>,
 }

@@ -1,3 +1,5 @@
+use lazy_static::lazy_static;
+
 pub mod asset_id;
 pub mod asset_library;
 pub mod buffer;
@@ -26,3 +28,7 @@ pub use mesh::Vertex;
 pub use mesh::Vertices;
 pub use scene::*;
 pub use texture::*;
+
+lazy_static! {
+    pub(crate) static ref FRAMEWORK_INIT_TIME: std::time::Instant = std::time::Instant::now();
+}

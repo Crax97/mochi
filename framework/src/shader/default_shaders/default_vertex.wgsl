@@ -32,5 +32,6 @@ fn vertex(in: VertexInput) -> FragmentInput {
     out.scale = vec3<f32>(instance_data.position_and_size.z, instance_data.position_and_size.w, 0.0);
     out.tex_uv = vec2<f32>(in.tex_uv.x, y);
     out.multiply_color = instance_data.multiply_color;
+    out.time = uniform_data.time.x;
     return out;
 }

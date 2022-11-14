@@ -23,6 +23,7 @@ pollster = "0.2"
 strum = "0.24"
 strum_macros = "0.24"
 crossbeam-channel = "0.5"
+lazy_static = "1.4.0"
 
 [dependencies.wgpu]
 version = "0.14.0"

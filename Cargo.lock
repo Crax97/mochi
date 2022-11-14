@@ -689,6 +689,7 @@ dependencies = [
  "crossbeam-channel",
  "env_logger",
  "futures-intrusive",
+ "lazy_static",
  "log",
  "naga",
  "pollster",
