@@ -3,13 +3,15 @@ mod selection_shape;
 use cgmath::{ElementWise, Point2, Vector2};
 pub use selection_shape::SelectionShape;
 
+pub use self::selection_shape::Shape;
+
 #[derive(Default, Debug, Clone)]
 pub struct Selection {
     pub(crate) shapes: Vec<SelectionShape>,
     pub(crate) inverted: bool,
 }
 
-#[derive(Clone, Copy, strum_macros::EnumIter, strum_macros::Display)]
+#[derive(Clone, Copy, strum_macros::EnumIter, strum_macros::Display, Eq, PartialEq, Debug)]
 pub enum SelectionAddition {
     Add = 0,
     Subtract = 1,
@@ -52,16 +54,16 @@ impl Selection {
 
     pub fn translate(&mut self, delta: Vector2<f32>) {
         for shape in self.shapes.iter_mut() {
-            match shape {
-                SelectionShape::Rectangle(rect) => rect.center += delta,
+            match shape.shape {
+                Shape::Rectangle(mut rect) => rect.center += delta,
             }
         }
     }
 
     pub fn expand(&mut self, amount_px: i32) {
         for shape in self.shapes.iter_mut() {
-            match shape {
-                SelectionShape::Rectangle(rect) => {
+            match shape.shape {
+                Shape::Rectangle(mut rect) => {
                     rect.extents.add_assign_element_wise(amount_px as f32)
                 }
             }
@@ -69,8 +71,8 @@ impl Selection {
     }
 
     pub fn contains(&self, point: Point2<f32>) -> bool {
-        let inside_selection = self.shapes.iter().any(|shape| match shape {
-            SelectionShape::Rectangle(area) => area.contains_point(point.clone()),
+        let inside_selection = self.shapes.iter().any(|shape| match shape.shape {
+            Shape::Rectangle(area) => area.contains_point(point.clone()),
         });
 
         if self.inverted {
@@ -86,19 +88,27 @@ mod test {
     use cgmath::{point2, vec2};
     use framework::Box2d;
 
+    use crate::selection::{selection_shape::Shape, SelectionAddition::*};
+
     use super::{Selection, SelectionShape};
 
     #[test]
     pub fn assert_two_rect_contains_point() {
         let mut selection = Selection::default();
-        selection.extend(SelectionShape::Rectangle(Box2d {
-            center: point2(10.0, 10.0),
-            extents: vec2(5.0, 5.0),
-        }));
-        selection.extend(SelectionShape::Rectangle(Box2d {
-            center: point2(10.0, -10.0),
-            extents: vec2(5.0, 5.0),
-        }));
+        selection.extend(SelectionShape {
+            shape: Shape::Rectangle(Box2d {
+                center: point2(10.0, 10.0),
+                extents: vec2(5.0, 5.0),
+            }),
+            mode: Add,
+        });
+        selection.extend(SelectionShape {
+            shape: Shape::Rectangle(Box2d {
+                center: point2(10.0, -10.0),
+                extents: vec2(5.0, 5.0),
+            }),
+            mode: Add,
+        });
 
         assert!(selection.contains(point2(12.5, 12.5)));
         assert!(selection.contains(point2(12.5, -12.5)));
@@ -107,14 +117,20 @@ mod test {
     pub fn assert_inverted_two_rect_contains_point() {
         let mut selection = Selection::default();
         selection.invert();
-        selection.extend(SelectionShape::Rectangle(Box2d {
-            center: point2(10.0, 10.0),
-            extents: vec2(5.0, 5.0),
-        }));
-        selection.extend(SelectionShape::Rectangle(Box2d {
-            center: point2(10.0, -10.0),
-            extents: vec2(5.0, 5.0),
-        }));
+        selection.extend(SelectionShape {
+            shape: Shape::Rectangle(Box2d {
+                center: point2(10.0, 10.0),
+                extents: vec2(5.0, 5.0),
+            }),
+            mode: Add,
+        });
+        selection.extend(SelectionShape {
+            shape: Shape::Rectangle(Box2d {
+                center: point2(10.0, -10.0),
+                extents: vec2(5.0, 5.0),
+            }),
+            mode: Add,
+        });
 
         assert!(!selection.contains(point2(12.5, 12.5)));
         assert!(selection.contains(point2(17.5, 12.5)));

@@ -4,7 +4,7 @@ use crate::tools::{EditorContext, PointerEvent};
 use cgmath::{EuclideanSpace, Point2};
 
 use framework::Box2d;
-use image_editor::selection::{SelectionAddition, SelectionShape};
+use image_editor::selection::{SelectionAddition, SelectionShape, Shape};
 
 use super::{tool::Tool, DynamicToolUiHelpers, EditorCommand};
 use strum_macros::EnumIter;
@@ -92,7 +92,10 @@ impl Tool for RectSelectionTool {
         let rect = Box2d::from_points(self.first_click_position, self.last_click_position);
         context.image_editor.mutate_document(|doc| {
             doc.mutate_partial_selection(|selection| {
-                selection.set(SelectionShape::Rectangle(rect))
+                selection.set(SelectionShape {
+                    shape: Shape::Rectangle(rect),
+                    mode: self.selection_addition.clone(),
+                })
             });
         });
         None
@@ -108,7 +111,12 @@ impl Tool for RectSelectionTool {
         let rect = Box2d::from_points(self.first_click_position, self.last_click_position);
 
         context.image_editor.mutate_document(|doc| {
-            doc.mutate_selection(|selection| selection.extend(SelectionShape::Rectangle(rect)));
+            doc.mutate_selection(|selection| {
+                selection.extend(SelectionShape {
+                    shape: Shape::Rectangle(rect),
+                    mode: self.selection_addition.clone(),
+                })
+            });
         });
         None
     }

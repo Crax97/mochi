@@ -3,7 +3,7 @@ use crate::{
     blend_settings::{BlendSettings, BlendSettingsUniform},
     global_selection_data,
     layers::{BitmapLayer, BitmapLayerConfiguration, LayerCreationInfo, LayerTree},
-    selection::Selection,
+    selection::{Selection, SelectionAddition},
     LayerConstructionInfo,
 };
 use cgmath::{point2, vec2, Vector2};
@@ -193,11 +193,19 @@ impl Document {
         );
         renderer.set_draw_debug_name("Selection tool: draw selection on stencil buffer");
         renderer.set_stencil_clear(Some(0));
-        renderer.set_stencil_reference(255);
-
+        renderer.end(
+            &self.buffer_layer.texture(),
+            Some((&self.stencil_texture, DepthStencilUsage::Stencil)),
+            framework,
+        );
         for shape in self.selection.shapes.iter() {
-            match shape {
-                crate::selection::SelectionShape::Rectangle(rect) => {
+            let additive = shape.mode == SelectionAddition::Add;
+            renderer.begin(&self.buffer_layer.camera(), None, framework);
+            renderer.set_draw_debug_name("Selection tool: draw selection on stencil buffer");
+            renderer.set_stencil_clear(None);
+            renderer.set_stencil_reference(if additive { 255 } else { 0 });
+            match shape.shape {
+                crate::selection::Shape::Rectangle(rect) => {
                     renderer.draw(DrawCommand {
                         primitives: PrimitiveType::Rect {
                             rects: vec![rect.clone()],
@@ -212,10 +220,21 @@ impl Document {
                     });
                 }
             }
+
+            renderer.end(
+                &self.buffer_layer.texture(),
+                Some((&self.stencil_texture, DepthStencilUsage::Stencil)),
+                framework,
+            );
         }
         for shape in self.partial_selection.shapes.iter() {
-            match shape {
-                crate::selection::SelectionShape::Rectangle(rect) => {
+            let additive = shape.mode == SelectionAddition::Add;
+            renderer.begin(&self.buffer_layer.camera(), None, framework);
+            renderer.set_draw_debug_name("Selection tool: draw selection on stencil buffer");
+            renderer.set_stencil_clear(None);
+            renderer.set_stencil_reference(if additive { 255 } else { 0 });
+            match shape.shape {
+                crate::selection::Shape::Rectangle(rect) => {
                     renderer.draw(DrawCommand {
                         primitives: PrimitiveType::Rect {
                             rects: vec![rect.clone()],
@@ -230,6 +249,12 @@ impl Document {
                     });
                 }
             }
+
+            renderer.end(
+                &self.buffer_layer.texture(),
+                Some((&self.stencil_texture, DepthStencilUsage::Stencil)),
+                framework,
+            );
         }
 
         renderer.end(
