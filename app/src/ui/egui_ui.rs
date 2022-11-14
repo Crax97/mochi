@@ -82,20 +82,12 @@ impl EguiUI {
                                             app_ctx.renderer,
                                             app_ctx.framework,
                                         );
-                                        doc.mutate_selection(
-                                            |sel| sel.clear(),
-                                            app_ctx.renderer,
-                                            app_ctx.framework,
-                                        );
+                                        doc.mutate_selection(|sel| sel.clear());
                                     });
                                 }
                                 if ui.button("Invert selection").clicked() {
                                     app_ctx.image_editor.mutate_document(|doc| {
-                                        doc.mutate_selection(
-                                            |sel| sel.invert(),
-                                            app_ctx.renderer,
-                                            app_ctx.framework,
-                                        );
+                                        doc.mutate_selection(|sel| sel.invert());
                                     });
                                 }
                             });

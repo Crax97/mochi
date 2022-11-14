@@ -176,21 +176,11 @@ impl Document {
         mutate_fn(layer);
     }
 
-    pub fn mutate_selection<F: FnMut(&mut Selection)>(
-        &mut self,
-        mut callback: F,
-        renderer: &mut Renderer,
-        framework: &mut Framework,
-    ) {
+    pub fn mutate_selection<F: FnMut(&mut Selection)>(&mut self, mut callback: F) {
         callback(&mut self.selection);
         self.wants_selection_update = true;
     }
-    pub fn mutate_partial_selection<F: FnMut(&mut Selection)>(
-        &mut self,
-        mut callback: F,
-        renderer: &mut Renderer,
-        framework: &mut Framework,
-    ) {
+    pub fn mutate_partial_selection<F: FnMut(&mut Selection)>(&mut self, mut callback: F) {
         callback(&mut self.partial_selection);
         self.wants_selection_update = true;
     }
