@@ -354,14 +354,6 @@ impl EguiUI {
                         ui.label("Cannot create a layer with an empty name!");
                     });
                 }
-                ui.horizontal(|ui| {
-                    ui.label("Layer width");
-                    ui.add(egui::DragValue::new(&mut layer_settings.width));
-                    layer_settings.width = layer_settings.width.max(10);
-                    ui.label("Layer height");
-                    ui.add(egui::DragValue::new(&mut layer_settings.height));
-                    layer_settings.height = layer_settings.height.max(10);
-                });
                 if ui.button("Create").clicked() && !layer_settings.name.is_empty() {
                     action = LayerAction::CreateNewLayer
                 } else if ui.button("Cancel").clicked() {
@@ -388,8 +380,6 @@ impl Ui for EguiUI {
             LayerAction::NewLayerRequest => {
                 self.new_layer_in_creation = Some(LayerConstructionInfo {
                     name: "New Layer".to_owned(),
-                    width: 1024,
-                    height: 1024,
                     ..Default::default()
                 });
             }

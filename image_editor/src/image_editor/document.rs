@@ -126,8 +126,6 @@ impl Document {
             LayerConstructionInfo {
                 initial_color: [255; 4],
                 name: "Background Layer".into(),
-                width: document.document_size.x,
-                height: document.document_size.y,
             },
             framework,
         );
@@ -135,8 +133,6 @@ impl Document {
             LayerConstructionInfo {
                 initial_color: [0; 4],
                 name: "Layer 0".into(),
-                width: document.document_size.x,
-                height: document.document_size.y,
             },
             framework,
         );
@@ -372,8 +368,6 @@ impl Document {
             LayerConstructionInfo {
                 initial_color: [0; 4],
                 name: current_layer.settings().name.clone() + " subregion",
-                width,
-                height,
             },
             framework,
         );
@@ -424,8 +418,8 @@ impl Document {
         let new_layer = BitmapLayer::new(
             BitmapLayerConfiguration {
                 label: config.name.clone(),
-                width: config.width,
-                height: config.height,
+                width: self.document_size.x,
+                height: self.document_size.y,
                 initial_background_color: config.initial_color,
             },
             framework,
