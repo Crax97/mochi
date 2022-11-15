@@ -31,31 +31,19 @@ impl Transform2d {
     }
     pub fn scale(&mut self, delta: Vector2<f32>) {
         self.scale += delta;
-        if self.scale.x <= 0.0 {
-            self.scale.x = 0.01;
-        }
-        if self.scale.y <= 0.0 {
-            self.scale.y = 0.01;
-        }
     }
 
     pub(crate) fn set_scale(&mut self, new_scale: Vector2<f32>) {
         self.scale = new_scale;
-        if self.scale.x <= 0.0 {
-            self.scale.x = 0.01;
-        }
-        if self.scale.y <= 0.0 {
-            self.scale.y = 0.01;
-        }
     }
 
     pub fn matrix(&self) -> Matrix4<f32> {
+        Matrix4::from_translation(Vector3 {
+            x: self.position.x,
+            y: self.position.y,
+            z: self.position.z,
+        }) *
         Matrix4::from_nonuniform_scale(self.scale.x, self.scale.y, 1.0)
             * Matrix4::from_angle_z(self.rotation_radians)
-            * Matrix4::from_translation(Vector3 {
-                x: self.position.x,
-                y: self.position.y,
-                z: self.position.z,
-            })
     }
 }
