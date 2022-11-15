@@ -136,6 +136,13 @@ impl EguiUI {
                                         doc.mutate_selection(|sel| sel.clear());
                                     });
                                 }
+                                if ui.button("Join current layer with previous layer").clicked() {
+                                    app_ctx.image_editor.mutate_document(|doc| {
+                                        doc.join_with_layer_below(&doc.current_layer_index(), app_ctx.renderer, app_ctx.framework);
+                                        doc.delete_layer(doc.current_layer_index());
+
+                                    });
+                                }
                             });
                         });
                         ui.horizontal(|ui| {
