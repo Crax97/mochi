@@ -231,6 +231,9 @@ impl ImageEditor {
     pub fn scale_view(&mut self, delta: f32) {
         const SCALE_SPEED: f32 = 100.0; // TODO: Make this customizable
         self.pan_camera.scale(delta * SCALE_SPEED);
+        if self.pan_camera.current_scale() <= 0.0 {
+            self.pan_camera.set_scale(0.01);
+        }
     }
 
     // Transforms according to current camera position and current layer transform
