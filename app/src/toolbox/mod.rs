@@ -41,11 +41,10 @@ impl Toolbox {
         let test_stamp_bytes = include_bytes!("test/test_brush.png");
         let image = image::load_from_memory(test_stamp_bytes).unwrap();
         let brush_bitmap = BitmapLayer::new_from_bytes(
+            "Test brush",
             image.as_bytes(),
             BitmapLayerConfiguration {
-                label: "Test brush".to_owned(),
                 width: image.width(),
-                initial_background_color: [0; 4],
                 height: image.height(),
             },
             framework,

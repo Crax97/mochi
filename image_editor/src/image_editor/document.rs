@@ -6,11 +6,21 @@ use crate::{
     selection::{Selection, SelectionAddition, SelectionShape},
     LayerConstructionInfo,
 };
-use cgmath::{point2, point3, vec2, SquareMatrix, Transform, Vector2, Decomposed, Matrix, vec3, InnerSpace, Matrix3, Matrix4};
-use framework::{framework::TextureId, renderer::{
-    draw_command::BindableResource,
-    renderer::{DepthStencilUsage, Renderer},
-}, scene::Camera2d, Box2d, BufferConfiguration, DepthStencilTexture2D, RgbaTexture2D, Texture, TextureConfiguration, TextureUsage, math};
+use cgmath::{
+    point2, point3, vec2, vec3, Decomposed, InnerSpace, Matrix, Matrix3, Matrix4, SquareMatrix,
+    Transform, Vector2,
+};
+use framework::{
+    framework::TextureId,
+    math,
+    renderer::{
+        draw_command::BindableResource,
+        renderer::{DepthStencilUsage, Renderer},
+    },
+    scene::Camera2d,
+    Box2d, BufferConfiguration, DepthStencilTexture2D, RgbaTexture2D, Texture,
+    TextureConfiguration, TextureUsage,
+};
 use framework::{
     framework::{BufferId, DepthStencilTextureId},
     renderer::draw_command::{DrawCommand, DrawMode, OptionalDrawData, PrimitiveType},
@@ -62,29 +72,29 @@ pub struct DocumentCreationInfo {
 impl Document {
     pub fn new(config: DocumentCreationInfo, framework: &mut Framework) -> Self {
         let final_layer_1 = BitmapLayer::new(
+            "Double Buffering Layer 1",
+            [127, 127, 127, 127],
             BitmapLayerConfiguration {
-                label: "Double Buffering Layer 1".to_owned(),
                 width: config.width,
                 height: config.height,
-                initial_background_color: [127, 127, 127, 255],
             },
             framework,
         );
         let final_layer_2 = BitmapLayer::new(
+            "Double Buffering Layer 2",
+            [127, 127, 127, 127],
             BitmapLayerConfiguration {
-                label: "Double Buffering Layer 2".to_owned(),
                 width: config.width,
                 height: config.height,
-                initial_background_color: [127, 127, 127, 127],
             },
             framework,
         );
         let buffer_layer = BitmapLayer::new(
+            "Draw Buffer Layer",
+            [0, 0, 0, 0],
             BitmapLayerConfiguration {
-                label: "Draw Buffer Layer".to_owned(),
                 width: config.width,
                 height: config.height,
-                initial_background_color: [0, 0, 0, 0],
             },
             framework,
         );
@@ -275,17 +285,31 @@ impl Document {
     ) {
         let layer_below = self.get_layer(layer_below_idx);
         let layer_top = self.get_layer(layer_top_idx);
-        let below_inverse_transform = layer_below.transform().matrix().invert()
+        let below_inverse_transform = layer_below
+            .transform()
+            .matrix()
+            .invert()
             .expect("Failed to invert matrix in join layers!");
         let adjusted_top_transform = layer_top.transform().matrix() * below_inverse_transform;
         let transform = math::helpers::decompose_no_shear_2d(adjusted_top_transform);
-        
+
         renderer.begin(&layer_below.bitmap.camera(), None, framework);
-        layer_top.bitmap.draw(renderer, point2(transform.position.x, transform.position.y), transform.scale, transform.rotation_radians.0, layer_top.settings().opacity );
+        layer_top.bitmap.draw(
+            renderer,
+            point2(transform.position.x, transform.position.y),
+            transform.scale,
+            transform.rotation_radians.0,
+            layer_top.settings().opacity,
+        );
         renderer.end(layer_below.bitmap.texture(), None, framework);
     }
-    
-    pub fn join_with_layer_below(&mut self, top: &LayerIndex, renderer: &mut Renderer, framework: &mut Framework,) {
+
+    pub fn join_with_layer_below(
+        &mut self,
+        top: &LayerIndex,
+        renderer: &mut Renderer,
+        framework: &mut Framework,
+    ) {
         let layers = self.tree_root.0.iter();
         let layer = self.find_layer_below_step_one(top, layers);
         if let Some(below) = layer {
@@ -293,7 +317,11 @@ impl Document {
         }
     }
 
-    fn find_layer_below_step_one(&self, target: &LayerIndex, layers: Iter<LayerTree>) -> Option<LayerIndex> {
+    fn find_layer_below_step_one(
+        &self,
+        target: &LayerIndex,
+        layers: Iter<LayerTree>,
+    ) -> Option<LayerIndex> {
         let mut previous = *target;
         for layer_type in layers {
             match layer_type {
@@ -304,7 +332,7 @@ impl Document {
                             None
                         } else {
                             Some(previous)
-                        }
+                        };
                     }
                     previous = *layer;
                 }
@@ -319,8 +347,12 @@ impl Document {
         }
         None
     }
-    
-    fn find_layer_below_recursive(&self, target: &LayerIndex, mut layers: Iter<LayerIndex>) -> Option<LayerIndex>{
+
+    fn find_layer_below_recursive(
+        &self,
+        target: &LayerIndex,
+        mut layers: Iter<LayerIndex>,
+    ) -> Option<LayerIndex> {
         let mut previous = *target;
         for index in layers {
             if target == index {
@@ -334,7 +366,6 @@ impl Document {
         }
         None
     }
-
 
     pub fn copy_layer_selection_to_new_layer(
         &mut self,
@@ -481,11 +512,11 @@ impl Document {
         let layer_index = LayerIndex(self.layers_created);
         self.layers_created += 1;
         let new_layer = BitmapLayer::new(
+            &config.name,
+            config.initial_color,
             BitmapLayerConfiguration {
-                label: config.name.clone(),
                 width: self.document_size.x,
                 height: self.document_size.y,
-                initial_background_color: config.initial_color,
             },
             framework,
         );
@@ -499,11 +530,11 @@ impl Document {
             },
         );
         let bitmap_canvas = BitmapLayer::new(
+            &config.name,
+            [0; 4],
             BitmapLayerConfiguration {
-                label: config.name,
                 width: self.document_size.x,
                 height: self.document_size.y,
-                initial_background_color: [0; 4],
             },
             framework,
         );

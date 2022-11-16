@@ -12,9 +12,7 @@ use framework::{
 use framework::{Framework, RgbaTexture2D, Texture, TextureConfiguration, TextureUsage};
 
 pub struct BitmapLayerConfiguration {
-    pub label: String,
     pub width: u32,
-    pub initial_background_color: [u8; 4],
     pub height: u32,
 }
 pub struct BitmapLayer {
@@ -23,18 +21,29 @@ pub struct BitmapLayer {
 }
 
 impl BitmapLayer {
-    pub fn new(configuration: BitmapLayerConfiguration, framework: &mut Framework) -> Self {
+    pub fn new(
+        label: &str,
+        background: [u8; 4],
+        configuration: BitmapLayerConfiguration,
+        framework: &mut Framework,
+    ) -> Self {
         let bytes: Vec<u8> = (0..(configuration.width * configuration.height) * 4)
             .enumerate()
-            .map(|(i, _)| {
-                let bg = &configuration.initial_background_color;
-                bg[i % 4]
-            })
+            .map(|(i, _)| background[i % 4])
             .collect();
-        Self::new_from_bytes(&bytes, configuration, framework)
+        Self::new_from_bytes(label, &bytes, configuration, framework)
+    }
+
+    pub fn new_from_texture(label: &str, texture_id: TextureId, framework: &Framework) -> Self {
+        let (width, height) = framework.texture2d_dimensions(&texture_id);
+        Self {
+            texture: texture_id,
+            configuration: BitmapLayerConfiguration { width, height },
+        }
     }
 
     pub fn new_from_bytes(
+        label: &str,
         bytes: &[u8],
         configuration: BitmapLayerConfiguration,
         framework: &mut Framework,
@@ -42,7 +51,7 @@ impl BitmapLayer {
         let texture = framework.allocate_texture2d(
             RgbaTexture2D::from_bytes(bytes, (configuration.width, configuration.height)).unwrap(),
             TextureConfiguration {
-                label: Some(&(configuration.label.clone() + " texture")),
+                label: Some(label),
                 usage: TextureUsage::RWRT,
                 mip_count: None,
             },
