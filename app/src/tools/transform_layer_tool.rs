@@ -29,6 +29,7 @@ pub struct TransformLayerTool {
     last_frame_position: Point2<f32>,
     transform_item: TransformItem,
     extract_selection: bool,
+    is_manipulating_selection: bool,
 }
 
 impl TransformLayerTool {
@@ -38,6 +39,7 @@ impl TransformLayerTool {
             last_frame_position: point2(0.0, 0.0),
             transform_item: TransformItem::Layer,
             extract_selection: false,
+            is_manipulating_selection: false,
         }
     }
 }
@@ -69,6 +71,7 @@ impl Tool for TransformLayerTool {
                     doc.apply_selection(context.renderer, context.framework);
                 } else {
                     doc.extract_selection(context.renderer, context.framework);
+                    self.is_manipulating_selection = true;
                 }
             });
         }
@@ -103,11 +106,29 @@ impl Tool for TransformLayerTool {
         self.is_active = false;
         None
     }
+
+    fn on_deselected(&mut self, context: &mut EditorContext) -> Option<Box<dyn EditorCommand>> {
+        if self.is_manipulating_selection {
+            self.is_manipulating_selection = false;
+            context.image_editor.mutate_document(|doc| {
+                doc.apply_selection(context.renderer, context.framework);
+            });
+        }
+        None
+    }
+
     fn ui(&mut self, ui: &mut dyn DynamicToolUi) {
         self.transform_item =
             DynamicToolUiHelpers::dropdown(ui, "Transform item", self.transform_item);
-        if ui.button("Manipulate selection") {
-            self.extract_selection = true;
+        if self.is_manipulating_selection {
+            if ui.button("Apply selection") {
+                self.extract_selection = true;
+                self.is_manipulating_selection = false;
+            }
+        } else {
+            if ui.button("Manipulate selection") {
+                self.extract_selection = true;
+            }
         }
     }
     fn name(&self) -> &'static str {
