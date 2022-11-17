@@ -73,6 +73,10 @@ impl<'a> DynamicToolUi for DynamicEguiUi<'a> {
             });
         usize_number
     }
+
+    fn button(&mut self, label: &str) -> bool {
+        self.ui.button(label).clicked()
+    }
 }
 
 impl EguiUI {
@@ -119,10 +123,7 @@ impl EguiUI {
                             egui::menu::menu_button(ui, "Edit", |ui| {
                                 if ui.button("Selection to new layer").clicked() {
                                     app_ctx.image_editor.mutate_document(|doc| {
-                                        doc.copy_layer_selection_to_new_layer(
-                                            app_ctx.renderer,
-                                            app_ctx.framework,
-                                        );
+                                        doc.extract_selection(app_ctx.renderer, app_ctx.framework);
                                         doc.mutate_selection(|sel| sel.clear());
                                     });
                                 }
@@ -136,11 +137,17 @@ impl EguiUI {
                                         doc.mutate_selection(|sel| sel.clear());
                                     });
                                 }
-                                if ui.button("Join current layer with previous layer").clicked() {
+                                if ui
+                                    .button("Join current layer with previous layer")
+                                    .clicked()
+                                {
                                     app_ctx.image_editor.mutate_document(|doc| {
-                                        doc.join_with_layer_below(&doc.current_layer_index(), app_ctx.renderer, app_ctx.framework);
+                                        doc.join_with_layer_below(
+                                            &doc.current_layer_index(),
+                                            app_ctx.renderer,
+                                            app_ctx.framework,
+                                        );
                                         doc.delete_layer(doc.current_layer_index());
-
                                     });
                                 }
                             });
@@ -407,7 +414,14 @@ impl Ui for EguiUI {
                 });
             }
             LayerAction::SelectNewTool(new_tool_id) => {
-                app_ctx.toolbox.set_primary_tool(&new_tool_id);
+                app_ctx.toolbox.set_primary_tool(
+                    &new_tool_id,
+                    EditorContext {
+                        framework: app_ctx.framework,
+                        image_editor: app_ctx.image_editor,
+                        renderer: app_ctx.renderer,
+                    },
+                );
             }
             LayerAction::None => {}
         };

@@ -124,12 +124,14 @@ impl Toolbox {
         self.primary_tool().draw(renderer);
     }
 
-    pub(crate) fn set_primary_tool(&mut self, new_tool_id: &ToolId) {
+    pub(crate) fn set_primary_tool(&mut self, new_tool_id: &ToolId, mut context: EditorContext) {
+        self.primary_tool.borrow_mut().on_deselected(&mut context);
         self.primary_tool_id = new_tool_id.clone();
         self.primary_tool = self
             .tools
             .get(new_tool_id)
             .expect("Non existent tool")
             .clone();
+        self.primary_tool.borrow_mut().on_selected(&mut context);
     }
 }

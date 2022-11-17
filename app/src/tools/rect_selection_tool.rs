@@ -152,6 +152,7 @@ impl Tool for RectSelectionTool {
         });
         None
     }
+
     fn ui(&mut self, ui: &mut dyn super::DynamicToolUi) {
         self.selection_shape_ui =
             DynamicToolUiHelpers::dropdown(ui, "Selection shape", self.selection_shape_ui);

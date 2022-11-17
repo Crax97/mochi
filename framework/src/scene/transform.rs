@@ -42,8 +42,7 @@ impl Transform2d {
             x: self.position.x,
             y: self.position.y,
             z: self.position.z,
-        }) *
-        Matrix4::from_nonuniform_scale(self.scale.x, self.scale.y, 1.0)
+        }) * Matrix4::from_nonuniform_scale(self.scale.x, self.scale.y, 1.0)
             * Matrix4::from_angle_z(self.rotation_radians)
     }
 }

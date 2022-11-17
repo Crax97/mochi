@@ -27,7 +27,7 @@ pub struct Layer {
     uuid: Uuid,
     needs_settings_update: bool,
     needs_bitmap_update: bool,
-    settings: LayerSettings,
+    pub settings: LayerSettings,
     pub position: Point2<f32>,
     pub scale: Vector2<f32>,
     pub rotation_radians: f32,
@@ -88,27 +88,6 @@ impl Layer {
     pub fn translate(&mut self, delta: Vector2<f32>) {
         self.position += delta;
         self.mark_dirty();
-    }
-
-    pub(crate) fn lay_on_canvas(
-        &self,
-        renderer: &mut Renderer,
-        canvas: &BitmapLayer,
-        framework: &mut Framework,
-    ) {
-        renderer.begin(&canvas.camera(), None, framework);
-        match self.layer_type {
-            LayerType::Bitmap => {
-                self.bitmap.draw(
-                    renderer,
-                    self.position,
-                    self.scale,
-                    self.rotation_radians,
-                    self.settings.opacity,
-                );
-            }
-        }
-        renderer.end(canvas.texture(), None, framework);
     }
 
     pub fn replace_texture(&mut self, new_texture: TextureId) {

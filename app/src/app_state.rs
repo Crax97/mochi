@@ -1,4 +1,4 @@
-use std::ops::DerefMut;
+use std::ops::{ControlFlow, DerefMut};
 use std::{cell::RefCell, rc::Rc};
 
 use crate::input_state::{ActionMap, InputState};
@@ -17,7 +17,6 @@ use log::{info, warn};
 use wgpu::{CommandBuffer, Surface, SurfaceConfiguration};
 use winit::dpi::LogicalSize;
 use winit::event::WindowEvent;
-use winit::event_loop::ControlFlow;
 use winit::window::Window;
 
 #[derive(Default)]
@@ -215,7 +214,7 @@ impl<T: Ui> ImageApplication<T> {
         &mut self,
         event: &winit::event::Event<()>,
         framework: &mut Framework,
-    ) -> ControlFlow {
+    ) -> winit::event_loop::ControlFlow {
         self.input_state.update(&event);
         let actions = self.action_map.update(&self.input_state);
         self.ui.on_new_winit_event(&event);
@@ -236,7 +235,7 @@ impl<T: Ui> ImageApplication<T> {
                         // if app.handle_on_close_requested() == AppFlow::Exit {
                         // *control_flow = ControlFlow::ExitWithCode(0);
                         // }
-                        return ControlFlow::ExitWithCode(0);
+                        return winit::event_loop::ControlFlow::ExitWithCode(0);
                     }
                     WindowEvent::Resized(new_size) => {
                         self.on_resized(*new_size, framework);
@@ -245,98 +244,94 @@ impl<T: Ui> ImageApplication<T> {
                 }
             }
             winit::event::Event::UserEvent(_) => {}
+            winit::event::Event::RedrawEventsCleared => {
+                framework.update_asset_maps();
+                self.window.request_redraw();
+            }
             winit::event::Event::RedrawRequested(_) => {
-                self.ui.begin();
-
-                let ui_ctx = UiContext {
-                    framework,
-                    image_editor: &mut self.image_editor,
-                    toolbox: &mut self.toolbox,
-                    input_state: &self.input_state,
-                    stamping_engine: self.stamping_engine.clone(),
-                    brush_tool: self.brush_tool.clone(),
-                    undo_stack: &mut self.undo_stack,
-                    renderer: &mut self.instant_renderer,
-                    deferred_renderer: &mut self.deferred_renderer,
-                };
-                let block_editor = self.ui.do_ui(ui_ctx);
-
-                let ui_ctx = ToolUiContext {
-                    framework,
-                    image_editor: &mut self.image_editor,
-                    input_state: &self.input_state,
-                    stamping_engine: self.stamping_engine.clone(),
-                    brush_tool: self.brush_tool.clone(),
-                    undo_stack: &mut self.undo_stack,
-                    renderer: &mut self.instant_renderer,
-                    deferred_renderer: &mut self.deferred_renderer,
-                };
-                let block_editor = self
-                    .ui
-                    .do_tool_ui(ui_ctx, self.toolbox.primary_tool().deref_mut())
-                    || block_editor;
-                self.toolbox.set_is_blocked(block_editor);
-                self.image_editor
-                    .update_layers(&mut self.instant_renderer, framework);
-
-                let current_texture = match self.final_surface.get_current_texture() {
-                    Ok(surface) => surface,
-                    Err(e) => match e {
-                        wgpu::SurfaceError::Outdated => {
-                            info!("RedrawRequested: early return because the current_texture is outdated (user resizing window maybe?)");
-                            return ControlFlow::Wait;
-                        }
-                        _ => {
-                            panic!("While presenting the last image: {e}");
-                        }
-                    },
-                };
-
-                let mut commands: Vec<CommandBuffer> = vec![];
-
-                let app_surface_view = current_texture
-                    .texture
-                    .create_view(&wgpu::TextureViewDescriptor::default());
-                self.image_editor
-                    .render_document(&mut self.instant_renderer, framework);
-
-                self.deferred_renderer.begin(
-                    &self.image_editor.document().final_layer().camera(),
-                    None,
-                    framework,
-                );
-                self.toolbox.draw(&mut self.deferred_renderer);
-                self.deferred_renderer.end(
-                    &self.image_editor.document().final_layer().texture(),
-                    None,
-                    framework,
-                );
-
-                self.image_editor.render_canvas(
-                    &mut self.instant_renderer,
-                    &app_surface_view,
-                    framework,
-                );
-
-                let surface_configuration = self.final_surface_configuration.clone();
-
-                let ui_command = self.ui.present(
-                    &self.window,
-                    surface_configuration,
-                    &app_surface_view,
-                    &framework,
-                );
-                commands.push(ui_command);
-
-                framework.queue.submit(commands);
-                current_texture.present();
+                self.draw_editor(framework);
             }
             _ => {}
-        }
+        };
 
-        self.window.request_redraw();
-        framework.update_asset_maps();
-        ControlFlow::Poll
+        winit::event_loop::ControlFlow::Poll
+    }
+
+    fn draw_editor(&mut self, framework: &mut Framework) {
+        self.ui.begin();
+        let ui_ctx = UiContext {
+            framework,
+            image_editor: &mut self.image_editor,
+            toolbox: &mut self.toolbox,
+            input_state: &self.input_state,
+            stamping_engine: self.stamping_engine.clone(),
+            brush_tool: self.brush_tool.clone(),
+            undo_stack: &mut self.undo_stack,
+            renderer: &mut self.instant_renderer,
+            deferred_renderer: &mut self.deferred_renderer,
+        };
+        let block_editor = self.ui.do_ui(ui_ctx);
+        let ui_ctx = ToolUiContext {
+            framework,
+            image_editor: &mut self.image_editor,
+            input_state: &self.input_state,
+            stamping_engine: self.stamping_engine.clone(),
+            brush_tool: self.brush_tool.clone(),
+            undo_stack: &mut self.undo_stack,
+            renderer: &mut self.instant_renderer,
+            deferred_renderer: &mut self.deferred_renderer,
+        };
+        let block_editor = self
+            .ui
+            .do_tool_ui(ui_ctx, self.toolbox.primary_tool().deref_mut())
+            || block_editor;
+        self.toolbox.set_is_blocked(block_editor);
+        let current_texture = match self.final_surface.get_current_texture() {
+            Ok(surface) => Some(surface),
+            Err(e) => match e {
+                wgpu::SurfaceError::Outdated => {
+                    info!("RedrawRequested: early return because the current_texture is outdated (user resizing window maybe?)");
+                    None
+                }
+                _ => {
+                    panic!("While presenting the last image: {e}");
+                }
+            },
+        };
+        if let Some(current_texture) = current_texture {
+            self.image_editor
+                .update_layers(&mut self.instant_renderer, framework);
+            let app_surface_view = current_texture
+                .texture
+                .create_view(&wgpu::TextureViewDescriptor::default());
+            self.image_editor
+                .render_document(&mut self.instant_renderer, framework);
+            self.deferred_renderer.begin(
+                &self.image_editor.document().final_layer().camera(),
+                None,
+                framework,
+            );
+            self.toolbox.draw(&mut self.deferred_renderer);
+            self.deferred_renderer.end(
+                &self.image_editor.document().final_layer().texture(),
+                None,
+                framework,
+            );
+            self.image_editor.render_canvas(
+                &mut self.instant_renderer,
+                &app_surface_view,
+                framework,
+            );
+            let surface_configuration = self.final_surface_configuration.clone();
+            let ui_command = self.ui.present(
+                &self.window,
+                surface_configuration,
+                &app_surface_view,
+                &framework,
+            );
+            framework.queue.submit(std::iter::once(ui_command));
+            current_texture.present();
+        }
     }
 
     fn dispatch_actions(&mut self, actions: Vec<String>, framework: &mut Framework) {
@@ -359,8 +354,22 @@ impl<T: Ui> ImageApplication<T> {
                         renderer: &mut self.instant_renderer,
                     });
                 }
-                "pick_brush" => self.toolbox.set_primary_tool(&self.brush_id),
-                "pick_move" => self.toolbox.set_primary_tool(&self.move_tool_id),
+                "pick_brush" => self.toolbox.set_primary_tool(
+                    &self.brush_id,
+                    EditorContext {
+                        framework,
+                        image_editor: &mut self.image_editor,
+                        renderer: &mut self.instant_renderer,
+                    },
+                ),
+                "pick_move" => self.toolbox.set_primary_tool(
+                    &self.move_tool_id,
+                    EditorContext {
+                        framework,
+                        image_editor: &mut self.image_editor,
+                        renderer: &mut self.instant_renderer,
+                    },
+                ),
                 "toggle_eraser" => {
                     self.stamping_engine.borrow_mut().toggle_eraser();
                 }

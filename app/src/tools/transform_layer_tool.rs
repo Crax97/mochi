@@ -1,11 +1,34 @@
 use crate::tools::EditorContext;
 use cgmath::{num_traits::clamp, point2, InnerSpace, Point2};
+use strum_macros::{Display, EnumIter, EnumString};
 
-use super::{tool::Tool, EditorCommand, PointerEvent};
+use super::{tool::Tool, DynamicToolUi, DynamicToolUiHelpers, EditorCommand, PointerEvent};
 
+#[derive(Clone, Copy, Debug, EnumIter, EnumString, Display, PartialEq, Eq)]
+enum TransformItem {
+    Layer = 0,
+    Selection = 1,
+}
+
+impl From<usize> for TransformItem {
+    fn from(v: usize) -> Self {
+        match v {
+            0 => Self::Layer,
+            1 => Self::Selection,
+            _ => unreachable!(),
+        }
+    }
+}
+impl From<TransformItem> for usize {
+    fn from(v: TransformItem) -> Self {
+        v as usize
+    }
+}
 pub struct TransformLayerTool {
     is_active: bool,
     last_frame_position: Point2<f32>,
+    transform_item: TransformItem,
+    extract_selection: bool,
 }
 
 impl TransformLayerTool {
@@ -13,6 +36,8 @@ impl TransformLayerTool {
         Self {
             is_active: false,
             last_frame_position: point2(0.0, 0.0),
+            transform_item: TransformItem::Layer,
+            extract_selection: false,
         }
     }
 }
@@ -37,23 +62,36 @@ impl Tool for TransformLayerTool {
             return None;
         }
 
-        if !context.image_editor.document().selection().is_empty() {
+        if self.extract_selection {
+            self.extract_selection = false;
             context.image_editor.mutate_document(|doc| {
-                doc.copy_layer_selection_to_new_layer(context.renderer, context.framework);
-                doc.mutate_selection(|sel| sel.clear());
+                if doc.selection_layer().is_some() {
+                    doc.apply_selection(context.renderer, context.framework);
+                } else {
+                    doc.extract_selection(context.renderer, context.framework);
+                }
             });
         }
 
         let new_position = pointer_motion.new_pointer_location;
         let delta = new_position - self.last_frame_position;
         if delta.magnitude2() > 0.5 {
-            context.image_editor.mutate_document(|doc| {
-                doc.mutate_layer(&doc.current_layer_index(), |layer| {
-                    layer.translate(delta);
-                })
-            });
+            context
+                .image_editor
+                .mutate_document(|doc| match self.transform_item {
+                    TransformItem::Layer => doc.mutate_layer(&doc.current_layer_index(), |layer| {
+                        layer.translate(delta);
+                    }),
+                    TransformItem::Selection => {
+                        if let Some(selection) = doc.selection_layer_mut() {
+                            selection.layer.translate(delta);
+                        } else {
+                            doc.mutate_selection(|sel| sel.translate(delta))
+                        }
+                    }
+                });
+            self.last_frame_position = new_position;
         }
-        self.last_frame_position = new_position;
         None
     }
 
@@ -64,6 +102,13 @@ impl Tool for TransformLayerTool {
     ) -> Option<Box<dyn EditorCommand>> {
         self.is_active = false;
         None
+    }
+    fn ui(&mut self, ui: &mut dyn DynamicToolUi) {
+        self.transform_item =
+            DynamicToolUiHelpers::dropdown(ui, "Transform item", self.transform_item);
+        if ui.button("Manipulate selection") {
+            self.extract_selection = true;
+        }
     }
     fn name(&self) -> &'static str {
         "Move tool"

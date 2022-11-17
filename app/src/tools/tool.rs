@@ -26,6 +26,7 @@ pub trait DynamicToolUi {
         current: usize,
         values_fn: Box<dyn FnOnce() -> Vec<(usize, String)>>,
     ) -> usize;
+    fn button(&mut self, label: &str) -> bool;
 }
 
 pub mod DynamicToolUiHelpers {

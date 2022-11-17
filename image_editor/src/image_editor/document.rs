@@ -2,13 +2,13 @@ use super::layers::{Layer, LayerIndex, RootLayer};
 use crate::{
     blend_settings::{BlendSettings, BlendSettingsUniform},
     global_selection_data,
-    layers::{BitmapLayer, BitmapLayerConfiguration, LayerCreationInfo, LayerTree},
+    layers::{BitmapLayer, BitmapLayerConfiguration, LayerCreationInfo, LayerTree, LayerType},
     selection::{Selection, SelectionAddition, SelectionShape},
     LayerConstructionInfo,
 };
 use cgmath::{
-    point2, point3, vec2, vec3, Decomposed, InnerSpace, Matrix, Matrix3, Matrix4, SquareMatrix,
-    Transform, Vector2,
+    point2, point3, vec2, vec3, Decomposed, InnerSpace, Matrix, Matrix3, Matrix4, Point2,
+    SquareMatrix, Transform, Vector2,
 };
 use framework::{
     framework::TextureId,
@@ -19,7 +19,7 @@ use framework::{
     },
     scene::Camera2d,
     Box2d, BufferConfiguration, DepthStencilTexture2D, RgbaTexture2D, Texture,
-    TextureConfiguration, TextureUsage,
+    TextureConfiguration, TextureUsage, Transform2d,
 };
 use framework::{
     framework::{BufferId, DepthStencilTextureId},
@@ -43,6 +43,11 @@ struct LayerDrawInfo {
     layer_settings_buffer: BufferId,
 }
 
+pub struct SelectionLayer {
+    pub layer: Layer,
+    pub original_layer: LayerIndex,
+}
+
 pub struct Document {
     layers_created: u16,
 
@@ -52,6 +57,8 @@ pub struct Document {
     tree_root: RootLayer,
     final_layer_1: BitmapLayer,
     final_layer_2: BitmapLayer,
+    selection_layer: Option<SelectionLayer>,
+
     #[allow(dead_code)]
     buffer_layer: BitmapLayer, // Imma keep it here just in case, too many times i removed it just to need it later again
     buffering_step: BufferingStep,
@@ -116,6 +123,7 @@ impl Document {
             final_layer_1,
             final_layer_2,
             buffer_layer,
+            selection_layer: None,
 
             layers: HashMap::new(),
             layer_canvases: HashMap::new(),
@@ -285,23 +293,8 @@ impl Document {
     ) {
         let layer_below = self.get_layer(layer_below_idx);
         let layer_top = self.get_layer(layer_top_idx);
-        let below_inverse_transform = layer_below
-            .transform()
-            .matrix()
-            .invert()
-            .expect("Failed to invert matrix in join layers!");
-        let adjusted_top_transform = layer_top.transform().matrix() * below_inverse_transform;
-        let transform = math::helpers::decompose_no_shear_2d(adjusted_top_transform);
 
-        renderer.begin(&layer_below.bitmap.camera(), None, framework);
-        layer_top.bitmap.draw(
-            renderer,
-            point2(transform.position.x, transform.position.y),
-            transform.scale,
-            transform.rotation_radians.0,
-            layer_top.settings().opacity,
-        );
-        renderer.end(layer_below.bitmap.texture(), None, framework);
+        join_bitmaps(&layer_below, &layer_top, renderer, framework);
     }
 
     pub fn join_with_layer_below(
@@ -337,7 +330,7 @@ impl Document {
                     previous = *layer;
                 }
                 LayerTree::Group(layers) => {
-                    let mut it = layers.iter();
+                    let it = layers.iter();
                     let found = self.find_layer_below_recursive(target, it);
                     if found.is_some() {
                         return found;
@@ -351,7 +344,7 @@ impl Document {
     fn find_layer_below_recursive(
         &self,
         target: &LayerIndex,
-        mut layers: Iter<LayerIndex>,
+        layers: Iter<LayerIndex>,
     ) -> Option<LayerIndex> {
         let mut previous = *target;
         for index in layers {
@@ -367,11 +360,7 @@ impl Document {
         None
     }
 
-    pub fn copy_layer_selection_to_new_layer(
-        &mut self,
-        renderer: &mut Renderer,
-        framework: &mut Framework,
-    ) {
+    pub fn extract_selection(&mut self, renderer: &mut Renderer, framework: &mut Framework) {
         let current_layer = self.current_layer();
         let dims = framework.texture2d_dimensions(current_layer.bitmap.texture());
 
@@ -457,24 +446,45 @@ impl Document {
             Some((&self.stencil_texture, DepthStencilUsage::Stencil)),
             framework,
         );
-
         //5. Now add the new layer
-        let (width, height) = framework.texture2d_dimensions(&new_texture);
-        let new_index = self.add_layer(
-            LayerConstructionInfo {
-                initial_color: [0; 4],
-                name: current_layer.settings().name.clone() + " subregion",
-            },
-            framework,
-        );
-        self.mutate_layer(&new_index, |layer| {
-            layer.replace_texture(new_texture.clone())
-        });
+        let mut new_layer = SelectionLayer {
+            layer: Layer::new_bitmap(
+                BitmapLayer::new_from_texture("Selection layer", new_texture, &framework),
+                LayerCreationInfo {
+                    name: "Selection layer".to_owned(),
+                    position: point2(0.0, 0.0),
+                    scale: vec2(1.0, 1.0),
+                    rotation_radians: 0.0,
+                },
+            ),
+            original_layer: self.current_layer_index(),
+        };
+        new_layer
+            .layer
+            .set_settings(current_layer.settings().clone());
+        self.selection_layer = Some(new_layer);
         self.mutate_layer(&self.current_layer_index(), |layer| {
             layer.replace_texture(old_texture_copy.clone())
         });
 
-        self.select_layer(new_index);
+        self.selection.clear();
+        self.update_selection_buffer(renderer, framework);
+    }
+
+    pub fn selection_layer_mut(&mut self) -> Option<&mut SelectionLayer> {
+        self.selection_layer.as_mut()
+    }
+    pub fn selection_layer(&self) -> Option<&SelectionLayer> {
+        self.selection_layer.as_ref()
+    }
+
+    pub fn apply_selection(&mut self, renderer: &mut Renderer, framework: &mut Framework) {
+        if !self.selection_layer.is_some() {
+            return;
+        }
+        let selection = self.selection_layer.take().unwrap();
+        let layer_below = self.get_layer(&selection.original_layer);
+        join_bitmaps(layer_below, &selection.layer, renderer, framework);
     }
 
     pub fn delete_layer(&mut self, layer_idx: LayerIndex) {
@@ -571,18 +581,100 @@ impl Document {
             self.update_selection_buffer(renderer, framework);
             self.partial_selection.clear();
         }
-        for (_, layer) in self.layers.iter_mut() {
-            let layer_info = self.layer_canvases.get(layer.uuid()).unwrap();
-            if layer.needs_settings_update() {
-                Self::update_layer_settings(layer, &layer_info.layer_settings_buffer, framework);
-            }
+        self.update_layer_tree_bitmaps(self.tree_root.0.clone(), renderer, framework);
+    }
 
-            if layer.needs_bitmap_update() {
-                Self::update_layer_bitmap(renderer, layer, &layer_info.bitmap_canvas, framework);
+    fn update_layer_tree_bitmaps(
+        &mut self,
+        tree: Vec<LayerTree>,
+        renderer: &mut Renderer,
+        framework: &mut Framework,
+    ) {
+        for layer in tree.iter() {
+            match layer {
+                LayerTree::SingleLayer(index) => {
+                    self.lay_layer(index, framework, renderer);
+                }
+                LayerTree::Group(layers) => {
+                    for layer_idx in layers {
+                        self.lay_layer(layer_idx, framework, renderer)
+                    }
+                }
             }
         }
     }
 
+    fn lay_layer(
+        &mut self,
+        index: &LayerIndex,
+        framework: &mut Framework,
+        renderer: &mut Renderer,
+    ) {
+        {
+            let layer = self.layers.get_mut(index).unwrap();
+            let layer_info = self.layer_canvases.get(layer.uuid()).unwrap();
+            if layer.needs_settings_update() {
+                Self::update_layer_settings(layer, &layer_info.layer_settings_buffer, framework);
+            }
+        }
+        self.update_layer_bitmap(renderer, index, framework, true);
+    }
+
+    fn update_layer_bitmap(
+        &mut self,
+        renderer: &mut Renderer,
+        index: &LayerIndex,
+        framework: &mut Framework,
+        clear: bool,
+    ) {
+        let layer = self.layers.get_mut(index).unwrap();
+        if layer.needs_bitmap_update()
+            || self
+                .selection_layer
+                .as_ref()
+                .map_or(false, |sel| &sel.original_layer == index)
+        {
+            let layer_info = self.layer_canvases.get(layer.uuid()).unwrap();
+            let canvas = &layer_info.bitmap_canvas;
+            if clear {
+                Self::clear_texture(
+                    renderer,
+                    canvas.texture(),
+                    wgpu::Color::TRANSPARENT,
+                    framework,
+                );
+            }
+            renderer.begin(&canvas.camera(), None, framework);
+            match layer.layer_type {
+                LayerType::Bitmap => {
+                    layer.bitmap.draw(
+                        renderer,
+                        layer.position,
+                        layer.scale,
+                        layer.rotation_radians,
+                        layer.settings.opacity,
+                    );
+                }
+            }
+
+            if let Some(selection_layer) = self.selection_layer.as_ref() {
+                if &selection_layer.original_layer == index {
+                    match selection_layer.layer.layer_type {
+                        LayerType::Bitmap => {
+                            selection_layer.layer.bitmap.draw(
+                                renderer,
+                                selection_layer.layer.position,
+                                selection_layer.layer.scale,
+                                selection_layer.layer.rotation_radians,
+                                selection_layer.layer.settings.opacity,
+                            );
+                        }
+                    }
+                }
+            }
+            renderer.end(canvas.texture(), None, framework);
+        }
+    }
     pub(crate) fn render(
         &mut self,
         renderer: &mut Renderer,
@@ -611,12 +703,12 @@ impl Document {
         Self::clear_texture(renderer, &final_layer, wgpu::Color::TRANSPARENT, framework);
 
         // Actually draw shit
-        let mut draw_layer = |index| {
+        for layer_index in draw_sequence {
             let final_layer = self.advance_final_layer().texture().clone();
             let previous_layer = self.previous_buffer_layer().texture().clone();
 
             // 1. Draw current layer onto buffer layer
-            let layer = self.get_layer(&index);
+            let layer = self.get_layer(&layer_index);
             let layer_draw_info = self.layer_canvases.get(layer.uuid()).unwrap();
             // 2. Blend buffer layer with final layer
 
@@ -628,15 +720,13 @@ impl Document {
                 &final_layer,
                 framework,
             );
+
             Self::clear_texture(
                 renderer,
                 &previous_layer,
                 wgpu::Color::TRANSPARENT,
                 framework,
             );
-        };
-        for layer_index in draw_sequence {
-            draw_layer(layer_index);
         }
     }
 
@@ -746,19 +836,28 @@ impl Document {
             })],
         )
     }
+}
 
-    fn update_layer_bitmap(
-        renderer: &mut Renderer,
-        layer: &mut Layer,
-        target: &BitmapLayer,
-        framework: &mut Framework,
-    ) {
-        Self::clear_texture(
-            renderer,
-            target.texture(),
-            wgpu::Color::TRANSPARENT,
-            framework,
-        );
-        layer.lay_on_canvas(renderer, &target, framework);
-    }
+fn join_bitmaps(
+    layer_below: &Layer,
+    layer_top: &Layer,
+    renderer: &mut Renderer,
+    framework: &mut Framework,
+) {
+    let below_inverse_transform = layer_below
+        .transform()
+        .matrix()
+        .invert()
+        .expect("Failed to invert matrix in join layers!");
+    let adjusted_top_transform = layer_top.transform().matrix() * below_inverse_transform;
+    let transform = math::helpers::decompose_no_shear_2d(adjusted_top_transform);
+    renderer.begin(&layer_below.bitmap.camera(), None, framework);
+    layer_top.bitmap.draw(
+        renderer,
+        point2(transform.position.x, transform.position.y),
+        transform.scale,
+        transform.rotation_radians.0,
+        layer_top.settings().opacity,
+    );
+    renderer.end(layer_below.bitmap.texture(), None, framework);
 }
