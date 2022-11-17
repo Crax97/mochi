@@ -51,7 +51,7 @@ impl Default for InputState {
 }
 
 impl InputState {
-    pub(crate) fn update(&mut self, event: &winit::event::Event<()>) {
+    pub(crate) fn update<T: 'static>(&mut self, event: &winit::event::Event<T>) {
         self.last_button_state = self.pointer_button_state.clone();
         self.last_key_states = self.key_states.clone();
         self.last_modifiers = self.current_modifiers.clone();
@@ -279,7 +279,7 @@ mod tests {
     pub fn test_key_events() {
         let mut input_state = InputState::default();
 
-        input_state.update(&Event::WindowEvent {
+        input_state.update::<()>(&Event::WindowEvent {
             window_id: unsafe { winit::window::WindowId::dummy() },
             event: WindowEvent::KeyboardInput {
                 device_id: unsafe { DeviceId::dummy() },
@@ -298,7 +298,7 @@ mod tests {
         assert!(input_state.is_key_pressed(Key::W));
         assert!(input_state.is_key_released(Key::A));
 
-        input_state.update(&Event::WindowEvent {
+        input_state.update::<()>(&Event::WindowEvent {
             window_id: unsafe { winit::window::WindowId::dummy() },
             event: WindowEvent::KeyboardInput {
                 device_id: unsafe { DeviceId::dummy() },
@@ -320,7 +320,7 @@ mod tests {
     pub fn test_modifiers() {
         let mut input_state = InputState::default();
 
-        input_state.update(&Event::WindowEvent {
+        input_state.update::<()>(&Event::WindowEvent {
             window_id: unsafe { winit::window::WindowId::dummy() },
             event: WindowEvent::ModifiersChanged(ModifiersState::from_bits_truncate(
                 ModifiersState::SHIFT.bits() | ModifiersState::CTRL.bits(),
@@ -336,7 +336,7 @@ mod tests {
             &ModifierSet::new(true, true, true, false)
         );
 
-        input_state.update(&Event::WindowEvent {
+        input_state.update::<()>(&Event::WindowEvent {
             window_id: unsafe { winit::window::WindowId::dummy() },
             event: WindowEvent::ModifiersChanged(ModifiersState::empty()),
         });
