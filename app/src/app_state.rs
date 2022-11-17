@@ -200,7 +200,7 @@ impl<T: Ui> ImageApplication<T> {
             format: self.final_surface.get_supported_formats(&framework.adapter)[0],
             width: new_size.width as u32,
             height: new_size.height as u32,
-            present_mode: wgpu::PresentMode::Fifo,
+            present_mode: wgpu::PresentMode::Immediate,
             alpha_mode: wgpu::CompositeAlphaMode::Opaque,
         };
         self.final_surface

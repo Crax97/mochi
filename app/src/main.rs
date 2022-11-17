@@ -54,7 +54,7 @@ async fn run_app() -> anyhow::Result<()> {
         format: final_surface.get_supported_formats(&framework.adapter)[0],
         width: window.inner_size().width,
         height: window.inner_size().height,
-        present_mode: wgpu::PresentMode::Fifo,
+        present_mode: wgpu::PresentMode::Immediate,
         alpha_mode: wgpu::CompositeAlphaMode::Opaque,
     };
     final_surface.configure(&framework.device, &final_surface_configuration);
