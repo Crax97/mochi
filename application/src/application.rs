@@ -64,7 +64,6 @@ impl<U: 'static> Application<U> {
 
         let surface = unsafe { framework.instance.create_surface(&self.window) };
         let surface_configuration = application_functions::create_surface(
-            &self.window,
             &surface,
             self.window.inner_size(),
             &mut framework,
@@ -109,8 +108,9 @@ impl<U: 'static> Application<U> {
             application_functions::update_application(state);
             match event {
                 Event::WindowEvent { event, .. } => match event {
-                    WindowEvent::CloseRequested if state.instance.should_shutdown() => {
+                    WindowEvent::CloseRequested if state.instance.can_shutdown() => {
                         *control_flow = winit::event_loop::ControlFlow::ExitWithCode(0);
+                        return;
                     }
                     WindowEvent::Resized(new_size) => {
                         application_functions::on_resized(state, new_size);
@@ -131,7 +131,11 @@ impl<U: 'static> Application<U> {
                 _ => {}
             };
 
-            *control_flow = winit::event_loop::ControlFlow::Wait
+            if state.instance.should_shutdown() {
+                *control_flow = winit::event_loop::ControlFlow::ExitWithCode(0);
+            } else {
+                *control_flow = winit::event_loop::ControlFlow::Wait
+            }
         });
     }
 }
@@ -141,7 +145,6 @@ mod application_functions {
 
     use super::*;
     pub(super) fn create_surface(
-        window: &Window,
         surface: &Surface,
         surface_size: PhysicalSize<u32>,
         framework: &mut Framework,
@@ -188,12 +191,8 @@ mod application_functions {
         if new_size.height == 0 || new_size.width == 0 {
             return;
         }
-        let surface_configuration = application_functions::create_surface(
-            &state.window,
-            &state.surface,
-            new_size,
-            &mut state.framework,
-        );
+        let surface_configuration =
+            application_functions::create_surface(&state.surface, new_size, &mut state.framework);
         state.surface_configuration = surface_configuration;
         state.instance.on_resized(AppResized {
             framework: &mut state.framework,
