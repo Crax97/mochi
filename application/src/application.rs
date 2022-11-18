@@ -131,6 +131,8 @@ impl<U: 'static> Application<U> {
                 _ => {}
             };
 
+            state.window.set_title(state.instance.title());
+
             if state.instance.should_shutdown() {
                 *control_flow = winit::event_loop::ControlFlow::ExitWithCode(0);
             } else {
