@@ -32,8 +32,8 @@ pub struct InputState {
     last_modifiers: ModifierSet,
 }
 
-impl Default for InputState {
-    fn default() -> Self {
+impl InputState {
+    pub(crate) fn new() -> Self {
         Self {
             current_cursor_position: Default::default(),
             last_update_cursor_position: Default::default(),
@@ -48,9 +48,7 @@ impl Default for InputState {
             last_modifiers: ModifierSet::default(),
         }
     }
-}
 
-impl InputState {
     pub(crate) fn update<T: 'static>(&mut self, event: &winit::event::Event<T>) {
         self.last_button_state = self.pointer_button_state.clone();
         self.last_key_states = self.key_states.clone();
@@ -146,42 +144,42 @@ impl InputState {
             .or_insert(state);
     }
 
-    pub(crate) fn mouse_position(&self) -> Point2<f32> {
+    pub fn mouse_position(&self) -> Point2<f32> {
         Point2 {
             x: self.current_cursor_position.x,
             y: self.current_cursor_position.y,
         }
     }
     #[allow(dead_code)]
-    pub(crate) fn last_position(&self) -> PhysicalPosition<f32> {
+    pub fn last_position(&self) -> PhysicalPosition<f32> {
         self.last_update_cursor_position
     }
-    pub(crate) fn normalized_mouse_position(&self) -> Point2<f32> {
+    pub fn normalized_mouse_position(&self) -> Point2<f32> {
         Point2 {
             x: (self.current_cursor_position.x / self.window_size.width as f32) * 2.0 - 1.0,
             y: ((self.current_cursor_position.y / self.window_size.height as f32) * 2.0 - 1.0),
         }
     }
     #[allow(dead_code)]
-    pub(crate) fn normalized_last_mouse_position(&self) -> Point2<f32> {
+    pub fn normalized_last_mouse_position(&self) -> Point2<f32> {
         Point2 {
             x: (self.last_update_cursor_position.x / self.window_size.width as f32) * 2.0 - 1.0,
             y: ((self.last_update_cursor_position.y / self.window_size.height as f32) * 2.0 - 1.0),
         }
     }
     #[allow(dead_code)]
-    pub(crate) fn mouse_delta(&self) -> Vector2<f32> {
+    pub fn mouse_delta(&self) -> Vector2<f32> {
         Vector2 {
             x: self.current_cursor_position.x - self.last_update_cursor_position.x,
             y: self.current_cursor_position.y - self.last_update_cursor_position.y,
         }
     }
     #[allow(dead_code)]
-    pub(crate) fn normalized_mouse_delta(&self) -> Vector2<f32> {
+    pub fn normalized_mouse_delta(&self) -> Vector2<f32> {
         self.normalized_mouse_position() - self.normalized_last_mouse_position()
     }
 
-    pub(crate) fn is_mouse_button_just_pressed(&self, button: MouseButton) -> bool {
+    pub fn is_mouse_button_just_pressed(&self, button: MouseButton) -> bool {
         match (
             self.pointer_button_state.get(&button),
             self.last_button_state.get(&button),
@@ -193,7 +191,7 @@ impl InputState {
             _ => false,
         }
     }
-    pub(crate) fn is_mouse_button_just_released(&self, button: MouseButton) -> bool {
+    pub fn is_mouse_button_just_released(&self, button: MouseButton) -> bool {
         match (
             self.pointer_button_state.get(&button),
             self.last_button_state.get(&button),
@@ -206,52 +204,52 @@ impl InputState {
         }
     }
     #[allow(dead_code)]
-    pub(crate) fn is_mouse_button_pressed(&self, button: MouseButton) -> bool {
+    pub fn is_mouse_button_pressed(&self, button: MouseButton) -> bool {
         self.pointer_button_state
             .get(&button)
             .map_or(false, |btn| btn == &ElementState::Pressed)
     }
     #[allow(dead_code)]
-    pub(crate) fn is_mouse_button_released(&self, button: MouseButton) -> bool {
+    pub fn is_mouse_button_released(&self, button: MouseButton) -> bool {
         self.pointer_button_state
             .get(&button)
             .map_or(false, |btn| btn == &ElementState::Released)
     }
 
-    pub(crate) fn mouse_wheel_delta(&self) -> f32 {
+    pub fn mouse_wheel_delta(&self) -> f32 {
         self.current_wheel_delta
     }
 
-    pub(crate) fn current_pointer_pressure(&self) -> f32 {
+    pub fn current_pointer_pressure(&self) -> f32 {
         self.current_pointer_pressure
     }
 
-    pub(crate) fn window_size(&self) -> Vector2<u32> {
+    pub fn window_size(&self) -> Vector2<u32> {
         Vector2 {
             x: self.window_size.width,
             y: self.window_size.height,
         }
     }
 
-    pub(crate) fn is_key_just_pressed(&self, key: Key) -> bool {
+    pub fn is_key_just_pressed(&self, key: Key) -> bool {
         self.key_states[key as usize] && !self.last_key_states[key as usize]
     }
 
-    pub(crate) fn is_key_just_released(&self, key: Key) -> bool {
+    pub fn is_key_just_released(&self, key: Key) -> bool {
         !self.key_states[key as usize] && self.last_key_states[key as usize]
     }
 
     #[allow(dead_code)]
-    pub(crate) fn is_key_pressed(&self, key: Key) -> bool {
+    pub fn is_key_pressed(&self, key: Key) -> bool {
         self.key_states[key as usize]
     }
 
     #[allow(dead_code)]
-    pub(crate) fn is_key_released(&self, key: Key) -> bool {
+    pub fn is_key_released(&self, key: Key) -> bool {
         !self.is_key_pressed(key)
     }
 
-    pub(crate) fn current_modifiers(&self) -> &ModifierSet {
+    pub fn current_modifiers(&self) -> &ModifierSet {
         &self.current_modifiers
     }
 
@@ -277,7 +275,7 @@ mod tests {
 
     #[test]
     pub fn test_key_events() {
-        let mut input_state = InputState::default();
+        let mut input_state = InputState::new();
 
         input_state.update::<()>(&Event::WindowEvent {
             window_id: unsafe { winit::window::WindowId::dummy() },
@@ -318,7 +316,7 @@ mod tests {
 
     #[test]
     pub fn test_modifiers() {
-        let mut input_state = InputState::default();
+        let mut input_state = InputState::new();
 
         input_state.update::<()>(&Event::WindowEvent {
             window_id: unsafe { winit::window::WindowId::dummy() },

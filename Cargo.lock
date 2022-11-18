@@ -76,6 +76,31 @@ name = "app"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "application",
+ "bytemuck",
+ "cgmath",
+ "egui",
+ "egui_wgpu_backend",
+ "egui_winit_platform",
+ "env_logger",
+ "framework",
+ "image",
+ "image_editor",
+ "log",
+ "pollster",
+ "rand",
+ "rfd",
+ "strum",
+ "strum_macros",
+ "wgpu",
+ "winit",
+]
+
+[[package]]
+name = "application"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
  "bytemuck",
  "cgmath",
  "egui",

@@ -3,7 +3,8 @@ resolver = "2"
 members = [
     "framework",
     "image_editor",
-    "app",
+    "application",
+    "image_app",
 ]
 
 [profile.release]

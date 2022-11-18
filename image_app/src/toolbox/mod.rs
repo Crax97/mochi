@@ -4,11 +4,9 @@ use std::{
     rc::Rc,
 };
 
-use crate::{app_state::UndoStack, stamping_engine::Stamp};
-use crate::{
-    input_state::InputState,
-    tools::{EditorContext, PointerEvent, Tool},
-};
+use crate::tools::{EditorContext, PointerEvent, Tool};
+use crate::{image_editor_app_loop::UndoStack, stamping_engine::Stamp};
+use application::InputState;
 use cgmath::point2;
 use framework::{renderer::renderer::Renderer, Framework};
 use image_editor::layers::{BitmapLayer, BitmapLayerConfiguration};

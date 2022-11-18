@@ -33,6 +33,7 @@ enum LayerAction {
 pub struct EguiUI {
     platform: egui_winit_platform::Platform,
     backend_pass: RenderPass,
+    screen_descriptor: ScreenDescriptor,
 
     new_layer_in_creation: Option<LayerConstructionInfo>,
 }
@@ -93,6 +94,11 @@ impl EguiUI {
                 font_definitions: FontDefinitions::default(),
                 style: Default::default(),
             }),
+            screen_descriptor: ScreenDescriptor {
+                physical_width: surface_configuration.width,
+                physical_height: surface_configuration.height,
+                scale_factor: window.scale_factor() as f32,
+            },
             backend_pass: RenderPass::new(&framework.device, surface_configuration.format, 1),
             new_layer_in_creation: None,
         }
@@ -427,7 +433,7 @@ impl Ui for EguiUI {
         };
         block_editor
     }
-    fn do_tool_ui(&mut self, mut app_ctx: ToolUiContext, tool: &mut dyn Tool) -> bool {
+    fn do_tool_ui(&mut self, app_ctx: ToolUiContext, tool: &mut dyn Tool) -> bool {
         let ctx = self.platform.context();
         let window = egui::Window::new(tool.name()).show(&ctx, |ui| {
             let mut dynamic_ui = DynamicEguiUi::new(ui);
@@ -444,13 +450,8 @@ impl Ui for EguiUI {
             false
         }
     }
-    fn present(
-        &mut self,
-        window: &Window,
-        surface_configuration: SurfaceConfiguration,
-        output_view: &TextureView,
-        framework: &Framework,
-    ) -> CommandBuffer {
+
+    fn present(&mut self, output_view: &TextureView, framework: &Framework) -> CommandBuffer {
         let output = self.platform.end_frame(None);
         let paint_jobs = self.platform.context().tessellate(output.shapes);
         let mut encoder =
@@ -459,11 +460,6 @@ impl Ui for EguiUI {
                 .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                     label: Some("egui Ui rendering"),
                 });
-        let screen_descriptor = ScreenDescriptor {
-            physical_width: surface_configuration.width,
-            physical_height: surface_configuration.height,
-            scale_factor: window.scale_factor() as f32,
-        };
         let tdelta: egui::TexturesDelta = output.textures_delta;
         self.backend_pass
             .add_textures(&framework.device, &framework.queue, &tdelta)
@@ -472,7 +468,7 @@ impl Ui for EguiUI {
             &framework.device,
             &framework.queue,
             &paint_jobs,
-            &screen_descriptor,
+            &self.screen_descriptor,
         );
 
         // Record all render passes.
@@ -481,7 +477,7 @@ impl Ui for EguiUI {
                 &mut encoder,
                 &output_view,
                 &paint_jobs,
-                &screen_descriptor,
+                &self.screen_descriptor,
                 None,
             )
             .unwrap();
@@ -492,12 +488,11 @@ impl Ui for EguiUI {
         encoder.finish()
     }
 
-    fn slider_formatted<N: cgmath::num_traits::Num, F: FnOnce(&N) -> String>(
-        &mut self,
-        current: &mut N,
-        range: std::ops::RangeInclusive<N>,
-        formatter: F,
-    ) {
-        todo!()
+    fn on_resized(&mut self, resized: application::AppResized) {
+        self.screen_descriptor = ScreenDescriptor {
+            physical_width: resized.surface_configuration.width,
+            physical_height: resized.surface_configuration.height,
+            scale_factor: resized.window.scale_factor() as f32,
+        };
     }
 }
