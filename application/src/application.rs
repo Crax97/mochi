@@ -62,8 +62,10 @@ impl<U: 'static> Application<U> {
             },
         })?;
 
-        let (surface, surface_configuration) = application_functions::create_surface(
+        let surface = unsafe { framework.instance.create_surface(&self.window) };
+        let surface_configuration = application_functions::create_surface(
             &self.window,
+            &surface,
             self.window.inner_size(),
             &mut framework,
         );
@@ -128,6 +130,7 @@ impl<U: 'static> Application<U> {
                 }
                 _ => {}
             };
+
             *control_flow = winit::event_loop::ControlFlow::Wait
         });
     }
@@ -139,10 +142,10 @@ mod application_functions {
     use super::*;
     pub(super) fn create_surface(
         window: &Window,
+        surface: &Surface,
         surface_size: PhysicalSize<u32>,
         framework: &mut Framework,
-    ) -> (Surface, SurfaceConfiguration) {
-        let surface = unsafe { framework.instance.create_surface(&window) };
+    ) -> SurfaceConfiguration {
         let surface_configuration = SurfaceConfiguration {
             usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: surface.get_supported_formats(&framework.adapter)[0],
@@ -152,7 +155,7 @@ mod application_functions {
             alpha_mode: wgpu::CompositeAlphaMode::Opaque,
         };
         surface.configure(&framework.device, &surface_configuration);
-        (surface, surface_configuration)
+        surface_configuration
     }
     pub(super) fn update_application<E, A: Clone, T: AppLoop<E, A>>(state: &mut AppState<E, A, T>) {
         state.instance.update(AppContext {
@@ -185,9 +188,12 @@ mod application_functions {
         if new_size.height == 0 || new_size.width == 0 {
             return;
         }
-        let (surface, surface_configuration) =
-            application_functions::create_surface(&state.window, new_size, &mut state.framework);
-        state.surface = surface;
+        let surface_configuration = application_functions::create_surface(
+            &state.window,
+            &state.surface,
+            new_size,
+            &mut state.framework,
+        );
         state.surface_configuration = surface_configuration;
         state.instance.on_resized(AppResized {
             framework: &mut state.framework,

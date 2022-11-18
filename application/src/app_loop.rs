@@ -31,6 +31,9 @@ pub trait AppLoop<T, A: Clone> {
     fn should_shutdown(&self) -> bool {
         false
     }
+    fn can_shutdown(&self) -> bool {
+        true
+    }
     fn on_winit_event(&mut self, event: &Event<T>) {}
     fn on_resized(&mut self, app_resized: AppResized) {}
     fn render(&mut self, app_context: AppContext, app_surface: TextureView) {}
