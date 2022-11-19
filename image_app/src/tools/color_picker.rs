@@ -58,7 +58,7 @@ impl Tool for ColorPicker {
                 context.image_editor.document().document_size().y - valid_position.y,
             );
 
-            let final_texture_id = context.image_editor.document().final_layer().texture();
+            let final_texture_id = context.image_editor.document().render_result();
             let pixel = context
                 .framework
                 .texture2d_sample_pixel(final_texture_id, x, y);

@@ -53,18 +53,11 @@ impl ImageEditor {
             -initial_window_bounds[1] * 0.5,
         ];
         let pan_camera = Camera2d::new(-0.1, 1000.0, left_right_top_bottom);
-        let initial_camera_scale = if initial_window_bounds[0] > initial_window_bounds[1] {
-            test_document.outer_size().x / initial_window_bounds[0]
-        } else {
-            test_document.outer_size().y / initial_window_bounds[1]
-        } * 1.5;
 
         let final_present_shader_info =
             ShaderCreationInfo::using_default_vertex_fragment(framework)
                 .with_output_format(TextureFormat::Bgra8UnormSrgb);
         let final_present_shader = framework.create_shader(final_present_shader_info);
-        println!("Initial scale: {initial_camera_scale}");
-        //pan_camera.set_scale(initial_camera_scale);
 
         let layer_draw_shader = framework.shader_compiler.compile_into_shader_description(
             "Layer draw shader",
@@ -168,7 +161,7 @@ impl ImageEditor {
         renderer.set_draw_debug_name("Canvas rendering");
         renderer.draw(DrawCommand {
             primitives: PrimitiveType::Texture2D {
-                texture_id: self.document.final_layer().texture().clone(),
+                texture_id: self.document.render_result().clone(),
                 instances: vec![Transform2d {
                     scale: self.document.document_size().cast::<f32>().unwrap() * 0.5,
                     ..Default::default()
@@ -206,8 +199,8 @@ impl ImageEditor {
         self.document.draw_selection(renderer);
     }
 
-    pub fn get_full_image_texture(&self) -> &BitmapLayer {
-        &self.document().final_layer()
+    pub fn get_full_image_texture(&self) -> &TextureId {
+        &self.document().render_result()
     }
 
     pub fn get_full_image_bytes(&mut self, framework: &Framework) -> image::DynamicImage {

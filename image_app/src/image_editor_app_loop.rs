@@ -279,13 +279,13 @@ impl ImageApplication {
             || block_editor;
         self.toolbox.set_is_blocked(block_editor);
         state.renderer.begin(
-            &self.image_editor.document().final_layer().camera(),
+            &self.image_editor.document().render_camera(),
             None,
             state.framework,
         );
         self.toolbox.draw(&mut state.renderer);
         state.renderer.end(
-            &self.image_editor.document().final_layer().texture(),
+            &self.image_editor.document().render_result(),
             None,
             state.framework,
         );

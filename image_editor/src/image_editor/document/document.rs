@@ -1,3 +1,4 @@
+use crate::image_editor::ab_render_target::ABRenderTarget;
 use crate::layers::{Layer, LayerIndex, RootLayer};
 use crate::{
     blend_settings::{BlendSettings, BlendSettingsUniform},
@@ -30,11 +31,6 @@ use std::collections::HashMap;
 use std::slice::Iter;
 use uuid::Uuid;
 
-enum BufferingStep {
-    First,
-    Second,
-}
-
 struct LayerDrawInfo {
     bitmap_canvas: BitmapLayer,
     layer_settings_buffer: BufferId,
@@ -52,13 +48,11 @@ pub struct Document {
     layers: HashMap<LayerIndex, Layer>,
     layer_canvases: HashMap<Uuid, LayerDrawInfo>,
     tree_root: RootLayer,
-    final_layer_1: BitmapLayer,
-    final_layer_2: BitmapLayer,
     selection_layer: Option<SelectionLayer>,
 
     #[allow(dead_code)]
     buffer_layer: BitmapLayer, // Imma keep it here just in case, too many times i removed it just to need it later again
-    buffering_step: BufferingStep,
+    ab_render_target: ABRenderTarget,
 
     current_layer_index: LayerIndex,
     selection: Selection,
@@ -75,24 +69,6 @@ pub struct DocumentCreationInfo {
 
 impl Document {
     pub fn new(config: DocumentCreationInfo, framework: &mut Framework) -> Self {
-        let final_layer_1 = BitmapLayer::new(
-            "Double Buffering Layer 1",
-            [127, 127, 127, 127],
-            BitmapLayerConfiguration {
-                width: config.width,
-                height: config.height,
-            },
-            framework,
-        );
-        let final_layer_2 = BitmapLayer::new(
-            "Double Buffering Layer 2",
-            [127, 127, 127, 127],
-            BitmapLayerConfiguration {
-                width: config.width,
-                height: config.height,
-            },
-            framework,
-        );
         let buffer_layer = BitmapLayer::new(
             "Draw Buffer Layer",
             [0, 0, 0, 0],
@@ -116,16 +92,13 @@ impl Document {
             layers_created: 0,
             document_size: vec2(config.width, config.height),
             current_layer_index: first_layer_index,
-
-            final_layer_1,
-            final_layer_2,
             buffer_layer,
             selection_layer: None,
 
             layers: HashMap::new(),
             layer_canvases: HashMap::new(),
             tree_root: RootLayer(vec![]),
-            buffering_step: BufferingStep::First,
+            ab_render_target: ABRenderTarget::new(config.width, config.height, framework),
             selection: Selection::default(),
             partial_selection: Selection::default(),
             wants_selection_update: false,
@@ -148,10 +121,6 @@ impl Document {
         );
 
         document
-    }
-
-    pub fn outer_size(&self) -> Vector2<f32> {
-        self.final_layer().size()
     }
 
     pub fn current_layer(&self) -> &Layer {
@@ -261,7 +230,7 @@ impl Document {
     }
 
     pub fn draw_selection(&self, renderer: &mut Renderer) {
-        let extents = self.final_layer().size() * 0.5;
+        let extents = self.document_size.cast::<f32>().unwrap() * 0.5;
         renderer.draw(DrawCommand {
             primitives: PrimitiveType::Rect {
                 rects: vec![Box2d {
@@ -695,35 +664,29 @@ impl Document {
         shader_to_use: ShaderId,
         framework: &mut Framework,
     ) {
-        // Clear first layer
-        let final_layer = self.final_layer().texture().clone();
-        Self::clear_texture(renderer, &final_layer, wgpu::Color::TRANSPARENT, framework);
-
         // Actually draw shit
         for layer_index in draw_sequence {
-            let final_layer = self.advance_final_layer().texture().clone();
-            let previous_layer = self.previous_buffer_layer().texture().clone();
-
             // 1. Draw current layer onto buffer layer
             let layer = self.get_layer(&layer_index);
             let layer_draw_info = self.layer_canvases.get(layer.uuid()).unwrap();
             // 2. Blend buffer layer with final layer
-
-            layer_draw_info.bitmap_canvas.draw_blended(
-                renderer,
-                shader_to_use.clone(),
-                previous_layer.clone(),
-                layer_draw_info.layer_settings_buffer.clone(),
-                &final_layer,
-                framework,
-            );
-
-            Self::clear_texture(
-                renderer,
-                &previous_layer,
-                wgpu::Color::TRANSPARENT,
-                framework,
-            );
+            self.ab_render_target
+                .run_render_loop(|final_layer, previous_layer| {
+                    layer_draw_info.bitmap_canvas.draw_blended(
+                        renderer,
+                        shader_to_use.clone(),
+                        previous_layer.clone(),
+                        layer_draw_info.layer_settings_buffer.clone(),
+                        &final_layer,
+                        framework,
+                    );
+                    Self::clear_texture(
+                        renderer,
+                        &previous_layer,
+                        wgpu::Color::TRANSPARENT,
+                        framework,
+                    );
+                });
         }
     }
 
@@ -762,32 +725,6 @@ impl Document {
         draw_sequence
     }
 
-    pub fn final_layer(&self) -> &BitmapLayer {
-        match self.buffering_step {
-            BufferingStep::First => &self.final_layer_2,
-            BufferingStep::Second => &self.final_layer_1,
-        }
-    }
-
-    pub fn previous_buffer_layer(&self) -> &BitmapLayer {
-        match self.buffering_step {
-            BufferingStep::First => &self.final_layer_1,
-            BufferingStep::Second => &self.final_layer_2,
-        }
-    }
-
-    fn advance_final_layer(&mut self) -> &BitmapLayer {
-        match self.buffering_step {
-            BufferingStep::First => {
-                self.buffering_step = BufferingStep::Second;
-            }
-            BufferingStep::Second => {
-                self.buffering_step = BufferingStep::First;
-            }
-        };
-        self.final_layer()
-    }
-
     pub fn document_size(&self) -> Vector2<u32> {
         self.document_size
     }
@@ -797,7 +734,7 @@ impl Document {
     }
 
     pub fn final_image_bytes(&self, framework: &Framework) -> DynamicImage {
-        let texture = framework.texture2d_read_data(self.final_layer().texture());
+        let texture = framework.texture2d_read_data(self.ab_render_target.result());
         let width = texture.width();
         let height = texture.height();
         let bytes = texture
@@ -832,6 +769,15 @@ impl Document {
                 blend_mode: layer.settings().blend_mode,
             })],
         )
+    }
+
+    pub fn render_result(&self) -> &TextureId {
+        self.ab_render_target.result()
+    }
+    pub fn render_camera(&self) -> Camera2d {
+        let half_w = self.document_size.x as f32 * 0.5;
+        let half_h = self.document_size.y as f32 * 0.5;
+        Camera2d::new(-0.01, 1000.0, [-half_w, half_w, half_h, -half_h])
     }
 }
 

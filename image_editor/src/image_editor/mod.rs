@@ -1,3 +1,4 @@
+mod ab_render_target;
 pub mod blend_settings;
 pub mod document;
 pub mod image_editor;
