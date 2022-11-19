@@ -327,9 +327,15 @@ impl Document {
     }
 
     pub fn extract_selection(&mut self, renderer: &mut Renderer, framework: &mut Framework) {
+        /*
         let current_layer = self.current_layer();
-        let dims = framework.texture2d_dimensions(current_layer.bitmap.texture());
+        let dims = current_layer.size();
+        let dims = (dims.x, dims.y);
 
+        let tex = match current_layer.layer_type {
+            LayerType::Image { texture, .. } => texture.clone(),
+            LayerType::Group(_) => unreachable!(),
+        };
         let new_texture = framework.allocate_texture2d(
             RgbaTexture2D::empty(dims),
             TextureConfiguration {
@@ -349,7 +355,7 @@ impl Document {
 
         // 1. Draw layer using the rect stencil buffer, this is the selection. Store it into a new texture
         renderer.begin(
-            &current_layer.bitmap.camera(),
+            &Self::make_camera_for_layer(&current_layer),
             Some(wgpu::Color::TRANSPARENT),
             framework,
         );
@@ -358,7 +364,7 @@ impl Document {
         renderer.set_stencil_reference(255);
         renderer.draw(DrawCommand {
             primitives: PrimitiveType::Texture2D {
-                texture_id: current_layer.bitmap.texture().clone(),
+                texture_id: tex,
                 instances: vec![current_layer.pixel_transform()],
                 flip_uv_y: true,
                 multiply_color: wgpu::Color::WHITE,
@@ -381,11 +387,7 @@ impl Document {
         );
 
         // 2. Draw the layer using the inverted stencil buffer: this is the remaining part of the texture
-        renderer.begin(
-            &current_layer.bitmap.camera(),
-            Some(wgpu::Color::TRANSPARENT),
-            framework,
-        );
+        renderer.begin(&tex, Some(wgpu::Color::TRANSPARENT), framework);
         renderer.set_draw_debug_name("Selection tool: draw layer with inverted stencil buffer");
         renderer.set_stencil_clear(None);
         renderer.set_stencil_reference(255);
@@ -435,6 +437,7 @@ impl Document {
 
         self.selection.clear();
         self.update_selection_buffer(renderer, framework);
+        */
     }
 
     pub fn selection_layer_mut(&mut self) -> Option<&mut SelectionLayer> {
@@ -485,6 +488,8 @@ impl Document {
         config: LayerConstructionInfo,
         framework: &mut Framework,
     ) -> LayerIndex {
+        todo!()
+        /*
         let layer_index = LayerIndex(self.layers_created);
         self.layers_created += 1;
         let new_layer = BitmapLayer::new(
@@ -539,6 +544,7 @@ impl Document {
             .0
             .push(LayerTree::SingleLayer(layer_index.clone()));
         layer_index
+         */
     }
 
     pub(crate) fn update_layers(&mut self, renderer: &mut Renderer, framework: &mut Framework) {
@@ -593,6 +599,7 @@ impl Document {
         framework: &mut Framework,
         clear: bool,
     ) {
+        /*
         let layer = self.layers.get_mut(index).unwrap();
         if layer.needs_bitmap_update()
             || self
@@ -640,6 +647,7 @@ impl Document {
             }
             renderer.end(canvas.texture(), None, framework);
         }
+         */
     }
     pub(crate) fn render(
         &mut self,
@@ -787,6 +795,7 @@ fn join_bitmaps(
     renderer: &mut Renderer,
     framework: &mut Framework,
 ) {
+    /*
     let below_inverse_transform = layer_below
         .transform()
         .matrix()
@@ -803,4 +812,6 @@ fn join_bitmaps(
         layer_top.settings().opacity,
     );
     renderer.end(layer_below.bitmap.texture(), None, framework);
+    */
+    todo!()
 }

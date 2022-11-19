@@ -10,7 +10,7 @@ use crate::tools::{
 use crate::ui::{self, ToolUiContext, Ui, UiContext};
 use application::{
     key::{Key, ModifierSet},
-    ActionMap, ActionState, AppContext, AppLoop, InputState, KeyBinding,
+    ActionMap, ActionState, AppContext, AppLoop, KeyBinding,
 };
 use application::{AppBoot, AppResized};
 

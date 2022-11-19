@@ -29,6 +29,8 @@ impl LayerReplaceCommand {
 
 impl EditorCommand for LayerReplaceCommand {
     fn undo(&self, context: &mut EditorContext) -> Box<dyn EditorCommand> {
+        todo!()
+        /*
         let new_texture_id = context
             .image_editor
             .document()
@@ -47,6 +49,7 @@ impl EditorCommand for LayerReplaceCommand {
             self.modified_layer,
             new_texture_id.clone(),
         ))
+         */
     }
 }
 
@@ -209,6 +212,8 @@ impl StrokingEngine {
     fn create_clone_of_current_layer_texture(
         context: &mut EditorContext,
     ) -> (TextureId, TextureId) {
+        todo!()
+        /*
         let modified_layer = context.image_editor.document().current_layer_index();
         let layer = context.image_editor.document().get_layer(&modified_layer);
         let old_layer_texture_id = layer.bitmap.texture().clone();
@@ -222,6 +227,7 @@ impl StrokingEngine {
                 .texture2d_copy_subregion(&old_layer_texture_id, 0, 0, width, height);
 
         (old_layer_texture_id, new_texture_id)
+         */
     }
 
     pub fn toggle_eraser(&mut self) {
@@ -242,6 +248,7 @@ impl BrushEngine for StrokingEngine {
         path: StrokePath,
         context: StrokeContext,
     ) -> Option<Box<dyn EditorCommand>> {
+        /*
         if self.wants_update_brush_settings {
             self.update_brush_settings(context.framework);
             self.wants_update_brush_settings = false;
@@ -311,10 +318,12 @@ impl BrushEngine for StrokingEngine {
                 }
             }
         }
+        */
         None
     }
 
     fn begin_stroking(&mut self, context: &mut EditorContext) -> Option<Box<dyn EditorCommand>> {
+        /*
         let modified_layer = context.image_editor.document().current_layer_index();
         let (old_layer_texture_id, new_texture_id) =
             StrokingEngine::create_clone_of_current_layer_texture(context);
@@ -328,5 +337,7 @@ impl BrushEngine for StrokingEngine {
             old_layer_texture_id,
         );
         Some(Box::new(cmd))
+         */
+        None
     }
 }
