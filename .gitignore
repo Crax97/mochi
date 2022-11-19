@@ -1,5 +1,6 @@
 /target
 *.png
+!/{application,framework,image_app,image_editor}/**/*.png
 /.idea/.idea.image_editor.dir/.idea/encodings.xml
 /.idea/.idea.image_editor.dir/.idea/indexLayout.xml
 /.idea/.idea.image_editor.dir/.idea/projectSettingsUpdater.xml
