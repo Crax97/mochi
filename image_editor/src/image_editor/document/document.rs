@@ -1,4 +1,4 @@
-use super::layers::{Layer, LayerIndex, RootLayer};
+use crate::layers::{Layer, LayerIndex, RootLayer};
 use crate::{
     blend_settings::{BlendSettings, BlendSettingsUniform},
     global_selection_data,
@@ -6,10 +6,7 @@ use crate::{
     selection::{Selection, SelectionAddition, SelectionShape},
     LayerConstructionInfo,
 };
-use cgmath::{
-    point2, point3, vec2, vec3, Decomposed, InnerSpace, Matrix, Matrix3, Matrix4, Point2,
-    SquareMatrix, Transform, Vector2,
-};
+use cgmath::{point2, vec2, SquareMatrix, Vector2};
 use framework::{
     framework::TextureId,
     math,
@@ -19,7 +16,7 @@ use framework::{
     },
     scene::Camera2d,
     Box2d, BufferConfiguration, DepthStencilTexture2D, RgbaTexture2D, Texture,
-    TextureConfiguration, TextureUsage, Transform2d,
+    TextureConfiguration, TextureUsage,
 };
 use framework::{
     framework::{BufferId, DepthStencilTextureId},
