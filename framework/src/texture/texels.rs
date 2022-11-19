@@ -55,7 +55,7 @@ pub trait Texel: bytemuck::Pod + bytemuck::Zeroable {
 
 #[repr(C)]
 #[derive(bytemuck::Pod, bytemuck::Zeroable, Clone, Copy)]
-pub struct RgbaU8([u8; 4]);
+pub struct RgbaU8(pub [u8; 4]);
 
 impl Texel for RgbaU8 {
     fn from_bytes(bytes: &[u8]) -> Result<Self, TexelConversionError> {

@@ -1,5 +1,6 @@
 use cgmath::{point2, point3, vec2, ElementWise, Point2, Point3, Rad, Vector2};
 use framework::framework::TextureId;
+use framework::renderer::renderer::Renderer;
 use framework::scene::Transform2d;
 use framework::{Box2d, Framework, RgbaTexture2D, Texture, TextureConfiguration, TextureUsage};
 use uuid::Uuid;
@@ -22,8 +23,14 @@ pub struct ShaderLayerSettings {
     pub opacity: f32,
 }
 
+impl LayerId {
+    pub(crate) fn new() -> Self {
+        Self(Uuid::new_v4())
+    }
+}
+
 pub struct Layer {
-    uuid: Uuid,
+    id: LayerId,
     transform: Transform2d,
     settings: LayerSettings,
 
@@ -38,6 +45,9 @@ pub struct LayerCreationInfo {
     pub scale: Vector2<f32>,
     pub rotation_radians: f32,
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Hash)]
+pub struct LayerId(Uuid);
 
 pub enum LayerType {
     Image {
@@ -63,7 +73,7 @@ impl Layer {
             },
         );
         Self {
-            uuid: Uuid::new_v4(),
+            id: LayerId::new(),
 
             layer_type: LayerType::Image {
                 texture,
@@ -140,7 +150,7 @@ impl Layer {
         }
     }
 
-    fn bounds(&self) -> Box2d {
+    pub fn bounds(&self) -> Box2d {
         match &self.layer_type {
             LayerType::Image { dimensions, .. } => Box2d {
                 center: point2(self.transform.position.x, self.transform.position.y),
@@ -150,7 +160,7 @@ impl Layer {
         }
     }
 
-    pub fn uuid(&self) -> &Uuid {
-        &self.uuid
+    pub fn id(&self) -> &LayerId {
+        &self.id
     }
 }

@@ -1,5 +1,5 @@
 use crate::image_editor::ab_render_target::ABRenderTarget;
-use crate::layers::{Layer, LayerIndex, RootLayer};
+use crate::layers::{Layer, LayerId, RootLayer};
 use crate::{
     blend_settings::{BlendSettings, BlendSettingsUniform},
     global_selection_data,
@@ -7,10 +7,10 @@ use crate::{
     selection::{Selection, SelectionAddition, SelectionShape},
     LayerConstructionInfo,
 };
-use cgmath::{point2, vec2, SquareMatrix, Vector2};
+use cgmath::{point2, vec2, Vector2};
+use framework::RgbaU8;
 use framework::{
     framework::TextureId,
-    math,
     renderer::{
         draw_command::BindableResource,
         renderer::{DepthStencilUsage, Renderer},
@@ -29,7 +29,7 @@ use image::{DynamicImage, ImageBuffer};
 use framework::framework::ShaderId;
 use std::collections::HashMap;
 use std::slice::Iter;
-use uuid::Uuid;
+use wgpu::Color;
 
 struct LayerDrawInfo {
     bitmap_canvas: BitmapLayer,
@@ -38,15 +38,15 @@ struct LayerDrawInfo {
 
 pub struct SelectionLayer {
     pub layer: Layer,
-    pub original_layer: LayerIndex,
+    pub original_layer: LayerId,
 }
 
 pub struct Document {
     layers_created: u16,
 
     document_size: Vector2<u32>,
-    layers: HashMap<LayerIndex, Layer>,
-    layer_canvases: HashMap<Uuid, LayerDrawInfo>,
+    layers: HashMap<LayerId, Layer>,
+    layer_canvases: HashMap<LayerId, LayerDrawInfo>,
     tree_root: RootLayer,
     selection_layer: Option<SelectionLayer>,
 
@@ -54,7 +54,7 @@ pub struct Document {
     buffer_layer: BitmapLayer, // Imma keep it here just in case, too many times i removed it just to need it later again
     ab_render_target: ABRenderTarget,
 
-    current_layer_index: LayerIndex,
+    current_layer_index: LayerId,
     selection: Selection,
     partial_selection: Selection,
     wants_selection_update: bool,
@@ -79,7 +79,7 @@ impl Document {
             framework,
         );
 
-        let first_layer_index = LayerIndex(1);
+        let first_layer_index = LayerId::new();
         let stencil_texture = framework.allocate_depth_stencil_texture(
             DepthStencilTexture2D::empty((config.width, config.height)),
             TextureConfiguration {
@@ -127,25 +127,21 @@ impl Document {
         self.get_layer(&self.current_layer_index)
     }
 
-    pub fn select_layer(&mut self, new_current_layer: LayerIndex) {
+    pub fn select_layer(&mut self, new_current_layer: LayerId) {
         assert!(self.layers.contains_key(&new_current_layer));
         self.current_layer_index = new_current_layer;
     }
 
-    pub fn get_layer(&self, layer_index: &LayerIndex) -> &Layer {
+    pub fn get_layer(&self, layer_index: &LayerId) -> &Layer {
         self.layers
-            .get(&layer_index)
+            .get(layer_index)
             .expect("Invalid layer index passed to document!")
     }
 
-    pub fn mutate_layer<F: FnMut(&mut Layer)>(
-        &mut self,
-        layer_index: &LayerIndex,
-        mut mutate_fn: F,
-    ) {
+    pub fn mutate_layer<F: FnMut(&mut Layer)>(&mut self, layer_index: &LayerId, mut mutate_fn: F) {
         let layer = self
             .layers
-            .get_mut(&layer_index)
+            .get_mut(layer_index)
             .expect("Invalid layer index passed to document!");
 
         mutate_fn(layer);
@@ -252,8 +248,8 @@ impl Document {
 
     pub fn join_layers(
         &mut self,
-        layer_below_idx: &LayerIndex,
-        layer_top_idx: &LayerIndex,
+        layer_below_idx: &LayerId,
+        layer_top_idx: &LayerId,
         renderer: &mut Renderer,
         framework: &mut Framework,
     ) {
@@ -265,7 +261,7 @@ impl Document {
 
     pub fn join_with_layer_below(
         &mut self,
-        top: &LayerIndex,
+        top: &LayerId,
         renderer: &mut Renderer,
         framework: &mut Framework,
     ) {
@@ -278,9 +274,9 @@ impl Document {
 
     fn find_layer_below_step_one(
         &self,
-        target: &LayerIndex,
+        target: &LayerId,
         layers: Iter<LayerTree>,
-    ) -> Option<LayerIndex> {
+    ) -> Option<LayerId> {
         let mut previous = *target;
         for layer_type in layers {
             match layer_type {
@@ -309,9 +305,9 @@ impl Document {
 
     fn find_layer_below_recursive(
         &self,
-        target: &LayerIndex,
-        layers: Iter<LayerIndex>,
-    ) -> Option<LayerIndex> {
+        target: &LayerId,
+        layers: Iter<LayerId>,
+    ) -> Option<LayerId> {
         let mut previous = *target;
         for index in layers {
             if target == index {
@@ -327,13 +323,12 @@ impl Document {
     }
 
     pub fn extract_selection(&mut self, renderer: &mut Renderer, framework: &mut Framework) {
-        /*
         let current_layer = self.current_layer();
-        let dims = current_layer.size();
+        let dims = current_layer.bounds().extents.cast::<u32>().unwrap();
         let dims = (dims.x, dims.y);
 
         let tex = match current_layer.layer_type {
-            LayerType::Image { texture, .. } => texture.clone(),
+            LayerType::Image { ref texture, .. } => texture.clone(),
             LayerType::Group(_) => unreachable!(),
         };
         let new_texture = framework.allocate_texture2d(
@@ -364,7 +359,7 @@ impl Document {
         renderer.set_stencil_reference(255);
         renderer.draw(DrawCommand {
             primitives: PrimitiveType::Texture2D {
-                texture_id: tex,
+                texture_id: tex.clone(),
                 instances: vec![current_layer.pixel_transform()],
                 flip_uv_y: true,
                 multiply_color: wgpu::Color::WHITE,
@@ -387,13 +382,17 @@ impl Document {
         );
 
         // 2. Draw the layer using the inverted stencil buffer: this is the remaining part of the texture
-        renderer.begin(&tex, Some(wgpu::Color::TRANSPARENT), framework);
+        renderer.begin(
+            &Self::make_camera_for_layer(&current_layer),
+            Some(wgpu::Color::TRANSPARENT),
+            framework,
+        );
         renderer.set_draw_debug_name("Selection tool: draw layer with inverted stencil buffer");
         renderer.set_stencil_clear(None);
         renderer.set_stencil_reference(255);
         renderer.draw(DrawCommand {
             primitives: PrimitiveType::Texture2D {
-                texture_id: current_layer.bitmap.texture().clone(),
+                texture_id: tex,
                 instances: vec![current_layer.pixel_transform()],
                 flip_uv_y: true,
                 multiply_color: wgpu::Color::WHITE,
@@ -416,14 +415,19 @@ impl Document {
         );
         //5. Now add the new layer
         let mut new_layer = SelectionLayer {
-            layer: Layer::new_bitmap(
-                BitmapLayer::new_from_texture("Selection layer", new_texture, &framework),
+            layer: Layer::new_image(
+                RgbaTexture2D::from_repeated_texel(
+                    RgbaU8([0; 4]),
+                    (self.document_size.x, self.document_size.y),
+                )
+                .unwrap(),
                 LayerCreationInfo {
                     name: "Selection layer".to_owned(),
                     position: point2(0.0, 0.0),
                     scale: vec2(1.0, 1.0),
                     rotation_radians: 0.0,
                 },
+                framework,
             ),
             original_layer: self.current_layer_index(),
         };
@@ -437,7 +441,6 @@ impl Document {
 
         self.selection.clear();
         self.update_selection_buffer(renderer, framework);
-        */
     }
 
     pub fn selection_layer_mut(&mut self) -> Option<&mut SelectionLayer> {
@@ -456,7 +459,7 @@ impl Document {
         join_bitmaps(layer_below, &selection.layer, renderer, framework);
     }
 
-    pub fn delete_layer(&mut self, layer_idx: LayerIndex) {
+    pub fn delete_layer(&mut self, layer_idx: LayerId) {
         if self.layers.len() == 1 {
             return;
         }
@@ -471,8 +474,8 @@ impl Document {
         let removed_layer = self.layers.remove(&layer_idx).unwrap();
         let mut erase_which = 0usize;
         for (i, layer) in self.tree_root.0.iter().enumerate() {
-            match layer {
-                &LayerTree::SingleLayer(idx) if idx == layer_idx => {
+            match &layer {
+                &LayerTree::SingleLayer(idx) if idx == &layer_idx => {
                     erase_which = i;
                 }
                 LayerTree::Group(_) => todo!(),
@@ -480,35 +483,29 @@ impl Document {
             }
         }
         self.tree_root.0.remove(erase_which);
-        self.layer_canvases.remove(removed_layer.uuid()).unwrap();
+        self.layer_canvases.remove(removed_layer.id()).unwrap();
     }
 
     pub(crate) fn add_layer(
         &mut self,
         config: LayerConstructionInfo,
         framework: &mut Framework,
-    ) -> LayerIndex {
-        todo!()
-        /*
-        let layer_index = LayerIndex(self.layers_created);
+    ) -> LayerId {
+        let layer_index = LayerId::new();
         self.layers_created += 1;
-        let new_layer = BitmapLayer::new(
-            &config.name,
-            config.initial_color,
-            BitmapLayerConfiguration {
-                width: self.document_size.x,
-                height: self.document_size.y,
-            },
-            framework,
-        );
-        let new_layer = Layer::new_bitmap(
-            new_layer,
+        let new_layer = Layer::new_image(
+            RgbaTexture2D::from_repeated_texel(
+                RgbaU8(config.initial_color),
+                (self.document_size.x, self.document_size.y),
+            )
+            .unwrap(),
             LayerCreationInfo {
                 name: config.name.clone(),
                 position: point2(0.0, 0.0),
                 scale: vec2(1.0, 1.0),
                 rotation_radians: 0.0,
             },
+            framework,
         );
         let bitmap_canvas = BitmapLayer::new(
             &config.name,
@@ -538,13 +535,12 @@ impl Document {
         };
 
         self.layer_canvases
-            .insert(new_layer.uuid().clone(), layer_draw_info);
+            .insert(new_layer.id().clone(), layer_draw_info);
         self.layers.insert(layer_index.clone(), new_layer);
         self.tree_root
             .0
             .push(LayerTree::SingleLayer(layer_index.clone()));
         layer_index
-         */
     }
 
     pub(crate) fn update_layers(&mut self, renderer: &mut Renderer, framework: &mut Framework) {
@@ -565,26 +561,26 @@ impl Document {
         for layer in tree.iter() {
             match layer {
                 LayerTree::SingleLayer(index) => {
-                    self.lay_layer(index, framework, renderer);
+                    self.lay_on_canvas(index, framework, renderer);
                 }
                 LayerTree::Group(layers) => {
                     for layer_idx in layers {
-                        self.lay_layer(layer_idx, framework, renderer)
+                        self.lay_on_canvas(layer_idx, framework, renderer)
                     }
                 }
             }
         }
     }
 
-    fn lay_layer(
+    fn lay_on_canvas(
         &mut self,
-        index: &LayerIndex,
+        index: &LayerId,
         framework: &mut Framework,
         renderer: &mut Renderer,
     ) {
         {
             let layer = self.layers.get_mut(index).unwrap();
-            let layer_info = self.layer_canvases.get(layer.uuid()).unwrap();
+            let layer_info = self.layer_canvases.get(layer.id()).unwrap();
             if layer.needs_settings_update() {
                 Self::update_layer_settings(layer, &layer_info.layer_settings_buffer, framework);
             }
@@ -595,11 +591,10 @@ impl Document {
     fn update_layer_bitmap(
         &mut self,
         renderer: &mut Renderer,
-        index: &LayerIndex,
+        index: &LayerId,
         framework: &mut Framework,
         clear: bool,
     ) {
-        /*
         let layer = self.layers.get_mut(index).unwrap();
         if layer.needs_bitmap_update()
             || self
@@ -607,7 +602,7 @@ impl Document {
                 .as_ref()
                 .map_or(false, |sel| &sel.original_layer == index)
         {
-            let layer_info = self.layer_canvases.get(layer.uuid()).unwrap();
+            let layer_info = self.layer_canvases.get(layer.id()).unwrap();
             let canvas = &layer_info.bitmap_canvas;
             if clear {
                 Self::clear_texture(
@@ -617,37 +612,42 @@ impl Document {
                     framework,
                 );
             }
+
+            let draw_bitmap_layer =
+                |renderer: &mut Renderer, framework: &mut Framework, texture_id| {
+                    renderer.begin(&Self::make_camera_for_layer(layer), None, framework);
+                    renderer.draw(DrawCommand {
+                        primitives: PrimitiveType::Texture2D {
+                            texture_id,
+                            instances: vec![layer.pixel_transform()],
+                            flip_uv_y: false,
+                            multiply_color: Color::WHITE,
+                        },
+                        draw_mode: DrawMode::Single,
+                        additional_data: OptionalDrawData::default(),
+                    });
+                    renderer.end(canvas.texture(), None, framework);
+                };
             renderer.begin(&canvas.camera(), None, framework);
-            match layer.layer_type {
-                LayerType::Bitmap => {
-                    layer.bitmap.draw(
-                        renderer,
-                        layer.position,
-                        layer.scale,
-                        layer.rotation_radians,
-                        layer.settings.opacity,
-                    );
+            match &layer.layer_type {
+                LayerType::Image { texture, .. } => {
+                    draw_bitmap_layer(renderer, framework, texture.clone());
                 }
+                LayerType::Group(_) => todo!(),
             }
 
             if let Some(selection_layer) = self.selection_layer.as_ref() {
                 if &selection_layer.original_layer == index {
-                    match selection_layer.layer.layer_type {
-                        LayerType::Bitmap => {
-                            selection_layer.layer.bitmap.draw(
-                                renderer,
-                                selection_layer.layer.position,
-                                selection_layer.layer.scale,
-                                selection_layer.layer.rotation_radians,
-                                selection_layer.layer.settings.opacity,
-                            );
+                    match &selection_layer.layer.layer_type {
+                        LayerType::Image { texture, .. } => {
+                            draw_bitmap_layer(renderer, framework, texture.clone())
                         }
+                        LayerType::Group(_) => unreachable!(),
                     }
                 }
             }
             renderer.end(canvas.texture(), None, framework);
         }
-         */
     }
     pub(crate) fn render(
         &mut self,
@@ -668,7 +668,7 @@ impl Document {
     fn execute_draw_sequence_double_buffered(
         &mut self,
         renderer: &mut Renderer,
-        draw_sequence: Vec<LayerIndex>,
+        draw_sequence: Vec<LayerId>,
         shader_to_use: ShaderId,
         framework: &mut Framework,
     ) {
@@ -676,7 +676,7 @@ impl Document {
         for layer_index in draw_sequence {
             // 1. Draw current layer onto buffer layer
             let layer = self.get_layer(&layer_index);
-            let layer_draw_info = self.layer_canvases.get(layer.uuid()).unwrap();
+            let layer_draw_info = self.layer_canvases.get(layer.id()).unwrap();
             // 2. Blend buffer layer with final layer
             self.ab_render_target
                 .run_render_loop(|final_layer, previous_layer| {
@@ -708,7 +708,7 @@ impl Document {
         renderer.end(texture, None, framework);
     }
 
-    fn generate_draw_sequence(&self) -> Vec<LayerIndex> {
+    fn generate_draw_sequence(&self) -> Vec<LayerId> {
         let mut draw_sequence = Vec::new();
         for layer_node in self.tree_root.0.iter() {
             match layer_node {
@@ -737,8 +737,8 @@ impl Document {
         self.document_size
     }
 
-    pub fn current_layer_index(&self) -> LayerIndex {
-        self.current_layer_index
+    pub fn current_layer_index(&self) -> LayerId {
+        self.current_layer_index.clone()
     }
 
     pub fn final_image_bytes(&self, framework: &Framework) -> DynamicImage {
@@ -753,7 +753,7 @@ impl Document {
         DynamicImage::ImageRgba8(raw_image)
     }
 
-    pub fn for_each_layer<F: FnMut(&Layer, &LayerIndex)>(&self, mut f: F) {
+    pub fn for_each_layer<F: FnMut(&Layer, &LayerId)>(&self, mut f: F) {
         for tree in self.tree_root.0.iter() {
             match tree {
                 LayerTree::SingleLayer(idx) => {
@@ -787,6 +787,11 @@ impl Document {
         let half_h = self.document_size.y as f32 * 0.5;
         Camera2d::new(-0.01, 1000.0, [-half_w, half_w, half_h, -half_h])
     }
+
+    fn make_camera_for_layer(layer: &Layer) -> Camera2d {
+        let size = layer.bounds().extents * 0.5;
+        Camera2d::new(-0.01, 1000.0, [-size.x, size.x, size.y, -size.y])
+    }
 }
 
 fn join_bitmaps(
@@ -813,5 +818,5 @@ fn join_bitmaps(
     );
     renderer.end(layer_below.bitmap.texture(), None, framework);
     */
-    todo!()
+    log::error!("TODO: reimplement this");
 }

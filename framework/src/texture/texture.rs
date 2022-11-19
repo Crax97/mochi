@@ -11,6 +11,7 @@ pub trait SamplingOrigin {
 pub trait SamplingExtents {
     fn extents(&self) -> Extent3d;
     fn from_wgpu_extents(extents: Extent3d) -> Self;
+    fn total_count(&self) -> u32;
 }
 
 impl SamplingOrigin for (u32, u32) {
@@ -50,6 +51,10 @@ impl SamplingExtents for (u32, u32) {
     fn from_wgpu_extents(extents: Extent3d) -> Self {
         (extents.width, extents.height)
     }
+
+    fn total_count(&self) -> u32 {
+        self.0 * self.1
+    }
 }
 impl SamplingExtents for (u32, u32, u32) {
     fn extents(&self) -> Extent3d {
@@ -63,6 +68,10 @@ impl SamplingExtents for (u32, u32, u32) {
     fn from_wgpu_extents(extents: Extent3d) -> Self {
         (extents.width, extents.height, extents.depth_or_array_layers)
     }
+
+    fn total_count(&self) -> u32 {
+        self.0 * self.1 * self.2
+    }
 }
 
 #[derive(Debug)]
@@ -74,6 +83,12 @@ pub trait Texture<T: Texel> {
     type SamplingPointType: SamplingOrigin;
     type SamplingExtentsType: SamplingExtents;
     fn wgpu_texture_dimension() -> TextureDimension;
+    fn from_repeated_texel(
+        t: T,
+        size: Self::SamplingExtentsType,
+    ) -> Result<Self, TexelConversionError>
+    where
+        Self: Sized;
     fn from_texels(
         texels: Vec<T>,
         size: Self::SamplingExtentsType,
@@ -317,5 +332,18 @@ impl<T: Texel> Texture<T> for Texture2D<T> {
         let texels: &[T] = bytemuck::cast_slice(bytes);
         let texels = Vec::from_iter(texels.iter().map(|t| t.clone()));
         Self::from_texels(texels, size)
+    }
+
+    fn from_repeated_texel(
+        t: T,
+        size: Self::SamplingExtentsType,
+    ) -> Result<Self, TexelConversionError>
+    where
+        Self: Sized,
+    {
+        let collected_texels = std::iter::repeat(t)
+            .take(size.total_count() as usize)
+            .collect();
+        Self::from_texels(collected_texels, size)
     }
 }

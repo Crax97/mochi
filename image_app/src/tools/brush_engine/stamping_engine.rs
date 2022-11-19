@@ -6,7 +6,7 @@ use framework::renderer::draw_command::{
 use framework::shader::{BindElement, ShaderCreationInfo};
 use framework::{Buffer, Framework};
 use framework::{BufferConfiguration, Transform2d};
-use image_editor::layers::{BitmapLayer, LayerIndex, LayerType};
+use image_editor::layers::{BitmapLayer, LayerId, LayerType};
 use wgpu::{BlendComponent, ShaderModuleDescriptor, ShaderSource};
 
 use crate::tools::{EditorCommand, EditorContext};
@@ -16,10 +16,10 @@ use super::BrushEngine;
 
 struct LayerReplaceCommand {
     old_layer_texture_id: TextureId,
-    modified_layer: LayerIndex,
+    modified_layer: LayerId,
 }
 impl LayerReplaceCommand {
-    pub fn new(modified_layer: LayerIndex, old_layer_texture_id: TextureId) -> Self {
+    pub fn new(modified_layer: LayerId, old_layer_texture_id: TextureId) -> Self {
         Self {
             old_layer_texture_id,
             modified_layer,

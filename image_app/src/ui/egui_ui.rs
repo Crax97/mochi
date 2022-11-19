@@ -5,7 +5,7 @@ use egui_winit_platform::PlatformDescriptor;
 use framework::Framework;
 use image_editor::{
     blend_settings::BlendMode,
-    layers::{LayerIndex, LayerSettings},
+    layers::{LayerId, LayerSettings},
     LayerConstructionInfo,
 };
 use log::warn;
@@ -23,9 +23,9 @@ enum LayerAction {
     NewLayerRequest,
     CancelNewLayerRequest,
     CreateNewLayer,
-    DeleteLayer(LayerIndex),
-    SelectLayer(LayerIndex),
-    SetLayerSettings(LayerIndex, LayerSettings),
+    DeleteLayer(LayerId),
+    SelectLayer(LayerId),
+    SetLayerSettings(LayerId, LayerSettings),
     SelectNewTool(ToolId),
     None,
 }
@@ -305,11 +305,11 @@ impl EguiUI {
             action = LayerAction::NewLayerRequest;
         }
 
-        let mut lay_layer_ui = |idx: &LayerIndex| {
+        let mut lay_layer_ui = |idx: &LayerId| {
             let layer = document.get_layer(idx);
             let original_settings = layer.settings();
 
-            ui.push_id(&layer.uuid(), |ui| {
+            ui.push_id(&layer.id(), |ui| {
                 let color = if *idx == document.current_layer_index() {
                     Color32::LIGHT_BLUE
                 } else {

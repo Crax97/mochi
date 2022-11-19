@@ -1,9 +1,8 @@
-#[derive(Clone, Copy, PartialEq, PartialOrd, Eq, Hash)]
-pub struct LayerIndex(pub u16);
+use super::LayerId;
 
 #[derive(Clone, PartialEq, PartialOrd, Eq, Hash)]
 pub enum LayerTree {
-    SingleLayer(LayerIndex),
-    Group(Vec<LayerIndex>),
+    SingleLayer(LayerId),
+    Group(Vec<LayerId>),
 }
 pub struct RootLayer(pub Vec<LayerTree>);

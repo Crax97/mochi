@@ -11,10 +11,11 @@ use wgpu::{TextureFormat, TextureView};
 
 use crate::document::DocumentCreationInfo;
 use crate::image_editor;
+use crate::layers::LayerId;
 
 use super::{
     document::Document,
-    layers::{BitmapLayer, Layer, LayerIndex},
+    layers::{BitmapLayer, Layer},
 };
 
 #[derive(Default)]
@@ -115,15 +116,15 @@ impl ImageEditor {
         &mut self,
         config: LayerConstructionInfo,
         framework: &mut Framework,
-    ) -> LayerIndex {
+    ) -> LayerId {
         self.document.add_layer(config, framework)
     }
 
-    pub fn select_new_layer(&mut self, layer_idx: LayerIndex) {
+    pub fn select_new_layer(&mut self, layer_idx: LayerId) {
         self.document.select_layer(layer_idx);
     }
 
-    pub fn delete_layer(&mut self, layer_idx: LayerIndex) {
+    pub fn delete_layer(&mut self, layer_idx: LayerId) {
         self.document.delete_layer(layer_idx);
     }
 
