@@ -1,19 +1,19 @@
 use cgmath::{point3, vec2, ElementWise, Point2, Point3, Vector2};
 use framework::framework::TextureId;
 use framework::scene::Transform2d;
-use framework::{Framework, RgbaTexture2D, Texture, TextureConfiguration, TextureUsage};
+use framework::{Box2d, Framework, RgbaTexture2D, Texture, TextureConfiguration, TextureUsage};
 use uuid::Uuid;
 
 use crate::blend_settings::BlendMode;
 
-use super::BitmapLayer;
-
 #[derive(Clone, PartialEq)]
 pub struct LayerSettings {
     pub name: String,
-    pub is_enabled: bool,
-    pub opacity: f32,
     pub blend_mode: BlendMode,
+    pub is_enabled: bool,
+    pub is_locked: bool,
+    pub is_mask: bool,
+    pub opacity: f32,
 }
 
 #[repr(C)]
@@ -73,9 +73,11 @@ impl Layer {
             },
             settings: LayerSettings {
                 name: creation_info.name,
-                is_enabled: true,
-                opacity: 1.0,
                 blend_mode: BlendMode::Normal,
+                is_enabled: true,
+                is_locked: false,
+                is_mask: false,
+                opacity: 1.0,
             },
 
             needs_settings_update: true,
@@ -141,21 +143,21 @@ impl Layer {
     }
 
     pub fn pixel_transform(&self) -> Transform2d {
+        let bounds = self.bounds();
         Transform2d {
-            position: point3(self.position.x, self.position.y, 0.0),
-            scale: self
-                .size()
-                .cast::<f32>()
-                .unwrap()
-                .mul_element_wise(self.scale),
+            position: point3(bounds.center.x, bounds.center.x, 0.0),
+            scale: self.bounds().extents,
             rotation_radians: cgmath::Rad(self.rotation_radians),
         }
     }
 
-    pub fn size(&self) -> Vector2<u32> {
-        match self.layer_type {
-            LayerType::Image { dimensions, .. } => dimensions.clone(),
-            LayerType::Group(_) => unreachable!(),
+    fn bounds(&self) -> Box2d {
+        match &self.layer_type {
+            LayerType::Image { dimensions, .. } => Box2d {
+                center: self.position,
+                extents: dimensions.cast::<f32>().unwrap().mul_element_wise(0.5),
+            },
+            LayerType::Group(_) => todo!(),
         }
     }
 
