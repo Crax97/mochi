@@ -1,4 +1,4 @@
-use cgmath::{point3, vec2, ElementWise, Point2, Point3, Vector2};
+use cgmath::{point2, point3, vec2, ElementWise, Point2, Point3, Rad, Vector2};
 use framework::framework::TextureId;
 use framework::scene::Transform2d;
 use framework::{Box2d, Framework, RgbaTexture2D, Texture, TextureConfiguration, TextureUsage};
@@ -24,10 +24,8 @@ pub struct ShaderLayerSettings {
 
 pub struct Layer {
     uuid: Uuid,
-    pub settings: LayerSettings,
-    pub position: Point2<f32>,
-    pub scale: Vector2<f32>,
-    pub rotation_radians: f32,
+    transform: Transform2d,
+    settings: LayerSettings,
 
     pub layer_type: LayerType,
     needs_settings_update: bool,
@@ -82,9 +80,11 @@ impl Layer {
 
             needs_settings_update: true,
             needs_bitmap_update: true,
-            position: creation_info.position,
-            scale: creation_info.scale,
-            rotation_radians: creation_info.rotation_radians,
+            transform: Transform2d {
+                position: point3(creation_info.position.x, creation_info.position.y, 0.0),
+                scale: creation_info.scale,
+                rotation_radians: Rad(creation_info.rotation_radians),
+            },
         }
     }
 
@@ -105,7 +105,7 @@ impl Layer {
     }
 
     pub fn translate(&mut self, delta: Vector2<f32>) {
-        self.position += delta;
+        self.transform.translate(delta.extend(0.0));
         self.mark_dirty();
     }
 
@@ -128,18 +128,7 @@ impl Layer {
     }
 
     pub fn transform(&self) -> Transform2d {
-        Transform2d {
-            position: Point3 {
-                x: self.position.x,
-                y: self.position.y,
-                z: 0.0,
-            },
-            scale: Vector2 {
-                x: self.scale.x,
-                y: self.scale.y,
-            },
-            rotation_radians: cgmath::Rad(self.rotation_radians),
-        }
+        self.transform
     }
 
     pub fn pixel_transform(&self) -> Transform2d {
@@ -147,14 +136,14 @@ impl Layer {
         Transform2d {
             position: point3(bounds.center.x, bounds.center.x, 0.0),
             scale: self.bounds().extents,
-            rotation_radians: cgmath::Rad(self.rotation_radians),
+            rotation_radians: self.transform.rotation_radians,
         }
     }
 
     fn bounds(&self) -> Box2d {
         match &self.layer_type {
             LayerType::Image { dimensions, .. } => Box2d {
-                center: self.position,
+                center: point2(self.transform.position.x, self.transform.position.y),
                 extents: dimensions.cast::<f32>().unwrap().mul_element_wise(0.5),
             },
             LayerType::Group(_) => todo!(),
