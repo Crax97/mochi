@@ -1,6 +1,5 @@
-use cgmath::{point2, point3, vec2, ElementWise, Point2, Point3, Rad, Vector2};
+use cgmath::{point2, point3, vec2, ElementWise, Point2, Rad, Vector2};
 use framework::framework::TextureId;
-use framework::renderer::renderer::Renderer;
 use framework::scene::Transform2d;
 use framework::{Box2d, Framework, RgbaTexture2D, Texture, TextureConfiguration, TextureUsage};
 use uuid::Uuid;
@@ -54,7 +53,7 @@ pub enum LayerType {
         texture: TextureId,
         dimensions: Vector2<u32>,
     },
-    Group(Vec<Uuid>),
+    Group(Vec<LayerId>),
 }
 
 impl Layer {
