@@ -147,6 +147,8 @@ impl EguiUI {
                                     .button("Join current layer with previous layer")
                                     .clicked()
                                 {
+                                    todo!();
+                                    /*
                                     app_ctx.image_editor.mutate_document(|doc| {
                                         doc.join_with_layer_below(
                                             &doc.current_layer_index(),
@@ -155,6 +157,7 @@ impl EguiUI {
                                         );
                                         doc.delete_layer(doc.current_layer_index());
                                     });
+                                     */
                                 }
                             });
                         });
@@ -310,7 +313,10 @@ impl EguiUI {
             let original_settings = layer.settings();
 
             ui.push_id(&layer.id(), |ui| {
-                let color = if *idx == document.current_layer_index() {
+                let color = if document
+                    .current_layer_index()
+                    .map_or(false, |idx| idx == layer.id())
+                {
                     Color32::LIGHT_BLUE
                 } else {
                     Color32::WHITE

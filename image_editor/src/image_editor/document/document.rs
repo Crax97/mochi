@@ -94,7 +94,7 @@ impl Document {
             partial_selection: Selection::default(),
             wants_selection_update: false,
             stencil_texture,
-            tree: LayerTree::new(framework),
+            tree: LayerTree::new(framework, &config),
         };
 
         document.add_layer(
@@ -117,6 +117,10 @@ impl Document {
 
     pub fn current_layer(&self) -> &Layer {
         self.tree.current_layer().unwrap()
+    }
+
+    pub fn current_layer_index(&self) -> Option<&LayerId> {
+        self.tree.current_layer_id()
     }
 
     pub fn select_layer(&mut self, new_current_layer: LayerId) {
@@ -262,7 +266,6 @@ impl Document {
 
         let tex = match current_layer.layer_type {
             LayerType::Image { ref texture, .. } => texture.clone(),
-            LayerType::Group(_) => unreachable!(),
         };
         let new_texture = framework.allocate_texture2d(
             RgbaTexture2D::empty(dims),
@@ -346,6 +349,7 @@ impl Document {
             Some((&self.stencil_texture, DepthStencilUsage::Stencil)),
             framework,
         );
+        /*
         //5. Now add the new layer
         let mut new_layer = SelectionLayer {
             layer: Layer::new_image(
@@ -374,6 +378,7 @@ impl Document {
 
         self.selection.clear();
         self.update_selection_buffer(renderer, framework);
+         */
     }
 
     pub fn selection_layer_mut(&mut self) -> Option<&mut SelectionLayer> {
@@ -415,7 +420,9 @@ impl Document {
             },
             framework,
         );
-        self.tree.add_layer(new_layer)
+        let id = new_layer.id().clone();
+        self.tree.add_layer(new_layer, framework);
+        id
     }
 
     pub(crate) fn update_layers(&mut self, renderer: &mut Renderer, framework: &mut Framework) {
@@ -491,8 +498,7 @@ impl Document {
         shader_to_use: ShaderId,
         framework: &mut Framework,
     ) {
-        let _ = self.tree.render(framework, renderer);
-        todo!()
+        self.tree.render(framework, renderer);
     }
 
     pub fn clear_texture(
@@ -507,10 +513,6 @@ impl Document {
 
     pub fn document_size(&self) -> Vector2<u32> {
         self.document_size
-    }
-
-    pub fn current_layer_index(&self) -> LayerId {
-        todo!()
     }
 
     pub fn final_image_bytes(&self, framework: &Framework) -> DynamicImage {

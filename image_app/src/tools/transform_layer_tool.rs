@@ -82,9 +82,12 @@ impl Tool for TransformLayerTool {
             context
                 .image_editor
                 .mutate_document(|doc| match self.transform_item {
-                    TransformItem::Layer => doc.mutate_layer(&doc.current_layer_index(), |layer| {
-                        layer.translate(delta);
-                    }),
+                    TransformItem::Layer => {
+                        todo!();
+                        //doc.mutate_layer(&doc.current_layer_index(), |layer| {
+                        //    layer.translate(delta);
+                        //});
+                    }
                     TransformItem::Selection => {
                         if let Some(selection) = doc.selection_layer_mut() {
                             selection.layer.translate(delta);

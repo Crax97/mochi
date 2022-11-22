@@ -1,6 +1,16 @@
 use std::collections::HashMap;
 
-use framework::{framework::TextureId, renderer::renderer::Renderer, Framework};
+use framework::{
+    framework::{BufferId, TextureId},
+    renderer::renderer::Renderer,
+    BufferConfiguration, Framework, RgbaTexture2D, Texture, TextureConfiguration, TextureUsage,
+    Transform2d,
+};
+
+use crate::{
+    blend_settings::{BlendMode, BlendSettings, BlendSettingsUniform},
+    document::DocumentCreationInfo,
+};
 
 use super::{Layer, LayerId};
 
@@ -11,18 +21,19 @@ pub(crate) enum LayerItem {
 }
 
 pub(crate) trait LayerRenderingStrategy {
-    fn new(framework: &mut Framework) -> Self
+    fn new(framework: &mut Framework, document_info: &DocumentCreationInfo) -> Self
     where
         Self: Sized;
     fn on_new_layer(&mut self, layer: &Layer, framework: &mut Framework);
     fn on_layer_removed(&mut self, layer: &Layer);
-    fn update(&mut self, layers: &Vec<LayerItem>, framework: &mut Framework);
+    fn update(&mut self, layers: &HashMap<LayerId, Layer>, framework: &mut Framework);
     fn render(
         &mut self,
         layers: &Vec<LayerItem>,
+        layers: &HashMap<LayerId, Layer>,
         framework: &mut Framework,
         renderer: &mut Renderer,
-    ) -> TextureId;
+    );
 }
 
 pub(crate) struct LayerTree<T: LayerRenderingStrategy> {
@@ -33,12 +44,12 @@ pub(crate) struct LayerTree<T: LayerRenderingStrategy> {
 }
 
 impl<T: LayerRenderingStrategy> LayerTree<T> {
-    pub fn new(framework: &mut Framework) -> Self {
+    pub fn new(framework: &mut Framework, document_info: &DocumentCreationInfo) -> Self {
         Self {
             layers: HashMap::new(),
             items: Vec::new(),
             current_layer_id: None,
-            rendering_strategy: T::new(framework),
+            rendering_strategy: T::new(framework, document_info),
         }
     }
 
@@ -48,6 +59,9 @@ impl<T: LayerRenderingStrategy> LayerTree<T> {
         } else {
             None
         }
+    }
+    pub fn current_layer_id(&self) -> Option<&LayerId> {
+        self.current_layer_id.as_ref()
     }
     pub fn select_layer(&mut self, id: LayerId) {
         assert!(self.layers.contains_key(&id));
@@ -199,43 +213,161 @@ impl<T: LayerRenderingStrategy> LayerTree<T> {
     }
 
     pub fn update(&mut self, framework: &mut Framework) {
-        self.rendering_strategy.update(&self.items, framework);
+        self.rendering_strategy.update(&self.layers, framework);
     }
 
-    pub fn render(&mut self, framework: &mut Framework, renderer: &mut Renderer) -> TextureId {
+    pub fn render(&mut self, framework: &mut Framework, renderer: &mut Renderer) {
         self.rendering_strategy
-            .render(&self.items, framework, renderer)
+            .render(&self.items, &self.layers, framework, renderer)
     }
 }
 
-pub struct CanvasRenderingStrategy {}
+struct LayerCanvasData {
+    canvas: TextureId,
+    settings_buffer: BufferId,
+}
+
+pub struct CanvasRenderingStrategy {
+    layer_datas: HashMap<LayerId, LayerCanvasData>,
+    document_width: u32,
+    document_height: u32,
+}
 
 impl LayerRenderingStrategy for CanvasRenderingStrategy {
-    fn new(framework: &mut Framework) -> Self
+    fn new(framework: &mut Framework, document_info: &DocumentCreationInfo) -> Self
     where
         Self: Sized,
     {
-        Self {}
+        Self {
+            layer_datas: HashMap::new(),
+            document_height: document_info.height,
+            document_width: document_info.width,
+        }
     }
 
     fn on_new_layer(&mut self, layer: &Layer, framework: &mut Framework) {
-        todo!()
+        let canvas = framework.allocate_texture2d(
+            RgbaTexture2D::empty((self.document_width, self.document_height)),
+            TextureConfiguration {
+                label: Some(format!("Canvas texture for layer {:?}", layer.id()).as_str()),
+                usage: TextureUsage::RWRT,
+                mip_count: None,
+            },
+        );
+        let settings_buffer =
+            framework.allocate_typed_buffer(BufferConfiguration::<BlendSettingsUniform> {
+                initial_setup: framework::buffer::BufferInitialSetup::Count(1),
+                buffer_type: framework::BufferType::Uniform,
+                gpu_copy_dest: true,
+                gpu_copy_source: false,
+                cpu_copy_dest: false,
+                cpu_copy_source: false,
+            });
+        self.layer_datas.insert(
+            layer.id().clone(),
+            LayerCanvasData {
+                canvas,
+                settings_buffer,
+            },
+        );
     }
 
     fn on_layer_removed(&mut self, layer: &Layer) {
-        todo!()
+        self.layer_datas
+            .remove(&layer.id())
+            .expect("CanvasRenderingStrategy: layer not found");
     }
 
-    fn update(&mut self, layers: &Vec<LayerItem>, framework: &mut Framework) {
-        todo!()
+    fn update(&mut self, layers: &HashMap<LayerId, Layer>, framework: &mut Framework) {
+        Self::update_impl(layers, &self.layer_datas, framework)
     }
 
     fn render(
         &mut self,
-        layers: &Vec<LayerItem>,
+        items: &Vec<LayerItem>,
+        layers: &HashMap<LayerId, Layer>,
         framework: &mut Framework,
         renderer: &mut Renderer,
-    ) -> TextureId {
-        todo!()
+    ) {
+        Self::render_impl(
+            self.document_width,
+            self.document_height,
+            items,
+            layers,
+            &self.layer_datas,
+            framework,
+            renderer,
+        );
+    }
+}
+
+impl CanvasRenderingStrategy {
+    fn update_impl(
+        layers: &HashMap<LayerId, Layer>,
+        datas: &HashMap<LayerId, LayerCanvasData>,
+        framework: &mut Framework,
+    ) {
+        for layer in layers.values() {
+            if layer.needs_settings_update() {
+                let data = datas
+                    .get(&layer.id())
+                    .expect("CanvasRenderingStrategy: layer not found");
+                framework.buffer_write_sync(
+                    &data.settings_buffer,
+                    vec![BlendSettingsUniform::from(BlendSettings {
+                        blend_mode: layer.settings().blend_mode,
+                    })],
+                );
+            }
+        }
+    }
+
+    fn render_image(
+        texture: &TextureId,
+        target: &TextureId,
+        transform: &Transform2d,
+        framework: &mut Framework,
+        renderer: &mut Renderer,
+    ) {
+    }
+
+    fn render_layer(
+        layer: &Layer,
+        target: &TextureId,
+        framework: &mut Framework,
+        renderer: &mut Renderer,
+    ) {
+        match &layer.layer_type {
+            super::LayerType::Image { texture, .. } => {
+                Self::render_image(texture, target, &layer.transform(), framework, renderer)
+            }
+        }
+    }
+
+    fn render_impl(
+        width: u32,
+        height: u32,
+        items: &Vec<LayerItem>,
+        layers: &HashMap<LayerId, Layer>,
+        datas: &HashMap<LayerId, LayerCanvasData>,
+        framework: &mut Framework,
+        renderer: &mut Renderer,
+    ) {
+        for item in items {
+            match item {
+                LayerItem::SingleLayer(id) => {
+                    let layer = layers
+                        .get(id)
+                        .expect("CanvasRenderingStrategy: could not find layer for rendering");
+                    let data = datas
+                        .get(id)
+                        .expect("CanvasRenderingStrategy: could not find data for rendering");
+                    Self::render_layer(layer, &data.canvas, framework, renderer);
+                }
+                LayerItem::Group(items) => {
+                    Self::render_impl(width, height, items, layers, datas, framework, renderer);
+                }
+            }
+        }
     }
 }

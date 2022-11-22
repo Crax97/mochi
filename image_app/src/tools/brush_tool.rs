@@ -80,9 +80,12 @@ impl Tool for BrushTool {
                 .document()
                 .current_layer_index()
                 .clone();
-            context.image_editor.mutate_document(|doc| {
-                doc.mutate_layer(&current_layer, |layer_m| layer_m.mark_dirty())
-            });
+
+            todo!();
+
+            // context.image_editor.mutate_document(|doc| {
+            //     doc.mutate_layer(&current_layer, |layer_m| layer_m.mark_dirty())
+            // });
             let distance_from_last_point = self.last_mouse_position.distance(new_pointer_position);
             if distance_from_last_point < self.step {
                 return None;

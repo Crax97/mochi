@@ -1,3 +1,5 @@
+use std::cell::RefCell;
+
 use cgmath::{point2, point3, vec2, ElementWise, Point2, Rad, Vector2};
 use framework::framework::TextureId;
 use framework::scene::Transform2d;
@@ -34,8 +36,8 @@ pub struct Layer {
     settings: LayerSettings,
 
     pub layer_type: LayerType,
-    needs_settings_update: bool,
-    needs_bitmap_update: bool,
+    needs_settings_update: RefCell<bool>,
+    needs_bitmap_update: RefCell<bool>,
 }
 
 pub struct LayerCreationInfo {
@@ -53,7 +55,6 @@ pub enum LayerType {
         texture: TextureId,
         dimensions: Vector2<u32>,
     },
-    Group(Vec<LayerId>),
 }
 
 impl Layer {
@@ -87,8 +88,8 @@ impl Layer {
                 opacity: 1.0,
             },
 
-            needs_settings_update: true,
-            needs_bitmap_update: true,
+            needs_settings_update: RefCell::new(true),
+            needs_bitmap_update: RefCell::new(true),
             transform: Transform2d {
                 position: point3(creation_info.position.x, creation_info.position.y, 0.0),
                 scale: creation_info.scale,
@@ -97,20 +98,20 @@ impl Layer {
         }
     }
 
-    pub fn needs_settings_update(&mut self) -> bool {
-        let ret = self.needs_settings_update;
-        self.needs_settings_update = false;
+    pub fn needs_settings_update(&self) -> bool {
+        let ret = self.needs_settings_update.borrow().clone();
+        *self.needs_settings_update.borrow_mut() = false;
         ret
     }
 
-    pub fn needs_bitmap_update(&mut self) -> bool {
-        let ret = self.needs_bitmap_update;
-        self.needs_bitmap_update = false;
+    pub fn needs_bitmap_update(&self) -> bool {
+        let ret = self.needs_bitmap_update.borrow().clone();
+        *self.needs_bitmap_update.borrow_mut() = false;
         ret
     }
 
     pub fn mark_dirty(&mut self) {
-        self.needs_bitmap_update = true;
+        *self.needs_bitmap_update.borrow_mut() = true;
     }
 
     pub fn translate(&mut self, delta: Vector2<f32>) {
@@ -121,7 +122,6 @@ impl Layer {
     pub fn replace_texture(&mut self, new_texture: TextureId) {
         match &mut self.layer_type {
             LayerType::Image { texture, .. } => *texture = new_texture,
-            LayerType::Group(_) => unreachable!(),
         };
         self.mark_dirty();
     }
@@ -132,7 +132,7 @@ impl Layer {
 
     pub fn set_settings(&mut self, new_settings: LayerSettings) {
         self.settings = new_settings;
-        self.needs_settings_update = true;
+        *self.needs_settings_update.borrow_mut() = true;
         self.mark_dirty();
     }
 
@@ -155,7 +155,6 @@ impl Layer {
                 center: point2(self.transform.position.x, self.transform.position.y),
                 extents: dimensions.cast::<f32>().unwrap().mul_element_wise(0.5),
             },
-            LayerType::Group(_) => todo!(),
         }
     }
 
