@@ -25,6 +25,7 @@ pub struct ImageEditorGlobals {
     pub draw_masked_stencil_buffer_shader_id: ShaderId,
     pub draw_masked_inverted_stencil_buffer_shader_id: ShaderId,
     pub dotted_shader: ShaderId,
+    pub blended_shader: ShaderId,
 }
 
 static INSTANCE: OnceCell<ImageEditorGlobals> = OnceCell::new();
@@ -115,11 +116,22 @@ fn make_globals(framework: &mut Framework) -> ImageEditorGlobals {
         .with_bind_element(BindElement::StencilTexture); // 3: Stencil texture + sampler
     let dotted_shader = framework.create_shader(dotted_info);
 
+    let blended_shader = framework.shader_compiler.compile_into_shader_description(
+        "Layer draw shader",
+        include_str!("layers/layer_fragment.wgsl"),
+    );
+    let blended_shader_info = ShaderCreationInfo::using_default_vertex(blended_shader, framework)
+        .with_bind_element(BindElement::Texture) // Bottom layer
+        .with_bind_element(BindElement::Texture) // Top layer
+        .with_bind_element(BindElement::UniformBuffer); // Blend settings
+    let blended_shader = framework.create_shader(blended_shader_info);
+
     ImageEditorGlobals {
         draw_on_stencil_buffer_shader_id,
         draw_masked_stencil_buffer_shader_id,
         draw_masked_inverted_stencil_buffer_shader_id,
         dotted_shader,
+        blended_shader,
     }
 }
 

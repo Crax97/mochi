@@ -26,7 +26,6 @@ pub struct LayerConstructionInfo {
 
 pub struct ImageEditor {
     pan_camera: Camera2d,
-    layer_draw_shader: ShaderId,
 
     document: Document,
     output_texture: TextureId,
@@ -60,17 +59,6 @@ impl ImageEditor {
                 .with_output_format(TextureFormat::Bgra8UnormSrgb);
         let final_present_shader = framework.create_shader(final_present_shader_info);
 
-        let layer_draw_shader = framework.shader_compiler.compile_into_shader_description(
-            "Layer draw shader",
-            include_str!("layers/layer_fragment.wgsl"),
-        );
-        let fucking_shader_info =
-            ShaderCreationInfo::using_default_vertex(layer_draw_shader, framework)
-                .with_bind_element(BindElement::Texture) // Bottom layer
-                .with_bind_element(BindElement::Texture) // Top layer
-                .with_bind_element(BindElement::UniformBuffer); // Blend settings
-        let layer_draw_shader = framework.create_shader(fucking_shader_info);
-
         let output_texture = framework.allocate_texture2d(
             RgbaTexture2D::empty((pan_camera.width() as u32, pan_camera.height() as u32)),
             TextureConfiguration {
@@ -84,7 +72,6 @@ impl ImageEditor {
             pan_camera,
             document: test_document,
             final_present_shader,
-            layer_draw_shader,
             output_texture,
         }
     }
@@ -148,8 +135,7 @@ impl ImageEditor {
     }
 
     pub fn render_document(&mut self, renderer: &mut Renderer, framework: &mut Framework) {
-        self.document
-            .render(renderer, self.layer_draw_shader.clone(), framework);
+        self.document.render(renderer, framework);
     }
 
     pub fn render_canvas(

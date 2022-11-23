@@ -492,13 +492,9 @@ impl Document {
         }
          */
     }
-    pub(crate) fn render(
-        &mut self,
-        renderer: &mut Renderer,
-        shader_to_use: ShaderId,
-        framework: &mut Framework,
-    ) {
+    pub(crate) fn render(&mut self, renderer: &mut Renderer, framework: &mut Framework) {
         self.tree.render(framework, renderer);
+        // draw using crate::global_selection_data().blended_shader.clone()
     }
 
     pub fn clear_texture(
