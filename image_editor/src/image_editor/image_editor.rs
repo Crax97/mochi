@@ -13,10 +13,7 @@ use crate::document::DocumentCreationInfo;
 use crate::image_editor;
 use crate::layers::LayerId;
 
-use super::{
-    document::Document,
-    layers::{BitmapLayer, Layer},
-};
+use super::{document::Document, layers::Layer};
 
 #[derive(Default)]
 pub struct LayerConstructionInfo {

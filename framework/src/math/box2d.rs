@@ -39,6 +39,12 @@ impl Box2d {
             extents: Vector2 { x: 0.0, y: 0.0 },
         }
     }
+    pub fn one() -> Self {
+        Self {
+            center: Point2 { x: 0.0, y: 0.0 },
+            extents: Vector2 { x: 1.0, y: 1.0 },
+        }
+    }
 
     pub fn center(&self) -> Point2<f32> {
         self.center

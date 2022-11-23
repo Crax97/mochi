@@ -3,7 +3,12 @@ use std::collections::HashMap;
 use framework::{
     framework::{BufferId, TextureId},
     renderer::{
-        draw_command::{DrawCommand, DrawMode::Single, OptionalDrawData, PrimitiveType::Texture2D},
+        draw_command::{
+            BindableResource, DrawCommand,
+            DrawMode::{self, Single},
+            OptionalDrawData,
+            PrimitiveType::{self, Texture2D},
+        },
         renderer::Renderer,
     },
     BufferConfiguration, Camera2d, Framework, RgbaTexture2D, Texture, TextureConfiguration,
@@ -13,6 +18,7 @@ use framework::{
 use crate::{
     blend_settings::{BlendMode, BlendSettings, BlendSettingsUniform},
     document::DocumentCreationInfo,
+    image_editor::ab_render_target::ABRenderTarget,
 };
 
 use super::{Layer, LayerId};
@@ -36,6 +42,23 @@ pub(crate) trait LayerRenderingStrategy {
         layers: &HashMap<LayerId, Layer>,
         framework: &mut Framework,
         renderer: &mut Renderer,
+    );
+
+    fn composite_layer_on_target(
+        &self,
+        id: &LayerId,
+        back: &TextureId,
+        resulting_texture: &TextureId,
+        renderer: &mut Renderer,
+        framework: &mut Framework,
+    );
+    fn composite_texture_on_target(
+        &self,
+        texture: &TextureId,
+        back: &TextureId,
+        resulting_texture: &TextureId,
+        renderer: &mut Renderer,
+        framework: &mut Framework,
     );
 }
 
@@ -223,11 +246,64 @@ impl<T: LayerRenderingStrategy> LayerTree<T> {
         self.rendering_strategy
             .update_canvases(&self.items, &self.layers, framework, renderer)
     }
+
+    pub fn composite_final_image(
+        &mut self,
+        width: u32,
+        height: u32,
+        renderer: &mut Renderer,
+        framework: &mut Framework,
+    ) -> TextureId {
+        Self::composite_final_image_impl(
+            &self.items,
+            &self.rendering_strategy,
+            width,
+            height,
+            renderer,
+            framework,
+        )
+    }
+
+    fn composite_final_image_impl(
+        items: &Vec<LayerItem>,
+        strategy: &T,
+        width: u32,
+        height: u32,
+        renderer: &mut Renderer,
+        framework: &mut Framework,
+    ) -> TextureId {
+        let mut ab_render_target = ABRenderTarget::new(width, height, framework);
+        for item in items {
+            match item {
+                LayerItem::SingleLayer(id) => {
+                    ab_render_target.run_render_loop(|result, back| {
+                        strategy.composite_layer_on_target(id, back, &result, renderer, framework);
+                    });
+                }
+                LayerItem::Group(items) => {
+                    let rendered_group = Self::composite_final_image_impl(
+                        items, strategy, width, height, renderer, framework,
+                    );
+
+                    ab_render_target.run_render_loop(|result, back| {
+                        strategy.composite_texture_on_target(
+                            &rendered_group,
+                            back,
+                            &result,
+                            renderer,
+                            framework,
+                        );
+                    });
+                }
+            }
+        }
+        ab_render_target.result().clone()
+    }
 }
 
-struct LayerCanvasData {
-    canvas: TextureId,
-    settings_buffer: BufferId,
+pub(crate) struct LayerCanvasData {
+    pub(crate) canvas: TextureId,
+    pub(crate) settings_buffer: BufferId,
 }
 
 pub struct CanvasRenderingStrategy {
@@ -302,9 +378,65 @@ impl LayerRenderingStrategy for CanvasRenderingStrategy {
             renderer,
         );
     }
+    fn composite_layer_on_target(
+        &self,
+        id: &LayerId,
+        back: &TextureId,
+        canvas: &TextureId,
+        renderer: &mut Renderer,
+        framework: &mut Framework,
+    ) {
+        let source = self.layer_data(id);
+        renderer.begin(&Camera2d::default(), None, framework);
+        renderer.draw(DrawCommand {
+            primitives: PrimitiveType::Texture2D {
+                texture_id: source.canvas.clone(),
+                instances: vec![Transform2d::default()],
+                flip_uv_y: false,
+                multiply_color: wgpu::Color::WHITE,
+            },
+            draw_mode: DrawMode::Single,
+            additional_data: OptionalDrawData {
+                additional_vertex_buffers: vec![],
+                additional_bindable_resource: vec![
+                    BindableResource::Texture(back.clone()),
+                    BindableResource::UniformBuffer(source.settings_buffer.clone()),
+                ],
+                shader: Some(crate::global_selection_data().blended_shader.clone()),
+            },
+        });
+        renderer.end(&canvas, None, framework);
+    }
+    fn composite_texture_on_target(
+        &self,
+        source: &TextureId,
+        back: &TextureId,
+        canvas: &TextureId,
+        renderer: &mut Renderer,
+        framework: &mut Framework,
+    ) {
+        renderer.begin(&Camera2d::default(), None, framework);
+        renderer.draw(DrawCommand {
+            primitives: PrimitiveType::Texture2D {
+                texture_id: source.clone(),
+                instances: vec![Transform2d::default()],
+                flip_uv_y: false,
+                multiply_color: wgpu::Color::WHITE,
+            },
+            draw_mode: DrawMode::Single,
+            additional_data: OptionalDrawData::default(),
+        });
+        renderer.end(&canvas, None, framework);
+    }
 }
 
 impl CanvasRenderingStrategy {
+    pub(crate) fn layer_data(&self, id: &LayerId) -> &LayerCanvasData {
+        self.layer_datas
+            .get(id)
+            .expect("CanvasRenderingStrategy::layer_data(): no layer with id")
+    }
+
     fn update_impl(
         layers: &HashMap<LayerId, Layer>,
         datas: &HashMap<LayerId, LayerCanvasData>,

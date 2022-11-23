@@ -1,5 +1,4 @@
-use crate::image_editor::ab_render_target::ABRenderTarget;
-use crate::layers::{CanvasRenderingStrategy, Layer, LayerId, LayerRenderingStrategy};
+use crate::layers::{CanvasRenderingStrategy, Layer, LayerId};
 use crate::{
     blend_settings::{BlendSettings, BlendSettingsUniform},
     global_selection_data,
@@ -16,8 +15,7 @@ use framework::{
         renderer::{DepthStencilUsage, Renderer},
     },
     scene::Camera2d,
-    Box2d, BufferConfiguration, DepthStencilTexture2D, RgbaTexture2D, Texture,
-    TextureConfiguration, TextureUsage,
+    Box2d, DepthStencilTexture2D, RgbaTexture2D, Texture, TextureConfiguration, TextureUsage,
 };
 use framework::{
     framework::{BufferId, DepthStencilTextureId},
@@ -25,14 +23,6 @@ use framework::{
     Framework,
 };
 use image::{DynamicImage, ImageBuffer};
-
-use framework::framework::ShaderId;
-use wgpu::Color;
-
-struct LayerDrawInfo {
-    bitmap_canvas: BitmapLayer,
-    layer_settings_buffer: BufferId,
-}
 
 pub struct SelectionLayer {
     pub layer: Layer,
@@ -48,12 +38,12 @@ pub struct Document {
 
     #[allow(dead_code)]
     buffer_layer: BitmapLayer, // Imma keep it here just in case, too many times i removed it just to need it later again
-    ab_render_target: ABRenderTarget,
 
     selection: Selection,
     partial_selection: Selection,
     wants_selection_update: bool,
     stencil_texture: DepthStencilTextureId,
+    render_result: TextureId,
 }
 
 pub struct DocumentCreationInfo {
@@ -89,12 +79,19 @@ impl Document {
             buffer_layer,
             selection_layer: None,
 
-            ab_render_target: ABRenderTarget::new(config.width, config.height, framework),
             selection: Selection::default(),
             partial_selection: Selection::default(),
             wants_selection_update: false,
             stencil_texture,
             tree: LayerTree::new(framework, &config),
+            render_result: framework.allocate_texture2d(
+                RgbaTexture2D::empty((1, 1)),
+                TextureConfiguration {
+                    label: None,
+                    usage: TextureUsage::RWRT,
+                    mip_count: None,
+                },
+            ),
         };
 
         document.add_layer(
@@ -429,72 +426,14 @@ impl Document {
         self.tree.update(framework)
     }
 
-    fn update_layer_bitmap(
-        &mut self,
-        renderer: &mut Renderer,
-        index: &LayerId,
-        framework: &mut Framework,
-        clear: bool,
-    ) {
-        /*
-        let layer = self.layers.get_mut(index).unwrap();
-        if layer.needs_bitmap_update()
-            || self
-                .selection_layer
-                .as_ref()
-                .map_or(false, |sel| &sel.original_layer == index)
-        {
-            let layer_info = self.layer_canvases.get(layer.id()).unwrap();
-            let canvas = &layer_info.bitmap_canvas;
-            if clear {
-                Self::clear_texture(
-                    renderer,
-                    canvas.texture(),
-                    wgpu::Color::TRANSPARENT,
-                    framework,
-                );
-            }
-
-            let draw_bitmap_layer =
-                |renderer: &mut Renderer, framework: &mut Framework, texture_id| {
-                    renderer.begin(&Self::make_camera_for_layer(layer), None, framework);
-                    renderer.draw(DrawCommand {
-                        primitives: PrimitiveType::Texture2D {
-                            texture_id,
-                            instances: vec![layer.pixel_transform()],
-                            flip_uv_y: false,
-                            multiply_color: Color::WHITE,
-                        },
-                        draw_mode: DrawMode::Single,
-                        additional_data: OptionalDrawData::default(),
-                    });
-                    renderer.end(canvas.texture(), None, framework);
-                };
-            renderer.begin(&canvas.camera(), None, framework);
-            match &layer.layer_type {
-                LayerType::Image { texture, .. } => {
-                    draw_bitmap_layer(renderer, framework, texture.clone());
-                }
-                LayerType::Group(_) => todo!(),
-            }
-
-            if let Some(selection_layer) = self.selection_layer.as_ref() {
-                if &selection_layer.original_layer == index {
-                    match &selection_layer.layer.layer_type {
-                        LayerType::Image { texture, .. } => {
-                            draw_bitmap_layer(renderer, framework, texture.clone())
-                        }
-                        LayerType::Group(_) => unreachable!(),
-                    }
-                }
-            }
-            renderer.end(canvas.texture(), None, framework);
-        }
-         */
-    }
     pub(crate) fn render(&mut self, renderer: &mut Renderer, framework: &mut Framework) {
         self.tree.render(framework, renderer);
-        // draw using crate::global_selection_data().blended_shader.clone()
+        self.render_result = self.tree.composite_final_image(
+            self.document_size.x,
+            self.document_size.y,
+            renderer,
+            framework,
+        );
     }
 
     pub fn clear_texture(
@@ -512,6 +451,8 @@ impl Document {
     }
 
     pub fn final_image_bytes(&self, framework: &Framework) -> DynamicImage {
+        todo!()
+        /*
         let texture = framework.texture2d_read_data(self.ab_render_target.result());
         let width = texture.width();
         let height = texture.height();
@@ -521,6 +462,7 @@ impl Document {
         let bytes = bytemuck::cast_slice(bytes).to_owned();
         let raw_image = ImageBuffer::from_raw(width, height, bytes).unwrap();
         DynamicImage::ImageRgba8(raw_image)
+         */
     }
 
     pub fn for_each_layer<F: FnMut(&Layer, &LayerId)>(&self, mut f: F) {
@@ -536,9 +478,6 @@ impl Document {
         )
     }
 
-    pub fn render_result(&self) -> &TextureId {
-        self.ab_render_target.result()
-    }
     pub fn render_camera(&self) -> Camera2d {
         let half_w = self.document_size.x as f32 * 0.5;
         let half_h = self.document_size.y as f32 * 0.5;
@@ -548,6 +487,10 @@ impl Document {
     fn make_camera_for_layer(layer: &Layer) -> Camera2d {
         let size = layer.bounds().extents * 0.5;
         Camera2d::new(-0.01, 1000.0, [-size.x, size.x, size.y, -size.y])
+    }
+
+    pub fn render_result(&self) -> &TextureId {
+        &self.render_result
     }
 }
 
