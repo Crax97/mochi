@@ -16,7 +16,7 @@ impl Default for Camera2d {
     fn default() -> Self {
         Self {
             transform: Default::default(),
-            near: 0.01,
+            near: -0.01,
             far: 1000.0,
             left_right_top_bottom: [-1.0, 1.0, 1.0, -1.0],
         }

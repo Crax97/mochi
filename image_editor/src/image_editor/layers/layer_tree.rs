@@ -507,7 +507,7 @@ impl CanvasRenderingStrategy {
                 texture,
                 layer,
                 target,
-                &layer.transform(),
+                &layer.pixel_transform(),
                 framework,
                 renderer,
             ),
