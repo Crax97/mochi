@@ -55,6 +55,7 @@ pub enum LayerType {
         texture: TextureId,
         dimensions: Vector2<u32>,
     },
+    Group, // This is just a marker type
 }
 
 impl Layer {
@@ -122,6 +123,7 @@ impl Layer {
     pub fn replace_texture(&mut self, new_texture: TextureId) {
         match &mut self.layer_type {
             LayerType::Image { texture, .. } => *texture = new_texture,
+            LayerType::Group => unreachable!(),
         };
         self.mark_dirty();
     }
@@ -155,6 +157,7 @@ impl Layer {
                 center: point2(self.transform.position.x, self.transform.position.y),
                 extents: dimensions.cast::<f32>().unwrap().mul_element_wise(0.5),
             },
+            LayerType::Group => unreachable!(),
         }
     }
 

@@ -26,7 +26,7 @@ use super::{Layer, LayerId};
 #[derive(Clone, PartialEq, PartialOrd, Eq, Hash)]
 pub(crate) enum LayerItem {
     SingleLayer(LayerId),
-    Group(Vec<LayerItem>),
+    Group(Vec<LayerItem>, LayerId),
 }
 
 pub(crate) trait LayerRenderingStrategy {
@@ -47,14 +47,6 @@ pub(crate) trait LayerRenderingStrategy {
     fn composite_layer_on_target(
         &self,
         id: &LayerId,
-        back: &TextureId,
-        resulting_texture: &TextureId,
-        renderer: &mut Renderer,
-        framework: &mut Framework,
-    );
-    fn composite_texture_on_target(
-        &self,
-        texture: &TextureId,
         back: &TextureId,
         resulting_texture: &TextureId,
         renderer: &mut Renderer,
@@ -109,7 +101,7 @@ impl<T: LayerRenderingStrategy> LayerTree<T> {
                         break;
                     }
                 }
-                LayerItem::Group(items) => {
+                LayerItem::Group(items, ..) => {
                     Self::add_layer_impl(new_layer_id, current_layer_id, items, framework)
                 }
             }
@@ -146,8 +138,8 @@ impl<T: LayerRenderingStrategy> LayerTree<T> {
                         break;
                     }
                 }
-                LayerItem::Group(items) => {
-                    return Self::find_below_impl(target_layer_id, items);
+                LayerItem::Group(.., id) => {
+                    return Some(id.clone());
                 }
             }
         }
@@ -180,8 +172,8 @@ impl<T: LayerRenderingStrategy> LayerTree<T> {
                         prev = Some(id.clone());
                     }
                 }
-                LayerItem::Group(items) => {
-                    return Self::find_above_impl(target_layer_id, items);
+                LayerItem::Group(.., id) => {
+                    return Some(id.clone());
                 }
             }
         }
@@ -200,7 +192,9 @@ impl<T: LayerRenderingStrategy> LayerTree<T> {
                         return;
                     }
                 }
-                LayerItem::Group(items) => Self::remove_layer_impl(layer_to_remove_id, items),
+                LayerItem::Group(children, id) => {
+                    todo!()
+                }
             }
         }
     }
@@ -228,7 +222,8 @@ impl<T: LayerRenderingStrategy> LayerTree<T> {
                     let layer = existing_layers.get(id).unwrap();
                     f(layer);
                 }
-                LayerItem::Group(ref items) => {
+                LayerItem::Group(ref items, id) => {
+                    f(existing_layers.get(id).unwrap());
                     Self::for_each_layer_impl(f, items, existing_layers);
                 }
             }
@@ -280,14 +275,14 @@ impl<T: LayerRenderingStrategy> LayerTree<T> {
                         strategy.composite_layer_on_target(id, back, &result, renderer, framework);
                     });
                 }
-                LayerItem::Group(items) => {
+                LayerItem::Group(items, group_layer_id) => {
                     let rendered_group = Self::composite_final_image_impl(
                         items, strategy, width, height, renderer, framework,
                     );
 
                     ab_render_target.run_render_loop(|result, back| {
-                        strategy.composite_texture_on_target(
-                            &rendered_group,
+                        strategy.composite_layer_on_target(
+                            group_layer_id,
                             back,
                             &result,
                             renderer,
@@ -407,27 +402,6 @@ impl LayerRenderingStrategy for CanvasRenderingStrategy {
         });
         renderer.end(&canvas, None, framework);
     }
-    fn composite_texture_on_target(
-        &self,
-        source: &TextureId,
-        back: &TextureId,
-        canvas: &TextureId,
-        renderer: &mut Renderer,
-        framework: &mut Framework,
-    ) {
-        renderer.begin(&Camera2d::default(), None, framework);
-        renderer.draw(DrawCommand {
-            primitives: PrimitiveType::Texture2D {
-                texture_id: source.clone(),
-                instances: vec![Transform2d::default()],
-                flip_uv_y: false,
-                multiply_color: wgpu::Color::WHITE,
-            },
-            draw_mode: DrawMode::Single,
-            additional_data: OptionalDrawData::default(),
-        });
-        renderer.end(&canvas, None, framework);
-    }
 }
 
 impl CanvasRenderingStrategy {
@@ -455,15 +429,6 @@ impl CanvasRenderingStrategy {
                 );
             }
         }
-    }
-
-    fn clear_texture(texture: &TextureId, renderer: &mut Renderer, framework: &mut Framework) {
-        renderer.begin(
-            &Camera2d::default(),
-            Some(wgpu::Color::TRANSPARENT),
-            framework,
-        );
-        renderer.end(texture, None, framework);
     }
 
     fn make_camera_for_layer(layer: &Layer) -> Camera2d {
@@ -511,6 +476,9 @@ impl CanvasRenderingStrategy {
                 framework,
                 renderer,
             ),
+            super::LayerType::Group => {
+                unreachable!() // LayerType Group aren't supposed to be rendered directly
+            }
         }
     }
 
@@ -534,7 +502,7 @@ impl CanvasRenderingStrategy {
                         .expect("CanvasRenderingStrategy: could not find data for rendering");
                     Self::render_layer(layer, &data.canvas, framework, renderer);
                 }
-                LayerItem::Group(items) => {
+                LayerItem::Group(items, ..) => {
                     Self::render_impl(width, height, items, layers, datas, framework, renderer);
                 }
             }

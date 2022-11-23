@@ -263,6 +263,7 @@ impl Document {
 
         let tex = match current_layer.layer_type {
             LayerType::Image { ref texture, .. } => texture.clone(),
+            LayerType::Group => unreachable!(),
         };
         let new_texture = framework.allocate_texture2d(
             RgbaTexture2D::empty(dims),
