@@ -2,9 +2,12 @@ use std::collections::HashMap;
 
 use framework::{
     framework::{BufferId, TextureId},
-    renderer::renderer::Renderer,
-    BufferConfiguration, Framework, RgbaTexture2D, Texture, TextureConfiguration, TextureUsage,
-    Transform2d,
+    renderer::{
+        draw_command::{DrawCommand, DrawMode::Single, OptionalDrawData, PrimitiveType::Texture2D},
+        renderer::Renderer,
+    },
+    BufferConfiguration, Camera2d, Framework, RgbaTexture2D, Texture, TextureConfiguration,
+    TextureUsage, Transform2d,
 };
 
 use crate::{
@@ -27,7 +30,7 @@ pub(crate) trait LayerRenderingStrategy {
     fn on_new_layer(&mut self, layer: &Layer, framework: &mut Framework);
     fn on_layer_removed(&mut self, layer: &Layer);
     fn update(&mut self, layers: &HashMap<LayerId, Layer>, framework: &mut Framework);
-    fn render(
+    fn update_canvases(
         &mut self,
         layers: &Vec<LayerItem>,
         layers: &HashMap<LayerId, Layer>,
@@ -218,7 +221,7 @@ impl<T: LayerRenderingStrategy> LayerTree<T> {
 
     pub fn render(&mut self, framework: &mut Framework, renderer: &mut Renderer) {
         self.rendering_strategy
-            .render(&self.items, &self.layers, framework, renderer)
+            .update_canvases(&self.items, &self.layers, framework, renderer)
     }
 }
 
@@ -282,7 +285,7 @@ impl LayerRenderingStrategy for CanvasRenderingStrategy {
         Self::update_impl(layers, &self.layer_datas, framework)
     }
 
-    fn render(
+    fn update_canvases(
         &mut self,
         items: &Vec<LayerItem>,
         layers: &HashMap<LayerId, Layer>,
@@ -322,15 +325,45 @@ impl CanvasRenderingStrategy {
         }
     }
 
+    fn clear_texture(texture: &TextureId, renderer: &mut Renderer, framework: &mut Framework) {
+        renderer.begin(
+            &Camera2d::default(),
+            Some(wgpu::Color::TRANSPARENT),
+            framework,
+        );
+        renderer.end(texture, None, framework);
+    }
+
+    fn make_camera_for_layer(layer: &Layer) -> Camera2d {
+        let size = layer.bounds().extents * 0.5;
+        Camera2d::new(-0.01, 1000.0, [-size.x, size.x, size.y, -size.y])
+    }
+
     fn render_image(
-        texture: &TextureId,
+        image_texture: &TextureId,
+        owning_layer: &Layer,
         target: &TextureId,
         transform: &Transform2d,
         framework: &mut Framework,
         renderer: &mut Renderer,
     ) {
+        renderer.begin(
+            &Self::make_camera_for_layer(owning_layer),
+            Some(wgpu::Color::TRANSPARENT),
+            framework,
+        );
+        renderer.draw(DrawCommand {
+            primitives: Texture2D {
+                texture_id: image_texture.clone(),
+                instances: vec![transform.clone()],
+                flip_uv_y: false,
+                multiply_color: wgpu::Color::WHITE,
+            },
+            draw_mode: Single,
+            additional_data: OptionalDrawData::default(),
+        });
+        renderer.end(target, None, framework);
     }
-
     fn render_layer(
         layer: &Layer,
         target: &TextureId,
@@ -338,9 +371,14 @@ impl CanvasRenderingStrategy {
         renderer: &mut Renderer,
     ) {
         match &layer.layer_type {
-            super::LayerType::Image { texture, .. } => {
-                Self::render_image(texture, target, &layer.transform(), framework, renderer)
-            }
+            super::LayerType::Image { texture, .. } => Self::render_image(
+                texture,
+                layer,
+                target,
+                &layer.transform(),
+                framework,
+                renderer,
+            ),
         }
     }
 
