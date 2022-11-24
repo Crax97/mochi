@@ -117,11 +117,16 @@ impl<T: LayerRenderingStrategy> LayerTree<T> {
             self.items.push(LayerItem::SingleLayer(layer.id().clone()));
         }
         self.rendering_strategy.on_new_layer(&layer, framework);
+        self.current_layer_id = Some(layer.id().clone());
         self.layers.insert(layer.id().clone(), layer);
     }
 
     pub fn get_layer(&self, layer_index: &LayerId) -> &Layer {
         self.layers.get(layer_index).unwrap()
+    }
+
+    pub fn get_layer_mut(&mut self, layer_index: &LayerId) -> &mut Layer {
+        self.layers.get_mut(layer_index).unwrap()
     }
 
     fn find_below_impl(
@@ -383,9 +388,10 @@ impl LayerRenderingStrategy for CanvasRenderingStrategy {
     ) {
         let source = self.layer_data(id);
         renderer.begin(&Camera2d::default(), None, framework);
+        renderer.set_draw_debug_name(format!("Compositing layer {:?}", id).as_str());
         renderer.draw(DrawCommand {
             primitives: PrimitiveType::Texture2D {
-                texture_id: source.canvas.clone(),
+                texture_id: back.clone(),
                 instances: vec![Transform2d::default()],
                 flip_uv_y: false,
                 multiply_color: wgpu::Color::WHITE,
@@ -394,7 +400,7 @@ impl LayerRenderingStrategy for CanvasRenderingStrategy {
             additional_data: OptionalDrawData {
                 additional_vertex_buffers: vec![],
                 additional_bindable_resource: vec![
-                    BindableResource::Texture(back.clone()),
+                    BindableResource::Texture(source.canvas.clone()),
                     BindableResource::UniformBuffer(source.settings_buffer.clone()),
                 ],
                 shader: Some(crate::global_selection_data().blended_shader.clone()),
@@ -432,7 +438,7 @@ impl CanvasRenderingStrategy {
     }
 
     fn make_camera_for_layer(layer: &Layer) -> Camera2d {
-        let size = layer.bounds().extents * 0.5;
+        let size = layer.bounds().extents;
         Camera2d::new(-0.01, 1000.0, [-size.x, size.x, size.y, -size.y])
     }
 
@@ -449,11 +455,18 @@ impl CanvasRenderingStrategy {
             Some(wgpu::Color::TRANSPARENT),
             framework,
         );
+        renderer.set_draw_debug_name(
+            format!(
+                "Updating canvas for image layer '{:?}'",
+                owning_layer.settings().name
+            )
+            .as_str(),
+        );
         renderer.draw(DrawCommand {
             primitives: Texture2D {
                 texture_id: image_texture.clone(),
                 instances: vec![transform.clone()],
-                flip_uv_y: false,
+                flip_uv_y: true,
                 multiply_color: wgpu::Color::WHITE,
             },
             draw_mode: Single,

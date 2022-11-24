@@ -129,7 +129,8 @@ impl Document {
     }
 
     pub fn mutate_layer<F: FnMut(&mut Layer)>(&mut self, layer_index: &LayerId, mut mutate_fn: F) {
-        todo!();
+        let layer = self.tree.get_layer_mut(layer_index);
+        mutate_fn(layer);
     }
 
     pub fn mutate_selection<F: FnMut(&mut Selection)>(&mut self, mut callback: F) {
@@ -485,9 +486,13 @@ impl Document {
         Camera2d::new(-0.01, 1000.0, [-half_w, half_w, half_h, -half_h])
     }
 
-    fn make_camera_for_layer(layer: &Layer) -> Camera2d {
-        let size = layer.bounds().extents * 0.5;
-        Camera2d::new(-0.01, 1000.0, [-size.x, size.x, size.y, -size.y])
+    pub fn make_camera_for_layer(layer: &Layer) -> Camera2d {
+        let extents = layer.bounds().extents;
+        Camera2d::new(
+            -0.01,
+            1000.0,
+            [-extents.x, extents.x, extents.y, -extents.y],
+        )
     }
 
     pub fn render_result(&self) -> &TextureId {

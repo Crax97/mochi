@@ -58,6 +58,13 @@ pub enum LayerType {
     Group, // This is just a marker type
 }
 
+#[derive(Clone, Copy, Debug)]
+pub enum MutationResult {
+    Rerender,
+    Update,
+    None,
+}
+
 impl Layer {
     pub fn new_image(
         image: RgbaTexture2D,
@@ -109,6 +116,14 @@ impl Layer {
         let ret = self.needs_bitmap_update.borrow().clone();
         *self.needs_bitmap_update.borrow_mut() = false;
         ret
+    }
+
+    pub fn mutate<F: FnOnce(&mut Layer) -> MutationResult>(&mut self, f: F) {
+        match f(self) {
+            MutationResult::Rerender => *self.needs_bitmap_update.borrow_mut() = true,
+            MutationResult::Update => *self.needs_settings_update.borrow_mut() = true,
+            MutationResult::None => {}
+        }
     }
 
     pub fn mark_dirty(&mut self) {
