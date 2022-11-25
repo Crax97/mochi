@@ -3,7 +3,7 @@ use framework::framework::{ShaderId, TextureId};
 use framework::renderer::draw_command::{DrawCommand, DrawMode, OptionalDrawData, PrimitiveType};
 use framework::renderer::renderer::Renderer;
 use framework::scene::Camera2d;
-use framework::shader::{BindElement, ShaderCreationInfo};
+use framework::shader::ShaderCreationInfo;
 use framework::{
     Framework, RgbaTexture2D, Texture, TextureConfiguration, TextureUsage, Transform2d,
 };

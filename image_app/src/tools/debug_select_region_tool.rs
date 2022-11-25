@@ -1,9 +1,6 @@
-use crate::tools::{EditorContext, PointerEvent};
-use cgmath::{ElementWise, Point2};
-use framework::{Texel, Texture};
-use image::{DynamicImage, ImageBuffer, RgbaImage};
-
 use super::{tool::Tool, EditorCommand};
+use crate::tools::{EditorContext, PointerEvent};
+use cgmath::Point2;
 
 pub struct DebugSelectRegionTool {
     is_active: bool,
@@ -34,8 +31,8 @@ impl Tool for DebugSelectRegionTool {
 
     fn on_pointer_release(
         &mut self,
-        pointer_event: PointerEvent,
-        context: &mut EditorContext,
+        _pointer_event: PointerEvent,
+        _context: &mut EditorContext,
     ) -> Option<Box<dyn EditorCommand>> {
         None
     }

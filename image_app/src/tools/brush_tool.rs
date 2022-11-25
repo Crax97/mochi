@@ -75,13 +75,6 @@ impl Tool for BrushTool {
             pointer_motion.new_pointer_location_normalized,
         );
         if let Some(new_pointer_position) = new_pointer_position {
-            let current_layer = context
-                .image_editor
-                .document()
-                .current_layer_index()
-                .unwrap()
-                .clone();
-
             let distance_from_last_point = self.last_mouse_position.distance(new_pointer_position);
             if distance_from_last_point < self.step {
                 return None;

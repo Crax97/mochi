@@ -29,7 +29,7 @@ pub trait DynamicToolUi {
     fn button(&mut self, label: &str) -> bool;
 }
 
-pub mod DynamicToolUiHelpers {
+pub mod dynamic_tool_ui_helpers {
     use strum::IntoEnumIterator;
 
     use super::DynamicToolUi;
@@ -74,7 +74,7 @@ pub trait Tool {
         None
     }
 
-    fn ui(&mut self, ui: &mut dyn DynamicToolUi) {}
+    fn ui(&mut self, _ui: &mut dyn DynamicToolUi) {}
 
     fn on_pointer_release(
         &mut self,

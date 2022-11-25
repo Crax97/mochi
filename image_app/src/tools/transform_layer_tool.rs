@@ -1,8 +1,8 @@
 use crate::tools::EditorContext;
-use cgmath::{num_traits::clamp, point2, InnerSpace, Point2};
+use cgmath::{point2, InnerSpace, Point2};
 use strum_macros::{Display, EnumIter, EnumString};
 
-use super::{tool::Tool, DynamicToolUi, DynamicToolUiHelpers, EditorCommand, PointerEvent};
+use super::{dynamic_tool_ui_helpers, tool::Tool, DynamicToolUi, EditorCommand, PointerEvent};
 
 #[derive(Clone, Copy, Debug, EnumIter, EnumString, Display, PartialEq, Eq)]
 enum TransformItem {
@@ -122,7 +122,7 @@ impl Tool for TransformLayerTool {
 
     fn ui(&mut self, ui: &mut dyn DynamicToolUi) {
         self.transform_item =
-            DynamicToolUiHelpers::dropdown(ui, "Transform item", self.transform_item);
+            dynamic_tool_ui_helpers::dropdown(ui, "Transform item", self.transform_item);
         if self.is_manipulating_selection {
             if ui.button("Apply selection") {
                 self.extract_selection = true;

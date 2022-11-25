@@ -4,7 +4,7 @@ pub mod stamping_engine;
 use cgmath::{InnerSpace, Point2};
 
 use framework::{renderer::renderer::Renderer, Framework};
-use image_editor::{layers::Layer, ImageEditor};
+use image_editor::ImageEditor;
 
 use super::{EditorCommand, EditorContext};
 

@@ -1,13 +1,17 @@
 use crate::layers::{CanvasRenderingStrategy, Layer, LayerId};
 use crate::{
-    blend_settings::{BlendSettings, BlendSettingsUniform},
     global_selection_data,
-    layers::{BitmapLayer, BitmapLayerConfiguration, LayerCreationInfo, LayerTree, LayerType},
+    layers::{LayerCreationInfo, LayerTree, LayerType},
     selection::{Selection, SelectionAddition, SelectionShape},
     LayerConstructionInfo,
 };
 use cgmath::{point2, vec2, Vector2};
 use framework::RgbaU8;
+use framework::{
+    framework::DepthStencilTextureId,
+    renderer::draw_command::{DrawCommand, DrawMode, OptionalDrawData, PrimitiveType},
+    Framework,
+};
 use framework::{
     framework::TextureId,
     renderer::{
@@ -17,11 +21,6 @@ use framework::{
     scene::Camera2d,
     Box2d, DepthStencilTexture2D, RgbaTexture2D, Texture, TextureConfiguration, TextureUsage,
 };
-use framework::{
-    framework::{BufferId, DepthStencilTextureId},
-    renderer::draw_command::{DrawCommand, DrawMode, OptionalDrawData, PrimitiveType},
-    Framework,
-};
 use image::{DynamicImage, ImageBuffer};
 
 pub struct SelectionLayer {
@@ -30,15 +29,12 @@ pub struct SelectionLayer {
 }
 
 pub struct Document {
-    layers_created: u16,
-
     document_size: Vector2<u32>,
     tree: LayerTree<CanvasRenderingStrategy>,
     selection_layer: Option<SelectionLayer>,
 
     #[allow(dead_code)]
-    buffer_layer: BitmapLayer, // Imma keep it here just in case, too many times i removed it just to need it later again
-
+    // buffer_layer: BitmapLayer, // Imma keep it here just in case, too many times i removed it just to need it later again
     selection: Selection,
     partial_selection: Selection,
     wants_selection_update: bool,
@@ -54,16 +50,6 @@ pub struct DocumentCreationInfo {
 
 impl Document {
     pub fn new(config: DocumentCreationInfo, framework: &mut Framework) -> Self {
-        let buffer_layer = BitmapLayer::new(
-            "Draw Buffer Layer",
-            [0, 0, 0, 0],
-            BitmapLayerConfiguration {
-                width: config.width,
-                height: config.height,
-            },
-            framework,
-        );
-
         let first_layer_index = LayerId::new();
         let stencil_texture = framework.allocate_depth_stencil_texture(
             DepthStencilTexture2D::empty((config.width, config.height)),
@@ -74,9 +60,7 @@ impl Document {
             },
         );
         let mut document = Self {
-            layers_created: 0,
             document_size: vec2(config.width, config.height),
-            buffer_layer,
             selection_layer: None,
 
             selection: Selection::default(),
@@ -128,16 +112,16 @@ impl Document {
         self.tree.get_layer(layer_index)
     }
 
-    pub fn mutate_layer<F: FnOnce(&mut Layer)>(&mut self, layer_index: &LayerId, mut mutate_fn: F) {
+    pub fn mutate_layer<F: FnOnce(&mut Layer)>(&mut self, layer_index: &LayerId, mutate_fn: F) {
         let layer = self.tree.get_layer_mut(layer_index);
         mutate_fn(layer);
     }
 
-    pub fn mutate_selection<F: FnOnce(&mut Selection)>(&mut self, mut callback: F) {
+    pub fn mutate_selection<F: FnOnce(&mut Selection)>(&mut self, callback: F) {
         callback(&mut self.selection);
         self.wants_selection_update = true;
     }
-    pub fn mutate_partial_selection<F: FnOnce(&mut Selection)>(&mut self, mut callback: F) {
+    pub fn mutate_partial_selection<F: FnOnce(&mut Selection)>(&mut self, callback: F) {
         callback(&mut self.partial_selection);
         self.wants_selection_update = true;
     }
@@ -155,56 +139,56 @@ impl Document {
         framework: &mut Framework,
     ) {
         for shape in shapes.into_iter() {
-            let additive = shape.mode == SelectionAddition::Add;
-            renderer.begin(&self.buffer_layer.camera(), None, framework);
-            renderer.set_draw_debug_name(
-                format!(
-                    "Selection tool: draw shape {:?} [{:?}] on stencil buffer",
-                    shape.shape,
-                    if additive { "a" } else { "s" }
-                )
-                .as_str(),
-            );
-            renderer.set_stencil_clear(None);
-            renderer.set_stencil_reference(if additive { 255 } else { 0 });
-            match shape.shape {
-                crate::selection::Shape::Rectangle(rect) => {
-                    renderer.draw(DrawCommand {
-                        primitives: PrimitiveType::Rect {
-                            rects: vec![rect.clone()],
-                            multiply_color: wgpu::Color::GREEN,
-                        },
-                        draw_mode: DrawMode::Single,
-                        additional_data: OptionalDrawData::just_shader(Some(
-                            global_selection_data()
-                                .draw_on_stencil_buffer_shader_id
-                                .clone(),
-                        )),
-                    });
-                }
-            }
-
-            renderer.end(
-                &self.buffer_layer.texture(),
-                Some((&self.stencil_texture, DepthStencilUsage::Stencil)),
-                framework,
-            );
+            // let additive = shape.mode == SelectionAddition::Add;
+            // renderer.begin(&self.buffer_layer.camera(), None, framework);
+            // renderer.set_draw_debug_name(
+            //     format!(
+            //         "Selection tool: draw shape {:?} [{:?}] on stencil buffer",
+            //         shape.shape,
+            //         if additive { "a" } else { "s" }
+            //     )
+            //     .as_str(),
+            // );
+            // renderer.set_stencil_clear(None);
+            // renderer.set_stencil_reference(if additive { 255 } else { 0 });
+            // match shape.shape {
+            //     crate::selection::Shape::Rectangle(rect) => {
+            //         renderer.draw(DrawCommand {
+            //             primitives: PrimitiveType::Rect {
+            //                 rects: vec![rect.clone()],
+            //                 multiply_color: wgpu::Color::GREEN,
+            //             },
+            //             draw_mode: DrawMode::Single,
+            //             additional_data: OptionalDrawData::just_shader(Some(
+            //                 global_selection_data()
+            //                     .draw_on_stencil_buffer_shader_id
+            //                     .clone(),
+            //             )),
+            //         });
+            //     }
+            // }
+            //
+            // renderer.end(
+            //     &self.buffer_layer.texture(),
+            //     Some((&self.stencil_texture, DepthStencilUsage::Stencil)),
+            //     framework,
+            // );
         }
     }
 
     fn clear_stencil_buffer(&self, renderer: &mut Renderer, framework: &mut Framework) {
-        renderer.begin(
-            &self.buffer_layer.camera(),
-            Some(wgpu::Color::TRANSPARENT),
-            framework,
-        );
-        renderer.set_draw_debug_name("Selection tool: clear stencil buffer");
-        renderer.set_stencil_clear(Some(0));
-        renderer.end(
-            &self.buffer_layer.texture(),
-            Some((&self.stencil_texture, DepthStencilUsage::Stencil)),
-            framework,
-        );
+        // renderer.begin(
+        //     &self.buffer_layer.camera(),
+        //     Some(wgpu::Color::TRANSPARENT),
+        //     framework,
+        // );
+        // renderer.set_draw_debug_name("Selection tool: clear stencil buffer");
+        // renderer.set_stencil_clear(Some(0));
+        // renderer.end(
+        //     &self.buffer_layer.texture(),
+        //     Some((&self.stencil_texture, DepthStencilUsage::Stencil)),
+        //     framework,
+        // );
     }
 
     pub fn selection(&self) -> &Selection {
@@ -424,7 +408,7 @@ impl Document {
         id
     }
 
-    pub(crate) fn update_layers(&mut self, renderer: &mut Renderer, framework: &mut Framework) {
+    pub(crate) fn update_layers(&mut self, _renderer: &mut Renderer, framework: &mut Framework) {
         self.tree.update(framework)
     }
 
@@ -469,15 +453,6 @@ impl Document {
 
     pub fn for_each_layer<F: FnMut(&Layer, &LayerId)>(&self, mut f: F) {
         self.tree.for_each_layer(|l| f(l, &l.id().clone()));
-    }
-
-    fn update_layer_settings(layer: &mut Layer, target: &BufferId, framework: &mut Framework) {
-        framework.buffer_write_sync(
-            target,
-            vec![BlendSettingsUniform::from(BlendSettings {
-                blend_mode: layer.settings().blend_mode,
-            })],
-        )
     }
 
     pub fn render_camera(&self) -> Camera2d {

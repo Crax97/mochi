@@ -8,8 +8,10 @@ use crate::tools::{EditorContext, PointerEvent, Tool};
 use crate::{image_editor_app_loop::UndoStack, stamping_engine::Stamp};
 use application::InputState;
 use cgmath::point2;
-use framework::{renderer::renderer::Renderer, Framework};
-use image_editor::layers::{BitmapLayer, BitmapLayerConfiguration};
+use framework::{
+    renderer::renderer::Renderer, Framework, RgbaTexture2D, Texture, TextureConfiguration,
+    TextureUsage,
+};
 use winit::event::MouseButton;
 
 #[derive(Clone, Copy, Hash, Eq, PartialEq)]
@@ -38,14 +40,14 @@ impl Toolbox {
     pub fn create_test_stamp(framework: &mut Framework) -> Stamp {
         let test_stamp_bytes = include_bytes!("test/test_brush.png");
         let image = image::load_from_memory(test_stamp_bytes).unwrap();
-        let brush_bitmap = BitmapLayer::new_from_bytes(
-            "Test brush",
-            image.as_bytes(),
-            BitmapLayerConfiguration {
-                width: image.width(),
-                height: image.height(),
+        let brush_bitmap = framework.allocate_texture2d(
+            RgbaTexture2D::from_bytes(image.as_bytes(), (image.width(), image.height()))
+                .expect("Could not create test texture"),
+            TextureConfiguration {
+                label: Some("Test bitmap"),
+                usage: TextureUsage::READ_ONLY,
+                mip_count: None,
             },
-            framework,
         );
         Stamp::new(brush_bitmap)
     }

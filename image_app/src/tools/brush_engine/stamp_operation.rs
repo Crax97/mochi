@@ -9,7 +9,7 @@ use framework::{
 };
 use image_editor::{document::Document, layers::ImageLayerOperation};
 
-use super::{stamping_engine::StrokingEngine, StrokePath};
+use super::StrokePath;
 
 pub(crate) struct StampOperation {
     pub path: StrokePath,

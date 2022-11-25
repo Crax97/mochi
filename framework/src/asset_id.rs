@@ -140,18 +140,6 @@ impl<T> AssetMap<T> {
             self.map.remove(&index);
         }
     }
-
-    pub(crate) fn take(&mut self, view: AssetId<T>) -> T {
-        let uuid = view.index.clone();
-        drop(view);
-        let asset = self.map.remove(&uuid).unwrap();
-        if asset.refs.load(Ordering::Relaxed) != 1 {
-            panic!("AssetMap::take is only allowed for textures that have one reference");
-        }
-        self.taken_this_update.push(uuid);
-        self.update();
-        asset.value
-    }
 }
 
 impl<T: Debug> Debug for AssetMap<T> {

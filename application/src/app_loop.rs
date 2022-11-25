@@ -26,7 +26,7 @@ pub struct AppResized<'a> {
 
 pub trait AppLoop<T, A: Clone> {
     fn boot(boot_info: AppBoot) -> Self;
-    fn update(&mut self, app_context: AppContext) {}
+    fn update(&mut self, _app_context: AppContext) {}
     fn shutdown(&mut self) {}
     fn should_shutdown(&self) -> bool {
         false
@@ -34,15 +34,15 @@ pub trait AppLoop<T, A: Clone> {
     fn can_shutdown(&self) -> bool {
         true
     }
-    fn on_winit_event(&mut self, event: &Event<T>) {}
-    fn on_resized(&mut self, app_resized: AppResized) {}
-    fn render(&mut self, app_context: AppContext, app_surface: TextureView) {}
+    fn on_winit_event(&mut self, _event: &Event<T>) {}
+    fn on_resized(&mut self, _app_resized: AppResized) {}
+    fn render(&mut self, _app_context: AppContext, _app_surface: TextureView) {}
     fn should_render(&self) -> bool {
         true
     }
 
-    fn setup_action_map(&self, action_map: &mut ActionMap<A>) {}
+    fn setup_action_map(&self, _action_map: &mut ActionMap<A>) {}
 
-    fn dispatch_actions(&mut self, actions: Vec<A>, app_context: AppContext) {}
+    fn dispatch_actions(&mut self, _actions: Vec<A>, _app_context: AppContext) {}
     fn title(&self) -> &str;
 }

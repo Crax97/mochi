@@ -1,13 +1,8 @@
-use cgmath::{point3, vec2, Rad, SquareMatrix, Transform};
 use framework::framework::{BufferId, ShaderId, TextureId};
-use framework::renderer::draw_command::{
-    BindableResource, DrawCommand, DrawMode, OptionalDrawData, PrimitiveType,
-};
 use framework::shader::{BindElement, ShaderCreationInfo};
+use framework::BufferConfiguration;
 use framework::{Buffer, Framework};
-use framework::{BufferConfiguration, Transform2d};
-use image_editor::document::Document;
-use image_editor::layers::{BitmapLayer, Layer, LayerId, LayerType};
+use image_editor::layers::{LayerId, LayerType};
 use wgpu::{BlendComponent, ShaderModuleDescriptor, ShaderSource};
 
 use crate::tools::{EditorCommand, EditorContext};
@@ -51,7 +46,7 @@ impl EditorCommand for LayerReplaceCommand {
 }
 
 pub struct Stamp {
-    pub(crate) brush_texture: BitmapLayer,
+    pub(crate) brush_texture: TextureId,
 }
 
 pub struct StampCreationInfo<'framework> {
@@ -59,7 +54,7 @@ pub struct StampCreationInfo<'framework> {
 }
 
 impl Stamp {
-    pub fn new(brush_texture: BitmapLayer) -> Self {
+    pub fn new(brush_texture: TextureId) -> Self {
         Self { brush_texture }
     }
 }
@@ -187,7 +182,7 @@ impl StrokingEngine {
         }
     }
 
-    pub fn create_stamp(&self, brush_texture: BitmapLayer) -> Stamp {
+    pub fn create_stamp(&self, brush_texture: TextureId) -> Stamp {
         Stamp::new(brush_texture)
     }
 
@@ -265,7 +260,7 @@ impl BrushEngine for StrokingEngine {
             layer.execute_operation(
                 StampOperation {
                     path,
-                    brush: self.current_stamp().brush_texture.texture().clone(),
+                    brush: self.current_stamp().brush_texture.clone(),
                     color: self.settings().wgpu_color(),
                     is_eraser: self.settings().is_eraser,
                     brush_settings_buffer: self.brush_settings_buffer_id.clone(),

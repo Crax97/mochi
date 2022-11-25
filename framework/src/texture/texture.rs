@@ -1,6 +1,6 @@
 use std::num::NonZeroU8;
 
-use wgpu::{BindGroupLayout, Extent3d, Origin3d, TextureDimension, TextureSampleType};
+use wgpu::{BindGroupLayout, Extent3d, Origin3d, TextureDimension};
 
 use crate::{BindingInfo, Framework, Texel};
 
