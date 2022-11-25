@@ -1,11 +1,15 @@
 use bytemuck::Zeroable;
-use egui::{color::Hsva, Align2, Color32, FontDefinitions, Label, Pos2, RichText, Sense, Vec2};
+use egui::{
+    color::Hsva, Align2, CollapsingHeader, Color32, FontDefinitions, Label, Pos2, RichText, Sense,
+    Vec2,
+};
 use egui_wgpu_backend::{RenderPass, ScreenDescriptor};
 use egui_winit_platform::PlatformDescriptor;
 use framework::Framework;
 use image_editor::{
     blend_settings::BlendMode,
-    layers::{LayerId, LayerSettings},
+    document::{self, Document},
+    layers::{LayerId, LayerItem, LayerSettings},
     LayerConstructionInfo,
 };
 use log::warn;
@@ -307,60 +311,96 @@ impl EguiUI {
         {
             action = LayerAction::NewLayerRequest;
         }
-
-        let mut lay_layer_ui = |idx: &LayerId| {
-            let layer = document.get_layer(idx);
-            let original_settings = layer.settings();
-
-            ui.push_id(&layer.id(), |ui| {
-                let color = if document
-                    .current_layer_index()
-                    .map_or(false, |idx| idx == layer.id())
-                {
-                    Color32::LIGHT_BLUE
-                } else {
-                    Color32::WHITE
-                };
-                let mut settings = original_settings.clone();
-
-                ui.horizontal(|ui| {
-                    if ui
-                        .add(Label::new(RichText::from(&settings.name).color(color)).sense(sense))
-                        .clicked()
-                    {
-                        action = LayerAction::SelectLayer(idx.clone());
-                    }
-
-                    ui.add(egui::Checkbox::new(&mut settings.is_enabled, ""));
-
-                    if ui
-                        .add(egui::Button::new("Delete layer").sense(sense))
-                        .clicked()
-                    {
-                        action = LayerAction::DeleteLayer(idx.clone());
+        let mut current_layer_settings = document.current_layer().settings().clone();
+        let idx = document.current_layer_index().copied().unwrap();
+        let original_settings = document.current_layer().settings();
+        ui.separator();
+        ui.heading("Current layer settings");
+        ui.text_edit_singleline(&mut current_layer_settings.name);
+        ui.add(egui::Slider::new(&mut current_layer_settings.opacity, 0.0..=1.0).text("Opacity"));
+        ui.horizontal(|ui| {
+            ui.checkbox(&mut current_layer_settings.is_enabled, "Enabled");
+            ui.checkbox(&mut current_layer_settings.is_locked, "Locked");
+        });
+        ui.horizontal(|ui| {
+            ui.checkbox(&mut current_layer_settings.is_mask, "Mask");
+            egui::ComboBox::from_label("Blend mode")
+                .selected_text(format!("{:?}", current_layer_settings.blend_mode))
+                .show_ui(ui, |ui| {
+                    for key in BlendMode::iter() {
+                        ui.selectable_value(
+                            &mut current_layer_settings.blend_mode,
+                            key,
+                            key.to_string(),
+                        );
                     }
                 });
-
-                ui.add(egui::Slider::new(&mut settings.opacity, 0.0..=1.0).text("Opacity"));
-                egui::ComboBox::from_label("Blend mode")
-                    .selected_text(format!("{:?}", settings.blend_mode))
-                    .show_ui(ui, |ui| {
-                        for key in BlendMode::iter() {
-                            ui.selectable_value(&mut settings.blend_mode, key, key.to_string());
-                        }
-                    });
-
-                if &settings != original_settings {
-                    action = LayerAction::SetLayerSettings(idx.clone(), settings);
-                }
-            })
-        };
-
-        document.for_each_layer(|_, idx| {
-            lay_layer_ui(idx);
         });
 
+        if &current_layer_settings != original_settings {
+            action = LayerAction::SetLayerSettings(idx, current_layer_settings);
+        }
+
+        ui.separator();
+        ui.heading("Layer tree");
+        self.items_ui(ui, document.tree().items(), document, &mut action);
+
         (false, action)
+    }
+
+    fn items_ui(
+        &self,
+        ui: &mut egui::Ui,
+        items: &Vec<LayerItem>,
+        document: &Document,
+        action: &mut LayerAction,
+    ) {
+        let sense = if self.new_layer_in_creation.is_none() {
+            Sense::click()
+        } else {
+            Sense {
+                click: false,
+                drag: false,
+                focusable: false,
+            }
+        };
+
+        for item in items {
+            match item {
+                LayerItem::SingleLayer(idx) => {
+                    let layer = document.get_layer(idx);
+                    let original_settings = layer.settings();
+
+                    ui.push_id(&layer.id(), |ui| {
+                        let color = if document
+                            .current_layer_index()
+                            .map_or(false, |idx| idx == layer.id())
+                        {
+                            Color32::LIGHT_BLUE
+                        } else {
+                            Color32::WHITE
+                        };
+                        if ui
+                            .add(
+                                Label::new(RichText::from(&original_settings.name).color(color))
+                                    .sense(sense),
+                            )
+                            .clicked()
+                        {
+                            *action = LayerAction::SelectLayer(idx.clone());
+                        }
+                    });
+                }
+                LayerItem::Group(items, id) => {
+                    let group_settings = document.get_layer(id).settings();
+                    CollapsingHeader::new(&group_settings.name)
+                        .default_open(true)
+                        .show(ui, |ui| {
+                            self.items_ui(ui, items, document, action);
+                        });
+                }
+            }
+        }
     }
 
     fn new_layer_dialog(&mut self) -> (bool, LayerAction) {

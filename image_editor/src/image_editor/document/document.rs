@@ -475,6 +475,10 @@ impl Document {
         self.tree.for_each_layer(|l| f(l, &l.id().clone()));
     }
 
+    pub fn tree(&self) -> &LayerTree<Layer> {
+        &self.tree
+    }
+
     pub fn render_camera(&self) -> Camera2d {
         let half_w = self.document_size.x as f32 * 0.5;
         let half_h = self.document_size.y as f32 * 0.5;

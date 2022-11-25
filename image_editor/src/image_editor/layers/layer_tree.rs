@@ -23,7 +23,7 @@ use crate::{
 use super::{Layer, LayerBase, LayerId};
 
 #[derive(Clone, PartialEq, PartialOrd, Eq, Hash)]
-pub(crate) enum LayerItem {
+pub enum LayerItem {
     SingleLayer(LayerId),
     Group(Vec<LayerItem>, LayerId),
 }
@@ -53,7 +53,7 @@ pub(crate) trait LayerRenderingStrategy<L: LayerBase> {
     );
 }
 
-pub(crate) struct LayerTree<L: LayerBase> {
+pub struct LayerTree<L: LayerBase> {
     pub(crate) layers: HashMap<LayerId, L>,
     pub(crate) items: Vec<LayerItem>,
     pub(crate) current_layer_id: Option<LayerId>,
@@ -226,6 +226,11 @@ impl<L: LayerBase> LayerTree<L> {
             }
         }
     }
+
+    pub fn items(&self) -> &Vec<LayerItem> {
+        &self.items
+    }
+
     pub fn for_each_layer<F: FnMut(&L)>(&self, mut f: F) {
         Self::for_each_layer_impl(&mut f, &self.items, &self.layers);
     }
