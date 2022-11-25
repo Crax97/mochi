@@ -31,6 +31,10 @@ impl LayerId {
     }
 }
 
+pub trait LayerBase {
+    fn id(&self) -> &LayerId;
+}
+
 pub struct Layer {
     id: LayerId,
     transform: Transform2d,
@@ -39,6 +43,12 @@ pub struct Layer {
     pub layer_type: LayerType,
     needs_settings_update: RefCell<bool>,
     needs_bitmap_update: RefCell<bool>,
+}
+
+impl LayerBase for Layer {
+    fn id(&self) -> &LayerId {
+        &self.id
+    }
 }
 
 pub struct LayerCreationInfo {

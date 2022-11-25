@@ -1,4 +1,5 @@
-use crate::layers::{CanvasRenderingStrategy, Layer, LayerId};
+use crate::image_editor::ab_render_target::ABRenderTarget;
+use crate::layers::{CanvasRenderingStrategy, Layer, LayerId, LayerItem, LayerRenderingStrategy};
 use crate::{
     global_selection_data,
     layers::{LayerCreationInfo, LayerTree, LayerType},
@@ -30,7 +31,8 @@ pub struct SelectionLayer {
 
 pub struct Document {
     document_size: Vector2<u32>,
-    tree: LayerTree<CanvasRenderingStrategy>,
+    tree: LayerTree<Layer>,
+    rendering_strategy: CanvasRenderingStrategy,
     selection_layer: Option<SelectionLayer>,
 
     #[allow(dead_code)]
@@ -73,7 +75,8 @@ impl Document {
             partial_selection: Selection::default(),
             wants_selection_update: false,
             stencil_texture,
-            tree: LayerTree::new(framework, &config),
+            tree: LayerTree::new(),
+            rendering_strategy: CanvasRenderingStrategy::new(framework, &config),
             render_result: framework.allocate_texture2d(
                 RgbaTexture2D::empty((1, 1)),
                 TextureConfiguration {
@@ -390,7 +393,8 @@ impl Document {
     }
 
     pub fn delete_layer(&mut self, layer_idx: LayerId) {
-        self.tree.remove_layer(layer_idx);
+        let layer = self.tree.remove_layer(layer_idx);
+        self.rendering_strategy.on_layer_removed(&layer);
     }
 
     pub(crate) fn add_layer(
@@ -413,21 +417,27 @@ impl Document {
             framework,
         );
         let id = new_layer.id().clone();
-        self.tree.add_layer(new_layer, framework);
+        self.rendering_strategy.on_new_layer(&new_layer, framework);
+        self.tree.add_layer(new_layer);
         id
     }
 
     pub(crate) fn update_layers(&mut self, renderer: &mut Renderer, framework: &mut Framework) {
-        self.tree.update(framework);
         if self.wants_selection_update {
             self.wants_selection_update = false;
             self.update_selection_buffer(renderer, framework);
         }
+        self.rendering_strategy.update(&self.tree.layers, framework);
     }
 
     pub(crate) fn render(&mut self, renderer: &mut Renderer, framework: &mut Framework) {
-        self.tree.render(framework, renderer);
-        self.render_result = self.tree.composite_final_image(
+        self.rendering_strategy.update_canvases(
+            &self.tree.items,
+            &self.tree.layers,
+            framework,
+            renderer,
+        );
+        self.render_result = self.composite_final_image(
             self.document_size.x,
             self.document_size.y,
             renderer,
@@ -482,6 +492,59 @@ impl Document {
 
     pub fn render_result(&self) -> &TextureId {
         &self.render_result
+    }
+
+    pub fn composite_final_image(
+        &mut self,
+        width: u32,
+        height: u32,
+        renderer: &mut Renderer,
+        framework: &mut Framework,
+    ) -> TextureId {
+        Self::composite_final_image_impl(
+            &self.tree.items,
+            &self.rendering_strategy,
+            width,
+            height,
+            renderer,
+            framework,
+        )
+    }
+
+    fn composite_final_image_impl<T: LayerRenderingStrategy<Layer>>(
+        items: &Vec<LayerItem>,
+        strategy: &T,
+        width: u32,
+        height: u32,
+        renderer: &mut Renderer,
+        framework: &mut Framework,
+    ) -> TextureId {
+        let mut ab_render_target = ABRenderTarget::new(width, height, framework);
+        for item in items {
+            match item {
+                LayerItem::SingleLayer(id) => {
+                    ab_render_target.run_render_loop(|result, back| {
+                        strategy.composite_layer_on_target(id, back, &result, renderer, framework);
+                    });
+                }
+                LayerItem::Group(items, group_layer_id) => {
+                    let rendered_group = Self::composite_final_image_impl(
+                        items, strategy, width, height, renderer, framework,
+                    );
+
+                    ab_render_target.run_render_loop(|result, back| {
+                        strategy.composite_layer_on_target(
+                            group_layer_id,
+                            back,
+                            &result,
+                            renderer,
+                            framework,
+                        );
+                    });
+                }
+            }
+        }
+        ab_render_target.result().clone()
     }
 }
 

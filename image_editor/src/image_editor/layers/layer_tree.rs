@@ -16,12 +16,11 @@ use framework::{
 };
 
 use crate::{
-    blend_settings::{BlendMode, BlendSettings, BlendSettingsUniform},
+    blend_settings::{BlendSettings, BlendSettingsUniform},
     document::DocumentCreationInfo,
-    image_editor::ab_render_target::ABRenderTarget,
 };
 
-use super::{Layer, LayerId};
+use super::{Layer, LayerBase, LayerId};
 
 #[derive(Clone, PartialEq, PartialOrd, Eq, Hash)]
 pub(crate) enum LayerItem {
@@ -29,17 +28,17 @@ pub(crate) enum LayerItem {
     Group(Vec<LayerItem>, LayerId),
 }
 
-pub(crate) trait LayerRenderingStrategy {
+pub(crate) trait LayerRenderingStrategy<L: LayerBase> {
     fn new(framework: &mut Framework, document_info: &DocumentCreationInfo) -> Self
     where
         Self: Sized;
-    fn on_new_layer(&mut self, layer: &Layer, framework: &mut Framework);
-    fn on_layer_removed(&mut self, layer: &Layer);
-    fn update(&mut self, layers: &HashMap<LayerId, Layer>, framework: &mut Framework);
+    fn on_new_layer(&mut self, layer: &L, framework: &mut Framework);
+    fn on_layer_removed(&mut self, layer: &L);
+    fn update(&mut self, layers: &HashMap<LayerId, L>, framework: &mut Framework);
     fn update_canvases(
         &mut self,
         layers: &Vec<LayerItem>,
-        layers: &HashMap<LayerId, Layer>,
+        layers: &HashMap<LayerId, L>,
         framework: &mut Framework,
         renderer: &mut Renderer,
     );
@@ -54,24 +53,22 @@ pub(crate) trait LayerRenderingStrategy {
     );
 }
 
-pub(crate) struct LayerTree<T: LayerRenderingStrategy> {
-    layers: HashMap<LayerId, Layer>,
-    items: Vec<LayerItem>,
-    current_layer_id: Option<LayerId>,
-    rendering_strategy: T,
+pub(crate) struct LayerTree<L: LayerBase> {
+    pub(crate) layers: HashMap<LayerId, L>,
+    pub(crate) items: Vec<LayerItem>,
+    pub(crate) current_layer_id: Option<LayerId>,
 }
 
-impl<T: LayerRenderingStrategy> LayerTree<T> {
-    pub fn new(framework: &mut Framework, document_info: &DocumentCreationInfo) -> Self {
+impl<L: LayerBase> LayerTree<L> {
+    pub fn new() -> Self {
         Self {
             layers: HashMap::new(),
             items: Vec::new(),
             current_layer_id: None,
-            rendering_strategy: T::new(framework, document_info),
         }
     }
 
-    pub fn current_layer(&self) -> Option<&Layer> {
+    pub fn current_layer(&self) -> Option<&L> {
         if let Some(id) = &self.current_layer_id {
             self.layers.get(id)
         } else {
@@ -90,7 +87,6 @@ impl<T: LayerRenderingStrategy> LayerTree<T> {
         new_layer_id: LayerId,
         current_layer_id: &LayerId,
         existing_layers: &mut Vec<LayerItem>,
-        framework: &mut Framework,
     ) {
         let mut place = None;
         for (layer_idx, mut item) in existing_layers.iter_mut().enumerate() {
@@ -102,7 +98,7 @@ impl<T: LayerRenderingStrategy> LayerTree<T> {
                     }
                 }
                 LayerItem::Group(items, ..) => {
-                    Self::add_layer_impl(new_layer_id, current_layer_id, items, framework)
+                    Self::add_layer_impl(new_layer_id, current_layer_id, items)
                 }
             }
         }
@@ -110,22 +106,21 @@ impl<T: LayerRenderingStrategy> LayerTree<T> {
             existing_layers.insert(id, LayerItem::SingleLayer(new_layer_id));
         }
     }
-    pub fn add_layer(&mut self, layer: Layer, framework: &mut Framework) {
+    pub fn add_layer(&mut self, layer: L) {
         if let Some(current_id) = &self.current_layer_id {
-            Self::add_layer_impl(layer.id().clone(), current_id, &mut self.items, framework);
+            Self::add_layer_impl(layer.id().clone(), current_id, &mut self.items);
         } else {
             self.items.push(LayerItem::SingleLayer(layer.id().clone()));
         }
-        self.rendering_strategy.on_new_layer(&layer, framework);
         self.current_layer_id = Some(layer.id().clone());
         self.layers.insert(layer.id().clone(), layer);
     }
 
-    pub fn get_layer(&self, layer_index: &LayerId) -> &Layer {
+    pub fn get_layer(&self, layer_index: &LayerId) -> &L {
         self.layers.get(layer_index).unwrap()
     }
 
-    pub fn get_layer_mut(&mut self, layer_index: &LayerId) -> &mut Layer {
+    pub fn get_layer_mut(&mut self, layer_index: &LayerId) -> &mut L {
         self.layers.get_mut(layer_index).unwrap()
     }
 
@@ -203,23 +198,20 @@ impl<T: LayerRenderingStrategy> LayerTree<T> {
             }
         }
     }
-    pub fn remove_layer(&mut self, layer_id: LayerId) {
+    pub fn remove_layer(&mut self, layer_id: LayerId) -> L {
         Self::remove_layer_impl(&layer_id, &mut self.items);
-        let layer = self
-            .layers
-            .remove(&layer_id)
-            .expect("LayerTree: layer not found");
-        self.rendering_strategy.on_layer_removed(&layer);
-
         if self.current_layer_id.map_or(false, |id| id == layer_id) {
             self.current_layer_id = self.find_below(&layer_id);
         }
+        self.layers
+            .remove(&layer_id)
+            .expect("LayerTree: layer not found")
     }
 
-    fn for_each_layer_impl<F: FnMut(&Layer)>(
+    fn for_each_layer_impl<F: FnMut(&L)>(
         f: &mut F,
         existing_items: &Vec<LayerItem>,
-        existing_layers: &HashMap<LayerId, Layer>,
+        existing_layers: &HashMap<LayerId, L>,
     ) {
         for item in existing_items.iter() {
             match &item {
@@ -234,70 +226,8 @@ impl<T: LayerRenderingStrategy> LayerTree<T> {
             }
         }
     }
-    pub fn for_each_layer<F: FnMut(&Layer)>(&self, mut f: F) {
+    pub fn for_each_layer<F: FnMut(&L)>(&self, mut f: F) {
         Self::for_each_layer_impl(&mut f, &self.items, &self.layers);
-    }
-
-    pub fn update(&mut self, framework: &mut Framework) {
-        self.rendering_strategy.update(&self.layers, framework);
-    }
-
-    pub fn render(&mut self, framework: &mut Framework, renderer: &mut Renderer) {
-        self.rendering_strategy
-            .update_canvases(&self.items, &self.layers, framework, renderer)
-    }
-
-    pub fn composite_final_image(
-        &mut self,
-        width: u32,
-        height: u32,
-        renderer: &mut Renderer,
-        framework: &mut Framework,
-    ) -> TextureId {
-        Self::composite_final_image_impl(
-            &self.items,
-            &self.rendering_strategy,
-            width,
-            height,
-            renderer,
-            framework,
-        )
-    }
-
-    fn composite_final_image_impl(
-        items: &Vec<LayerItem>,
-        strategy: &T,
-        width: u32,
-        height: u32,
-        renderer: &mut Renderer,
-        framework: &mut Framework,
-    ) -> TextureId {
-        let mut ab_render_target = ABRenderTarget::new(width, height, framework);
-        for item in items {
-            match item {
-                LayerItem::SingleLayer(id) => {
-                    ab_render_target.run_render_loop(|result, back| {
-                        strategy.composite_layer_on_target(id, back, &result, renderer, framework);
-                    });
-                }
-                LayerItem::Group(items, group_layer_id) => {
-                    let rendered_group = Self::composite_final_image_impl(
-                        items, strategy, width, height, renderer, framework,
-                    );
-
-                    ab_render_target.run_render_loop(|result, back| {
-                        strategy.composite_layer_on_target(
-                            group_layer_id,
-                            back,
-                            &result,
-                            renderer,
-                            framework,
-                        );
-                    });
-                }
-            }
-        }
-        ab_render_target.result().clone()
     }
 }
 
@@ -312,8 +242,8 @@ pub struct CanvasRenderingStrategy {
     document_height: u32,
 }
 
-impl LayerRenderingStrategy for CanvasRenderingStrategy {
-    fn new(framework: &mut Framework, document_info: &DocumentCreationInfo) -> Self
+impl LayerRenderingStrategy<Layer> for CanvasRenderingStrategy {
+    fn new(_framework: &mut Framework, document_info: &DocumentCreationInfo) -> Self
     where
         Self: Sized,
     {
@@ -520,5 +450,75 @@ impl CanvasRenderingStrategy {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+
+    use crate::layers::{LayerBase, LayerId};
+
+    use super::LayerTree;
+
+    struct DummyLayer {
+        id: LayerId,
+        info: String,
+    }
+    impl LayerBase for DummyLayer {
+        fn id(&self) -> &crate::layers::LayerId {
+            &self.id
+        }
+    }
+    impl DummyLayer {
+        fn new(info: &str) -> Self {
+            Self {
+                id: LayerId::new(),
+                info: info.to_owned(),
+            }
+        }
+    }
+
+    type TestTree = LayerTree<DummyLayer>;
+
+    #[test]
+    fn create_layer() {
+        let mut tree = TestTree::new();
+        let layer = DummyLayer::new("hello");
+        let id = layer.id().clone();
+        tree.add_layer(layer);
+        assert!(tree.get_layer(&id).info == "hello".to_owned());
+    }
+    #[test]
+    fn below() {
+        let mut tree = TestTree::new();
+        let layer = DummyLayer::new("1");
+        let target = layer.id.clone();
+        tree.add_layer(layer);
+
+        let layer = DummyLayer::new("2");
+        let id = layer.id.clone();
+        tree.add_layer(layer);
+
+        let layer = DummyLayer::new("3");
+        tree.add_layer(layer);
+
+        assert!(tree.find_below(&id).is_some());
+        assert_eq!(tree.find_below(&id).unwrap(), target);
+    }
+    #[test]
+    fn above() {
+        let mut tree = TestTree::new();
+        let layer = DummyLayer::new("1");
+        tree.add_layer(layer);
+
+        let layer = DummyLayer::new("2");
+        let id = layer.id.clone();
+        tree.add_layer(layer);
+
+        let layer = DummyLayer::new("3");
+        let target = layer.id.clone();
+        tree.add_layer(layer);
+        assert!(tree.find_above(&id).is_some());
+        assert_eq!(tree.find_above(&id).unwrap(), target);
     }
 }
