@@ -51,6 +51,7 @@ pub struct LayerCreationInfo {
 #[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Hash)]
 pub struct LayerId(Uuid);
 
+#[derive(Debug)]
 pub enum LayerType {
     Image {
         texture: TextureId,
@@ -236,5 +237,9 @@ impl Layer {
 
     pub fn id(&self) -> &LayerId {
         &self.id
+    }
+
+    pub(crate) fn size(&self) -> Vector2<u32> {
+        self.bounds().extents.cast::<u32>().unwrap() * 2
     }
 }

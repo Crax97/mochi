@@ -45,7 +45,7 @@ impl Toolbox {
                 .expect("Could not create test texture"),
             TextureConfiguration {
                 label: Some("Test bitmap"),
-                usage: TextureUsage::READ_ONLY,
+                usage: TextureUsage::WRITE_ONLY,
                 mip_count: None,
             },
         );

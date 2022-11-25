@@ -5,8 +5,7 @@ use crate::{
     selection::{Selection, SelectionAddition, SelectionShape},
     LayerConstructionInfo,
 };
-use cgmath::{point2, vec2, Vector2};
-use framework::RgbaU8;
+use cgmath::{point2, vec2, SquareMatrix, Vector2};
 use framework::{
     framework::DepthStencilTextureId,
     renderer::draw_command::{DrawCommand, DrawMode, OptionalDrawData, PrimitiveType},
@@ -21,6 +20,7 @@ use framework::{
     scene::Camera2d,
     Box2d, DepthStencilTexture2D, RgbaTexture2D, Texture, TextureConfiguration, TextureUsage,
 };
+use framework::{math, RgbaU8};
 use image::{DynamicImage, ImageBuffer};
 
 pub struct SelectionLayer {
@@ -34,7 +34,7 @@ pub struct Document {
     selection_layer: Option<SelectionLayer>,
 
     #[allow(dead_code)]
-    // buffer_layer: BitmapLayer, // Imma keep it here just in case, too many times i removed it just to need it later again
+    buffer_texture: TextureId,
     selection: Selection,
     partial_selection: Selection,
     wants_selection_update: bool,
@@ -50,7 +50,6 @@ pub struct DocumentCreationInfo {
 
 impl Document {
     pub fn new(config: DocumentCreationInfo, framework: &mut Framework) -> Self {
-        let first_layer_index = LayerId::new();
         let stencil_texture = framework.allocate_depth_stencil_texture(
             DepthStencilTexture2D::empty((config.width, config.height)),
             TextureConfiguration {
@@ -62,7 +61,14 @@ impl Document {
         let mut document = Self {
             document_size: vec2(config.width, config.height),
             selection_layer: None,
-
+            buffer_texture: framework.allocate_texture2d(
+                RgbaTexture2D::empty((config.width, config.height)),
+                TextureConfiguration {
+                    label: Some("document buffer texture"),
+                    usage: TextureUsage::RWRT,
+                    mip_count: None,
+                },
+            ),
             selection: Selection::default(),
             partial_selection: Selection::default(),
             wants_selection_update: false,
@@ -139,56 +145,60 @@ impl Document {
         framework: &mut Framework,
     ) {
         for shape in shapes.into_iter() {
-            // let additive = shape.mode == SelectionAddition::Add;
-            // renderer.begin(&self.buffer_layer.camera(), None, framework);
-            // renderer.set_draw_debug_name(
-            //     format!(
-            //         "Selection tool: draw shape {:?} [{:?}] on stencil buffer",
-            //         shape.shape,
-            //         if additive { "a" } else { "s" }
-            //     )
-            //     .as_str(),
-            // );
-            // renderer.set_stencil_clear(None);
-            // renderer.set_stencil_reference(if additive { 255 } else { 0 });
-            // match shape.shape {
-            //     crate::selection::Shape::Rectangle(rect) => {
-            //         renderer.draw(DrawCommand {
-            //             primitives: PrimitiveType::Rect {
-            //                 rects: vec![rect.clone()],
-            //                 multiply_color: wgpu::Color::GREEN,
-            //             },
-            //             draw_mode: DrawMode::Single,
-            //             additional_data: OptionalDrawData::just_shader(Some(
-            //                 global_selection_data()
-            //                     .draw_on_stencil_buffer_shader_id
-            //                     .clone(),
-            //             )),
-            //         });
-            //     }
-            // }
-            //
-            // renderer.end(
-            //     &self.buffer_layer.texture(),
-            //     Some((&self.stencil_texture, DepthStencilUsage::Stencil)),
-            //     framework,
-            // );
+            let additive = shape.mode == SelectionAddition::Add;
+            renderer.begin(
+                &Camera2d::wh(self.document_size.x, self.document_size.y),
+                None,
+                framework,
+            );
+            renderer.set_draw_debug_name(
+                format!(
+                    "Selection tool: draw shape {:?} [{:?}] on stencil buffer",
+                    shape.shape,
+                    if additive { "a" } else { "s" }
+                )
+                .as_str(),
+            );
+            renderer.set_stencil_clear(None);
+            renderer.set_stencil_reference(if additive { 255 } else { 0 });
+            match shape.shape {
+                crate::selection::Shape::Rectangle(rect) => {
+                    renderer.draw(DrawCommand {
+                        primitives: PrimitiveType::Rect {
+                            rects: vec![rect.clone()],
+                            multiply_color: wgpu::Color::GREEN,
+                        },
+                        draw_mode: DrawMode::Single,
+                        additional_data: OptionalDrawData::just_shader(Some(
+                            global_selection_data()
+                                .draw_on_stencil_buffer_shader_id
+                                .clone(),
+                        )),
+                    });
+                }
+            }
+
+            renderer.end(
+                &self.buffer_texture,
+                Some((&self.stencil_texture, DepthStencilUsage::Stencil)),
+                framework,
+            );
         }
     }
 
     fn clear_stencil_buffer(&self, renderer: &mut Renderer, framework: &mut Framework) {
-        // renderer.begin(
-        //     &self.buffer_layer.camera(),
-        //     Some(wgpu::Color::TRANSPARENT),
-        //     framework,
-        // );
-        // renderer.set_draw_debug_name("Selection tool: clear stencil buffer");
-        // renderer.set_stencil_clear(Some(0));
-        // renderer.end(
-        //     &self.buffer_layer.texture(),
-        //     Some((&self.stencil_texture, DepthStencilUsage::Stencil)),
-        //     framework,
-        // );
+        renderer.begin(
+            &Camera2d::default(),
+            Some(wgpu::Color::TRANSPARENT),
+            framework,
+        );
+        renderer.set_draw_debug_name("Selection tool: clear stencil buffer");
+        renderer.set_stencil_clear(Some(0));
+        renderer.end(
+            &self.buffer_texture,
+            Some((&self.stencil_texture, DepthStencilUsage::Stencil)),
+            framework,
+        );
     }
 
     pub fn selection(&self) -> &Selection {
@@ -243,7 +253,7 @@ impl Document {
 
     pub fn extract_selection(&mut self, renderer: &mut Renderer, framework: &mut Framework) {
         let current_layer = self.current_layer();
-        let dims = current_layer.bounds().extents.cast::<u32>().unwrap();
+        let dims = current_layer.size();
         let dims = (dims.x, dims.y);
 
         let tex = match current_layer.layer_type {
@@ -332,7 +342,7 @@ impl Document {
             Some((&self.stencil_texture, DepthStencilUsage::Stencil)),
             framework,
         );
-        /*
+        let current_layer = self.current_layer_index().copied().unwrap();
         //5. Now add the new layer
         let mut new_layer = SelectionLayer {
             layer: Layer::new_image(
@@ -349,19 +359,18 @@ impl Document {
                 },
                 framework,
             ),
-            original_layer: self.current_layer_index(),
+            original_layer: current_layer.clone(),
         };
         new_layer
             .layer
-            .set_settings(current_layer.settings().clone());
+            .set_settings(self.current_layer().settings().clone());
         self.selection_layer = Some(new_layer);
-        self.mutate_layer(&self.current_layer_index(), |layer| {
+        self.mutate_layer(&current_layer, |layer| {
             layer.replace_texture(old_texture_copy.clone())
         });
 
         self.selection.clear();
         self.update_selection_buffer(renderer, framework);
-         */
     }
 
     pub fn selection_layer_mut(&mut self) -> Option<&mut SelectionLayer> {
@@ -408,8 +417,12 @@ impl Document {
         id
     }
 
-    pub(crate) fn update_layers(&mut self, _renderer: &mut Renderer, framework: &mut Framework) {
-        self.tree.update(framework)
+    pub(crate) fn update_layers(&mut self, renderer: &mut Renderer, framework: &mut Framework) {
+        self.tree.update(framework);
+        if self.wants_selection_update {
+            self.wants_selection_update = false;
+            self.update_selection_buffer(renderer, framework);
+        }
     }
 
     pub(crate) fn render(&mut self, renderer: &mut Renderer, framework: &mut Framework) {
@@ -437,9 +450,7 @@ impl Document {
     }
 
     pub fn final_image_bytes(&self, framework: &Framework) -> DynamicImage {
-        todo!()
-        /*
-        let texture = framework.texture2d_read_data(self.ab_render_target.result());
+        let texture = framework.texture2d_read_data(&self.render_result);
         let width = texture.width();
         let height = texture.height();
         let bytes = texture
@@ -448,7 +459,6 @@ impl Document {
         let bytes = bytemuck::cast_slice(bytes).to_owned();
         let raw_image = ImageBuffer::from_raw(width, height, bytes).unwrap();
         DynamicImage::ImageRgba8(raw_image)
-         */
     }
 
     pub fn for_each_layer<F: FnMut(&Layer, &LayerId)>(&self, mut f: F) {
@@ -481,23 +491,43 @@ fn join_bitmaps(
     renderer: &mut Renderer,
     framework: &mut Framework,
 ) {
-    /*
-    let below_inverse_transform = layer_below
-        .transform()
-        .matrix()
-        .invert()
-        .expect("Failed to invert matrix in join layers!");
-    let adjusted_top_transform = layer_top.transform().matrix() * below_inverse_transform;
-    let transform = math::helpers::decompose_no_shear_2d(adjusted_top_transform);
-    renderer.begin(&layer_below.bitmap.camera(), None, framework);
-    layer_top.bitmap.draw(
-        renderer,
-        point2(transform.position.x, transform.position.y),
-        transform.scale,
-        transform.rotation_radians.0,
-        layer_top.settings().opacity,
-    );
-    renderer.end(layer_below.bitmap.texture(), None, framework);
-    */
-    log::error!("TODO: reimplement this");
+    match (&layer_top.layer_type, &layer_below.layer_type) {
+        (
+            LayerType::Image { texture: top, .. },
+            LayerType::Image {
+                texture: bottom, ..
+            },
+        ) => {
+            let below_inverse_transform = layer_below
+                .transform()
+                .matrix()
+                .invert()
+                .expect("Failed to invert matrix in join layers!");
+            let adjusted_top_transform = layer_top.transform().matrix() * below_inverse_transform;
+            let mut transform = math::helpers::decompose_no_shear_2d(adjusted_top_transform);
+            transform.scale(layer_top.bounds().extents);
+            renderer.begin(
+                &Document::make_camera_for_layer(layer_below),
+                None,
+                framework,
+            );
+            renderer.draw(DrawCommand {
+                primitives: PrimitiveType::Texture2D {
+                    texture_id: top.clone(),
+                    instances: vec![transform],
+                    flip_uv_y: false,
+                    multiply_color: wgpu::Color::WHITE,
+                },
+                draw_mode: DrawMode::Single,
+                additional_data: OptionalDrawData::default(),
+            });
+
+            renderer.end(&bottom, None, framework);
+        }
+        _ => log::warn!(
+            "Cannot join layer of type {:?} with layer of type {:?}",
+            layer_below.layer_type,
+            layer_top.layer_type
+        ),
+    }
 }

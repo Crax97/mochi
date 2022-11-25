@@ -35,6 +35,19 @@ impl Camera2d {
         }
     }
 
+    pub fn wh(width: u32, height: u32) -> Self {
+        Self::new(
+            -0.01,
+            1000.0,
+            [
+                -(width as f32) * 0.5,
+                (width as f32) * 0.5,
+                (height / 2) as f32,
+                -((height / 2) as f32),
+            ],
+        )
+    }
+
     pub fn unit() -> Self {
         Camera2d::new(-0.1, 1000.0, [-1.0, 1.0, 1.0, -1.0])
     }

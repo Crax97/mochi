@@ -83,10 +83,11 @@ impl Tool for TransformLayerTool {
                 .image_editor
                 .mutate_document(|doc| match self.transform_item {
                     TransformItem::Layer => {
-                        todo!();
-                        //doc.mutate_layer(&doc.current_layer_index(), |layer| {
-                        //    layer.translate(delta);
-                        //});
+                        if let Some(layer) = doc.current_layer_index().copied() {
+                            doc.mutate_layer(&layer, |layer| {
+                                layer.translate(delta);
+                            });
+                        }
                     }
                     TransformItem::Selection => {
                         if let Some(selection) = doc.selection_layer_mut() {
