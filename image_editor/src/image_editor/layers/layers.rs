@@ -77,6 +77,41 @@ pub trait LayerOperation {
     ) -> OperationResult;
 }
 
+pub trait ImageLayerOperation {
+    fn image_op(
+        &self,
+        image_texture: &TextureId,
+        dimensions: &Vector2<u32>,
+        owning_layer: &Layer,
+        renderer: &mut Renderer,
+        framework: &mut Framework,
+    ) -> OperationResult;
+}
+
+impl<T: ImageLayerOperation> LayerOperation for T {
+    fn accept(&self, layer: &Layer) -> bool {
+        match &layer.layer_type {
+            LayerType::Image { .. } => true,
+            LayerType::Group => false,
+        }
+    }
+
+    fn execute(
+        &self,
+        layer: &mut Layer,
+        renderer: &mut Renderer,
+        framework: &mut Framework,
+    ) -> OperationResult {
+        match &layer.layer_type {
+            LayerType::Image {
+                texture,
+                dimensions,
+            } => self.image_op(texture, dimensions, layer, renderer, framework),
+            LayerType::Group => unreachable!(),
+        }
+    }
+}
+
 impl Layer {
     pub fn new_image(
         image: RgbaTexture2D,
