@@ -328,7 +328,7 @@ impl LayerRenderingStrategy<Layer> for CanvasRenderingStrategy {
             primitives: PrimitiveType::Texture2D {
                 texture_id: back.clone(),
                 instances: vec![Transform2d::default()],
-                flip_uv_y: false,
+                flip_uv_y: true,
                 multiply_color: wgpu::Color::WHITE,
             },
             draw_mode: DrawMode::Single,
