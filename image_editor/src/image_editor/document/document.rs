@@ -128,16 +128,16 @@ impl Document {
         self.tree.get_layer(layer_index)
     }
 
-    pub fn mutate_layer<F: FnMut(&mut Layer)>(&mut self, layer_index: &LayerId, mut mutate_fn: F) {
+    pub fn mutate_layer<F: FnOnce(&mut Layer)>(&mut self, layer_index: &LayerId, mut mutate_fn: F) {
         let layer = self.tree.get_layer_mut(layer_index);
         mutate_fn(layer);
     }
 
-    pub fn mutate_selection<F: FnMut(&mut Selection)>(&mut self, mut callback: F) {
+    pub fn mutate_selection<F: FnOnce(&mut Selection)>(&mut self, mut callback: F) {
         callback(&mut self.selection);
         self.wants_selection_update = true;
     }
-    pub fn mutate_partial_selection<F: FnMut(&mut Selection)>(&mut self, mut callback: F) {
+    pub fn mutate_partial_selection<F: FnOnce(&mut Selection)>(&mut self, mut callback: F) {
         callback(&mut self.partial_selection);
         self.wants_selection_update = true;
     }

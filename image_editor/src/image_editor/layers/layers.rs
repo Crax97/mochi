@@ -2,6 +2,7 @@ use std::cell::RefCell;
 
 use cgmath::{point2, point3, vec2, ElementWise, Point2, Rad, Vector2};
 use framework::framework::TextureId;
+use framework::renderer::renderer::Renderer;
 use framework::scene::Transform2d;
 use framework::{Box2d, Framework, RgbaTexture2D, Texture, TextureConfiguration, TextureUsage};
 use uuid::Uuid;
@@ -59,10 +60,21 @@ pub enum LayerType {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub enum MutationResult {
+pub enum OperationResult {
     Rerender,
     Update,
+    RenderAndUpdate,
     None,
+}
+
+pub trait LayerOperation {
+    fn accept(&self, layer: &Layer) -> bool;
+    fn execute(
+        &self,
+        layer: &mut Layer,
+        renderer: &mut Renderer,
+        framework: &mut Framework,
+    ) -> OperationResult;
 }
 
 impl Layer {
@@ -118,11 +130,22 @@ impl Layer {
         ret
     }
 
-    pub fn mutate<F: FnOnce(&mut Layer) -> MutationResult>(&mut self, f: F) {
-        match f(self) {
-            MutationResult::Rerender => *self.needs_bitmap_update.borrow_mut() = true,
-            MutationResult::Update => *self.needs_settings_update.borrow_mut() = true,
-            MutationResult::None => {}
+    pub fn execute_operation<O: LayerOperation>(
+        &mut self,
+        op: O,
+        renderer: &mut Renderer,
+        framework: &mut Framework,
+    ) {
+        if op.accept(&self) {
+            match op.execute(self, renderer, framework) {
+                OperationResult::Rerender => *self.needs_bitmap_update.borrow_mut() = true,
+                OperationResult::Update => *self.needs_settings_update.borrow_mut() = true,
+                OperationResult::RenderAndUpdate => {
+                    *self.needs_bitmap_update.borrow_mut() = true;
+                    *self.needs_settings_update.borrow_mut() = true;
+                }
+                OperationResult::None => {}
+            }
         }
     }
 

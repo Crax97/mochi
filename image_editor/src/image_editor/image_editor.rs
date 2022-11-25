@@ -96,6 +96,12 @@ impl ImageEditor {
         mutate_fn(&mut self.document);
     }
 
+    pub fn mutate_current_layer<F: FnOnce(&mut Layer)>(&mut self, mutate_fn: F) {
+        if let Some(index) = self.document().current_layer_index().copied() {
+            self.document.mutate_layer(&index, mutate_fn);
+        }
+    }
+
     pub fn add_layer_to_document(
         &mut self,
         config: LayerConstructionInfo,

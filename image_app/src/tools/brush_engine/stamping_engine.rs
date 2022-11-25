@@ -13,6 +13,7 @@ use wgpu::{BlendComponent, ShaderModuleDescriptor, ShaderSource};
 use crate::tools::{EditorCommand, EditorContext};
 use crate::{StrokeContext, StrokePath};
 
+use super::stamp_operation::StampOperation;
 use super::BrushEngine;
 
 struct LayerReplaceCommand {
@@ -39,11 +40,9 @@ impl EditorCommand for LayerReplaceCommand {
             LayerType::Image { texture, .. } => texture.clone(),
             LayerType::Group => unreachable!(),
         };
-        context.image_editor.mutate_document(|doc| {
-            doc.mutate_layer(&self.modified_layer, |lay| {
-                lay.replace_texture(self.old_layer_texture_id.clone())
-            })
-        });
+        context
+            .image_editor
+            .mutate_current_layer(|lay| lay.replace_texture(self.old_layer_texture_id.clone()));
         Box::new(LayerReplaceCommand::new(
             self.modified_layer,
             new_texture_id.clone(),
@@ -256,92 +255,40 @@ impl BrushEngine for StrokingEngine {
             self.wants_update_brush_settings = false;
         }
 
-        let layer = context.editor.document().current_layer();
-        match &layer.layer_type {
-            // TODO: Deal with difference between current_layer and buffer_layer size
-            LayerType::Image {
-                texture,
-                dimensions,
-            } => {
-                // 1. Create draw info
+        let StrokeContext {
+            framework,
+            editor,
+            renderer,
+        } = context;
 
-                let current_layer_transform = layer.transform();
-                let inv_layer_matrix = current_layer_transform.matrix().invert();
-                if let Some(inv_layer_matrix) = inv_layer_matrix {
-                    let transforms: Vec<Transform2d> = path
-                        .points
-                        .iter()
-                        .map(|pt| {
-                            let origin_inv = inv_layer_matrix.transform_point(point3(
-                                pt.position.x,
-                                pt.position.y,
-                                0.0,
-                            ));
-                            Transform2d {
-                                position: origin_inv,
-                                scale: vec2(pt.size, pt.size),
-                                rotation_radians: Rad(0.0),
-                            }
-                        })
-                        .collect();
+        editor.mutate_current_layer(move |layer| {
+            layer.execute_operation(
+                StampOperation {
+                    path,
+                    brush: self.current_stamp().brush_texture.texture().clone(),
+                    color: self.settings().wgpu_color(),
+                    is_eraser: self.settings().is_eraser,
+                    brush_settings_buffer: self.brush_settings_buffer_id.clone(),
+                    eraser_shader_id: self.eraser_shader_id.clone(),
+                    brush_shader_id: self.brush_shader_id.clone(),
+                },
+                renderer,
+                framework,
+            )
+        });
 
-                    // 2. Do draw
-
-                    let stamp = self.current_stamp().brush_texture.texture();
-                    context.renderer.begin(
-                        &Document::make_camera_for_layer(layer),
-                        None,
-                        context.framework,
-                    );
-                    context.renderer.set_viewport(Some((
-                        0.0,
-                        0.0,
-                        dimensions.x as f32,
-                        dimensions.y as f32,
-                    )));
-                    context.renderer.draw(DrawCommand {
-                        primitives: PrimitiveType::Texture2D {
-                            texture_id: stamp.clone(),
-                            instances: transforms,
-                            flip_uv_y: true,
-                            multiply_color: self.settings().wgpu_color(),
-                        },
-                        draw_mode: DrawMode::Instanced,
-                        additional_data: OptionalDrawData {
-                            shader: Some(if self.settings().is_eraser {
-                                self.eraser_shader_id.clone()
-                            } else {
-                                self.brush_shader_id.clone()
-                            }),
-                            additional_bindable_resource: vec![BindableResource::UniformBuffer(
-                                self.brush_settings_buffer_id.clone(),
-                            )],
-                            ..Default::default()
-                        },
-                    });
-                    context.renderer.end(&texture, None, context.framework);
-                }
-            }
-            LayerType::Group => {}
-        }
         None
     }
 
     fn begin_stroking(&mut self, context: &mut EditorContext) -> Option<Box<dyn EditorCommand>> {
-        let modified_layer = context
-            .image_editor
-            .document()
-            .current_layer_index()
-            .unwrap()
-            .clone();
         let (old_layer_texture_id, new_texture_id) =
             StrokingEngine::create_clone_of_current_layer_texture(context);
-        context.image_editor.mutate_document(|doc| {
-            doc.mutate_layer(&modified_layer, |lay| match &mut lay.layer_type {
+        context
+            .image_editor
+            .mutate_current_layer(|lay| match &mut lay.layer_type {
                 LayerType::Image { .. } => lay.replace_texture(new_texture_id.clone()),
                 LayerType::Group => unreachable!(),
-            })
-        });
+            });
         let cmd = LayerReplaceCommand::new(
             context
                 .image_editor

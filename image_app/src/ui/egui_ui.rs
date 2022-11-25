@@ -420,9 +420,9 @@ impl Ui for EguiUI {
             }
             LayerAction::DeleteLayer(idx) => app_ctx.image_editor.delete_layer(idx),
             LayerAction::SelectLayer(idx) => app_ctx.image_editor.select_new_layer(idx),
-            LayerAction::SetLayerSettings(idx, settings) => {
-                app_ctx.image_editor.mutate_document(|d| {
-                    d.mutate_layer(&idx, |l| l.set_settings(settings.clone()));
+            LayerAction::SetLayerSettings(.., settings) => {
+                app_ctx.image_editor.mutate_current_layer(|l| {
+                    l.set_settings(settings.clone());
                 });
             }
             LayerAction::SelectNewTool(new_tool_id) => {
