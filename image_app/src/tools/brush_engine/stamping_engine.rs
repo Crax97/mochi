@@ -30,27 +30,24 @@ impl LayerReplaceCommand {
 
 impl EditorCommand for LayerReplaceCommand {
     fn undo(&self, context: &mut EditorContext) -> Box<dyn EditorCommand> {
-        todo!()
-        /*
-        let new_texture_id = context
+        let new_texture_id = match &context
             .image_editor
             .document()
             .get_layer(&self.modified_layer)
-            .bitmap
-            .texture()
-            .clone();
+            .layer_type
+        {
+            LayerType::Image { texture, .. } => texture.clone(),
+            LayerType::Group => unreachable!(),
+        };
         context.image_editor.mutate_document(|doc| {
-            doc.mutate_layer(&self.modified_layer, |lay| match &mut lay.layer_type {
-                LayerType::Bitmap => {
-                    lay.replace_texture(self.old_layer_texture_id.clone());
-                }
+            doc.mutate_layer(&self.modified_layer, |lay| {
+                lay.replace_texture(self.old_layer_texture_id.clone())
             })
         });
         Box::new(LayerReplaceCommand::new(
             self.modified_layer,
             new_texture_id.clone(),
         ))
-         */
     }
 }
 
