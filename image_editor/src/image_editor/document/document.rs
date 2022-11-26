@@ -261,6 +261,7 @@ impl Document {
 
         let tex = match current_layer.layer_type {
             LayerType::Image { ref texture, .. } => texture.clone(),
+            LayerType::Chonky(..) => todo!(),
             LayerType::Group => unreachable!(),
         };
         let new_texture = framework.allocate_texture2d(

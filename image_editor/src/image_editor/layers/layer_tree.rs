@@ -427,6 +427,9 @@ impl CanvasRenderingStrategy {
             super::LayerType::Group => {
                 unreachable!() // LayerType Group aren't supposed to be rendered directly
             }
+            super::LayerType::Chonky(map) => {
+                Self::render_chunk_map(map, layer, target, framework, renderer)
+            }
         }
     }
 
@@ -455,6 +458,16 @@ impl CanvasRenderingStrategy {
                 }
             }
         }
+    }
+
+    fn render_chunk_map(
+        map: &super::ChunkedLayer,
+        layer: &Layer,
+        target: &TextureId,
+        framework: &mut Framework,
+        renderer: &mut Renderer,
+    ) {
+        todo!()
     }
 }
 

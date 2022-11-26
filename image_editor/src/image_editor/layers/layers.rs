@@ -9,6 +9,8 @@ use uuid::Uuid;
 
 use crate::blend_settings::BlendMode;
 
+use super::ChunkedLayer;
+
 #[derive(Clone, PartialEq)]
 pub struct LayerSettings {
     pub name: String,
@@ -17,6 +19,19 @@ pub struct LayerSettings {
     pub is_locked: bool,
     pub is_mask: bool,
     pub opacity: f32,
+}
+
+impl LayerSettings {
+    pub fn new(name: &String) -> Self {
+        Self {
+            name: name.clone(),
+            blend_mode: BlendMode::Normal,
+            is_enabled: true,
+            is_locked: false,
+            is_mask: false,
+            opacity: 1.0,
+        }
+    }
 }
 
 #[repr(C)]
@@ -67,6 +82,7 @@ pub enum LayerType {
         texture: TextureId,
         dimensions: Vector2<u32>,
     },
+    Chonky(ChunkedLayer),
     Group, // This is just a marker type
 }
 
@@ -103,7 +119,7 @@ impl<T: ImageLayerOperation> LayerOperation for T {
     fn accept(&self, layer: &Layer) -> bool {
         match &layer.layer_type {
             LayerType::Image { .. } => true,
-            LayerType::Group => false,
+            _ => false,
         }
     }
 
@@ -118,7 +134,7 @@ impl<T: ImageLayerOperation> LayerOperation for T {
                 texture,
                 dimensions,
             } => self.image_op(texture, dimensions, layer, renderer, framework),
-            LayerType::Group => unreachable!(),
+            _ => unreachable!(),
         }
     }
 }
@@ -161,6 +177,22 @@ impl Layer {
                 scale: creation_info.scale,
                 rotation_radians: Rad(creation_info.rotation_radians),
             },
+        }
+    }
+
+    pub fn new_chonky(creation_info: LayerCreationInfo) -> Self {
+        static CHUNK_SIZE: u32 = 256;
+        Self {
+            id: LayerId::new(),
+            transform: Transform2d {
+                position: point3(creation_info.position.x, creation_info.position.y, 0.0),
+                scale: creation_info.scale,
+                rotation_radians: Rad(creation_info.rotation_radians),
+            },
+            settings: LayerSettings::new(&creation_info.name),
+            layer_type: LayerType::Chonky(ChunkedLayer::new(&creation_info.name, CHUNK_SIZE)),
+            needs_settings_update: RefCell::new(false),
+            needs_bitmap_update: RefCell::new(false),
         }
     }
 
@@ -207,7 +239,7 @@ impl Layer {
     pub fn replace_texture(&mut self, new_texture: TextureId) {
         match &mut self.layer_type {
             LayerType::Image { texture, .. } => *texture = new_texture,
-            LayerType::Group => unreachable!(),
+            _ => unreachable!(),
         };
         self.mark_dirty();
     }
@@ -241,6 +273,7 @@ impl Layer {
                 center: point2(self.transform.position.x, self.transform.position.y),
                 extents: dimensions.cast::<f32>().unwrap().mul_element_wise(0.5),
             },
+            LayerType::Chonky(map) => map.bounds(),
             LayerType::Group => unreachable!(),
         }
     }
