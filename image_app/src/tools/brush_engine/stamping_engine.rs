@@ -33,6 +33,7 @@ impl EditorCommand for LayerReplaceCommand {
             .layer_type
         {
             LayerType::Image { texture, .. } => texture.clone(),
+            LayerType::Chonky(..) => todo!(),
             LayerType::Group => unreachable!(),
         };
         context
@@ -213,6 +214,7 @@ impl StrokingEngine {
         let layer = context.image_editor.document().get_layer(&modified_layer);
         let old_layer_texture_id = match &layer.layer_type {
             LayerType::Image { texture, .. } => texture.clone(),
+            LayerType::Chonky(..) => todo!(),
             LayerType::Group => unreachable!(),
         };
         let (width, height) = context
@@ -283,6 +285,7 @@ impl BrushEngine for StrokingEngine {
             .mutate_current_layer(|lay| match &mut lay.layer_type {
                 LayerType::Image { .. } => lay.replace_texture(new_texture_id.clone()),
                 LayerType::Group => unreachable!(),
+                LayerType::Chonky(..) => todo!(),
             });
         let cmd = LayerReplaceCommand::new(
             context
