@@ -1,4 +1,7 @@
+use std::collections::HashMap;
+
 use crate::image_editor::ab_render_target::ABRenderTarget;
+use crate::image_editor::image_editor::LayerCreationType;
 use crate::layers::{CanvasRenderingStrategy, Layer, LayerId, LayerItem, LayerRenderingStrategy};
 use crate::{
     global_selection_data,
@@ -90,6 +93,7 @@ impl Document {
         document.add_layer(
             LayerConstructionInfo {
                 initial_color: [255; 4],
+                layer_type: LayerCreationType::Image,
                 name: "Background Layer".into(),
             },
             framework,
@@ -97,6 +101,7 @@ impl Document {
         document.add_layer(
             LayerConstructionInfo {
                 initial_color: [0; 4],
+                layer_type: LayerCreationType::Raster,
                 name: "Layer 0".into(),
             },
             framework,
@@ -403,20 +408,24 @@ impl Document {
         config: LayerConstructionInfo,
         framework: &mut Framework,
     ) -> LayerId {
-        let new_layer = Layer::new_image(
-            RgbaTexture2D::from_repeated_texel(
-                RgbaU8(config.initial_color),
-                (self.document_size.x, self.document_size.y),
-            )
-            .unwrap(),
-            LayerCreationInfo {
-                name: config.name.clone(),
-                position: point2(0.0, 0.0),
-                scale: vec2(1.0, 1.0),
-                rotation_radians: 0.0,
-            },
-            framework,
-        );
+        let creation_info = LayerCreationInfo {
+            name: config.name.clone(),
+            position: point2(0.0, 0.0),
+            scale: vec2(1.0, 1.0),
+            rotation_radians: 0.0,
+        };
+        let new_layer = match config.layer_type {
+            LayerCreationType::Image => Layer::new_image(
+                RgbaTexture2D::from_repeated_texel(
+                    RgbaU8(config.initial_color),
+                    (self.document_size.x, self.document_size.y),
+                )
+                .unwrap(),
+                creation_info,
+                framework,
+            ),
+            LayerCreationType::Raster => Layer::new_chonky(creation_info),
+        };
         let id = new_layer.id().clone();
         self.rendering_strategy.on_new_layer(&new_layer, framework);
         self.tree.add_layer(new_layer);
@@ -508,6 +517,7 @@ impl Document {
     ) -> TextureId {
         Self::composite_final_image_impl(
             &self.tree.items,
+            &self.tree.layers,
             &self.rendering_strategy,
             width,
             height,
@@ -518,6 +528,7 @@ impl Document {
 
     fn composite_final_image_impl<T: LayerRenderingStrategy<Layer>>(
         items: &Vec<LayerItem>,
+        layers: &HashMap<LayerId, Layer>,
         strategy: &T,
         width: u32,
         height: u32,
@@ -529,17 +540,23 @@ impl Document {
             match item {
                 LayerItem::SingleLayer(id) => {
                     ab_render_target.run_render_loop(|result, back| {
-                        strategy.composite_layer_on_target(id, back, &result, renderer, framework);
+                        strategy.composite_layer_on_target(
+                            layers.get(&id).unwrap(),
+                            back,
+                            &result,
+                            renderer,
+                            framework,
+                        );
                     });
                 }
                 LayerItem::Group(items, group_layer_id) => {
                     let rendered_group = Self::composite_final_image_impl(
-                        items, strategy, width, height, renderer, framework,
+                        items, layers, strategy, width, height, renderer, framework,
                     );
 
                     ab_render_target.run_render_loop(|result, back| {
                         strategy.composite_layer_on_target(
-                            group_layer_id,
+                            layers.get(&group_layer_id).unwrap(),
                             back,
                             &result,
                             renderer,

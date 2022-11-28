@@ -1,10 +1,11 @@
 use std::{
+    borrow::Borrow,
     cell::RefCell,
     collections::HashMap,
-    ops::{Add, Div},
+    ops::{Add, Div, Sub},
 };
 
-use cgmath::{point2, ElementWise, Point2};
+use cgmath::{point2, ElementWise, Point2, Vector2};
 use framework::{
     framework::TextureId, Box2d, Framework, RgbaTexture2D, Texture, TextureConfiguration,
     TextureUsage,
@@ -33,28 +34,37 @@ impl ChunkedLayer {
     }
 
     // Use this to interact with the chunk on the chunk map, filling eventual holes.
-    pub fn edit<F: FnMut(&TextureId, Point2<i64>)>(
+    pub fn edit<F: FnMut(&TextureId, Point2<i64>, Point2<f32>, &mut Framework)>(
         &mut self,
         bounds: Box2d,
         mut f: F,
         framework: &mut Framework,
     ) {
         self.bounds = self.bounds.union(&bounds);
-        let chunks_modified =
-            bounds.extents.add_element_wise(0.5).cast::<u32>().unwrap() / self.chunk_size;
-        let first_chunk = bounds.center.cast::<i64>().unwrap() / self.chunk_size as i64;
-        for (x, y) in (0..=chunks_modified.x).zip(0..=chunks_modified.y) {
-            let chunk_index = point2(first_chunk.x + x as i64, first_chunk.y + y as i64);
-            self.allocate_chunk(chunk_index, framework);
-            let chunk = self.chunks.get(&chunk_index).unwrap();
-            f(chunk, chunk_index);
+        let chunks_modified = bounds.extents.cast::<u32>().unwrap() / self.chunk_size;
+        let first_chunk = Point2 {
+            x: bounds.left() / self.chunk_size as f32,
+            y: bounds.top() / self.chunk_size as f32,
+        }
+        .add_element_wise(point2(bounds.left().signum(), bounds.top().signum()) * 0.5)
+        .cast::<i64>()
+        .unwrap();
+        for x in 0..=chunks_modified.x {
+            for y in 0..=chunks_modified.y {
+                let chunk_index = point2(first_chunk.x + x as i64, first_chunk.y + y as i64);
+                log::info!("App,ChunkedLayer: editing chunk {:?}", chunk_index);
+                self.allocate_chunk(chunk_index, framework);
+                let chunk = self.chunks.get(&chunk_index).unwrap();
+                let chunk_position = self.index_to_world_position(&chunk_index);
+                f(chunk, chunk_index, chunk_position, framework);
+            }
         }
     }
 
     fn allocate_chunk(&mut self, chunk_index: Point2<i64>, framework: &mut Framework) {
         if !self.chunks.contains_key(&chunk_index) {
             log::info!(
-                "ChunkedLayer: Allocating a chunk at [{}, {}], chunk size: {}",
+                "App,ChunkedLayer: Allocating a chunk at [{}, {}], chunk size: {}",
                 chunk_index.x,
                 chunk_index.y,
                 self.chunk_size
@@ -104,15 +114,23 @@ impl ChunkedLayer {
     // F's arguments are (chunk, chunk index, chunk position in world space)
     pub fn iterate<F: FnMut(&TextureId, Point2<i64>, Point2<f32>)>(&self, mut f: F) {
         for (index, chunk) in self.chunks.iter() {
-            let chunk_position = index
-                .cast::<f32>()
-                .unwrap()
-                .mul_element_wise(self.chunk_size as f32);
+            let chunk_position = self.index_to_world_position(index);
             f(chunk, *index, chunk_position);
         }
     }
 
+    pub fn chunk_size(&self) -> u32 {
+        self.chunk_size
+    }
+
     pub(crate) fn bounds(&self) -> Box2d {
         self.bounds.clone()
+    }
+
+    fn index_to_world_position(&self, chunk_index: &Point2<i64>) -> Point2<f32> {
+        chunk_index
+            .cast::<f32>()
+            .unwrap()
+            .mul_element_wise(self.chunk_size as f32)
     }
 }

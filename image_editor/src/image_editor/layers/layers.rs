@@ -99,6 +99,7 @@ pub trait LayerOperation {
     fn execute(
         &self,
         layer: &mut Layer,
+        bounds: Box2d,
         renderer: &mut Renderer,
         framework: &mut Framework,
     ) -> OperationResult;
@@ -126,6 +127,7 @@ impl<T: ImageLayerOperation> LayerOperation for T {
     fn execute(
         &self,
         layer: &mut Layer,
+        _: Box2d,
         renderer: &mut Renderer,
         framework: &mut Framework,
     ) -> OperationResult {
@@ -137,6 +139,18 @@ impl<T: ImageLayerOperation> LayerOperation for T {
             _ => unreachable!(),
         }
     }
+}
+
+pub trait ChunkedLayerOperation {
+    fn chunk_op(
+        &self,
+        chunk: &TextureId,
+        index: &Point2<i64>,
+        chunk_position: &Point2<f32>,
+        owning_layer: &Layer,
+        renderer: &mut Renderer,
+        framework: &mut Framework,
+    ) -> OperationResult;
 }
 
 impl Layer {
@@ -211,11 +225,12 @@ impl Layer {
     pub fn execute_operation<O: LayerOperation>(
         &mut self,
         op: O,
+        bounds: Box2d,
         renderer: &mut Renderer,
         framework: &mut Framework,
     ) {
         if op.accept(&self) {
-            match op.execute(self, renderer, framework) {
+            match op.execute(self, bounds, renderer, framework) {
                 OperationResult::Rerender => *self.needs_bitmap_update.borrow_mut() = true,
                 OperationResult::Update => *self.needs_settings_update.borrow_mut() = true,
                 OperationResult::RenderAndUpdate => {

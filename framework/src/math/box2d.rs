@@ -115,8 +115,8 @@ impl Box2d {
         return Self {
             center: Point2 { x, y },
             extents: Vector2 {
-                x: width,
-                y: height,
+                x: width.abs(),
+                y: height.abs(),
             },
         };
     }

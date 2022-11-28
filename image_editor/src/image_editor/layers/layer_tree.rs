@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use cgmath::{point3, vec2, Rad, Transform, Vector2};
 use framework::{
     framework::{BufferId, TextureId},
     renderer::{
@@ -17,7 +18,7 @@ use framework::{
 
 use crate::{
     blend_settings::{BlendSettings, BlendSettingsUniform},
-    document::DocumentCreationInfo,
+    document::{Document, DocumentCreationInfo},
 };
 
 use super::{Layer, LayerBase, LayerId};
@@ -45,7 +46,7 @@ pub(crate) trait LayerRenderingStrategy<L: LayerBase> {
 
     fn composite_layer_on_target(
         &self,
-        id: &LayerId,
+        id: &L,
         back: &TextureId,
         resulting_texture: &TextureId,
         renderer: &mut Renderer,
@@ -315,15 +316,17 @@ impl LayerRenderingStrategy<Layer> for CanvasRenderingStrategy {
     }
     fn composite_layer_on_target(
         &self,
-        id: &LayerId,
+        layer: &Layer,
         back: &TextureId,
         canvas: &TextureId,
         renderer: &mut Renderer,
         framework: &mut Framework,
     ) {
-        let source = self.layer_data(id);
+        let source = self.layer_data(layer.id());
         renderer.begin(&Camera2d::default(), None, framework);
-        renderer.set_draw_debug_name(format!("Compositing layer {:?}", id).as_str());
+        renderer.set_draw_debug_name(
+            format!("Compositing layer '{:?}'", layer.settings().name).as_str(),
+        );
         renderer.draw(DrawCommand {
             primitives: PrimitiveType::Texture2D {
                 texture_id: back.clone(),
@@ -410,6 +413,8 @@ impl CanvasRenderingStrategy {
         renderer.end(target, None, framework);
     }
     fn render_layer(
+        width: u32,
+        height: u32,
         layer: &Layer,
         target: &TextureId,
         framework: &mut Framework,
@@ -428,7 +433,7 @@ impl CanvasRenderingStrategy {
                 unreachable!() // LayerType Group aren't supposed to be rendered directly
             }
             super::LayerType::Chonky(map) => {
-                Self::render_chunk_map(map, layer, target, framework, renderer)
+                Self::render_chunk_map(width, height, map, layer, target, framework, renderer)
             }
         }
     }
@@ -451,7 +456,7 @@ impl CanvasRenderingStrategy {
                     let data = datas
                         .get(id)
                         .expect("CanvasRenderingStrategy: could not find data for rendering");
-                    Self::render_layer(layer, &data.canvas, framework, renderer);
+                    Self::render_layer(width, height, layer, &data.canvas, framework, renderer);
                 }
                 LayerItem::Group(items, ..) => {
                     Self::render_impl(width, height, items, layers, datas, framework, renderer);
@@ -461,13 +466,50 @@ impl CanvasRenderingStrategy {
     }
 
     fn render_chunk_map(
+        width: u32,
+        height: u32,
         map: &super::ChunkedLayer,
         layer: &Layer,
         target: &TextureId,
         framework: &mut Framework,
         renderer: &mut Renderer,
     ) {
-        todo!()
+        let layer_transform = layer.transform();
+        let layer_transform_mat = layer_transform.matrix();
+        let layer_camera = Camera2d::wh(width, height);
+        renderer.begin(&layer_camera, Some(wgpu::Color::TRANSPARENT), framework);
+        renderer.set_draw_debug_name(
+            format!(
+                "Update canvas for chunk map layer '{}'",
+                layer.settings().name
+            )
+            .as_str(),
+        );
+        map.iterate(|chunk, index, wpos| {
+            let transformed_position =
+                layer_transform_mat.transform_point(point3(wpos.x, wpos.y, 0.0));
+            let transformed_scale = Vector2 {
+                x: layer_transform.scale.x * map.chunk_size() as f32 * 0.5,
+                y: layer_transform.scale.y * map.chunk_size() as f32 * 0.5,
+            };
+            let transform = Transform2d {
+                position: transformed_position,
+                scale: transformed_scale,
+                rotation_radians: layer_transform.rotation_radians,
+            };
+
+            renderer.draw(DrawCommand {
+                primitives: PrimitiveType::Texture2D {
+                    texture_id: chunk.clone(),
+                    instances: vec![transform],
+                    flip_uv_y: true,
+                    multiply_color: wgpu::Color::WHITE,
+                },
+                draw_mode: Single,
+                additional_data: OptionalDrawData::default(),
+            });
+        });
+        renderer.end(target, None, framework);
     }
 }
 

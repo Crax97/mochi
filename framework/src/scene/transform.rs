@@ -1,4 +1,4 @@
-use std::f32::consts::PI;
+use std::{f32::consts::PI, ops::Mul};
 
 use cgmath::{point3, Matrix4, Point3, Rad, Vector2, Vector3};
 

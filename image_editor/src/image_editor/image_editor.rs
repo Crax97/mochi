@@ -15,9 +15,17 @@ use crate::layers::LayerId;
 
 use super::{document::Document, layers::Layer};
 
+#[derive(Debug, Default)]
+pub enum LayerCreationType {
+    Image,
+    #[default]
+    Raster,
+}
+
 #[derive(Default)]
 pub struct LayerConstructionInfo {
     pub initial_color: [u8; 4],
+    pub layer_type: LayerCreationType,
     pub name: String,
 }
 

@@ -214,8 +214,7 @@ impl StrokingEngine {
         let layer = context.image_editor.document().get_layer(&modified_layer);
         let old_layer_texture_id = match &layer.layer_type {
             LayerType::Image { texture, .. } => texture.clone(),
-            LayerType::Chonky(..) => todo!(),
-            LayerType::Group => unreachable!(),
+            _ => unreachable!(),
         };
         let (width, height) = context
             .framework
@@ -257,7 +256,7 @@ impl BrushEngine for StrokingEngine {
             editor,
             renderer,
         } = context;
-
+        let path_bounds = path.bounds();
         editor.mutate_current_layer(move |layer| {
             layer.execute_operation(
                 StampOperation {
@@ -269,6 +268,7 @@ impl BrushEngine for StrokingEngine {
                     eraser_shader_id: self.eraser_shader_id.clone(),
                     brush_shader_id: self.brush_shader_id.clone(),
                 },
+                path_bounds,
                 renderer,
                 framework,
             )
@@ -278,24 +278,29 @@ impl BrushEngine for StrokingEngine {
     }
 
     fn begin_stroking(&mut self, context: &mut EditorContext) -> Option<Box<dyn EditorCommand>> {
-        let (old_layer_texture_id, new_texture_id) =
-            StrokingEngine::create_clone_of_current_layer_texture(context);
-        context
-            .image_editor
-            .mutate_current_layer(|lay| match &mut lay.layer_type {
-                LayerType::Image { .. } => lay.replace_texture(new_texture_id.clone()),
-                LayerType::Group => unreachable!(),
-                LayerType::Chonky(..) => todo!(),
-            });
-        let cmd = LayerReplaceCommand::new(
-            context
-                .image_editor
-                .document()
-                .current_layer_index()
-                .unwrap()
-                .clone(),
-            old_layer_texture_id,
-        );
-        Some(Box::new(cmd))
+        match &context.image_editor.document().current_layer().layer_type {
+            LayerType::Image { .. } => {
+                let (old_layer_texture_id, new_texture_id) =
+                    StrokingEngine::create_clone_of_current_layer_texture(context);
+                context
+                    .image_editor
+                    .mutate_current_layer(|lay| match &mut lay.layer_type {
+                        LayerType::Image { .. } => lay.replace_texture(new_texture_id.clone()),
+                        _ => unreachable!(),
+                    });
+                let cmd = LayerReplaceCommand::new(
+                    context
+                        .image_editor
+                        .document()
+                        .current_layer_index()
+                        .unwrap()
+                        .clone(),
+                    old_layer_texture_id,
+                );
+                Some(Box::new(cmd))
+            }
+            LayerType::Chonky(_) => None,
+            LayerType::Group => unreachable!(),
+        }
     }
 }

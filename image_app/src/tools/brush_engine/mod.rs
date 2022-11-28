@@ -1,9 +1,9 @@
 mod stamp_operation;
 pub mod stamping_engine;
 
-use cgmath::{InnerSpace, Point2};
+use cgmath::{vec2, InnerSpace, Point2};
 
-use framework::{renderer::renderer::Renderer, Framework};
+use framework::{renderer::renderer::Renderer, Box2d, Framework};
 use image_editor::ImageEditor;
 
 use super::{EditorCommand, EditorContext};
@@ -17,6 +17,7 @@ pub struct StrokePoint {
 #[derive(Debug)]
 pub struct StrokePath {
     pub points: Vec<StrokePoint>,
+    pub bounds: Box2d,
 }
 
 impl std::fmt::Display for StrokePath {
@@ -56,6 +57,14 @@ pub trait BrushEngine {
 }
 impl StrokePath {
     pub(crate) fn linear_start_to_end(start: StrokePoint, end: StrokePoint, step: f32) -> Self {
+        let bounds = Box2d {
+            center: start.position,
+            extents: vec2(start.size, start.size),
+        }
+        .union(&Box2d {
+            center: end.position,
+            extents: vec2(end.size, end.size),
+        });
         let direction = end.position - start.position;
         let distance = direction.magnitude();
         let direction = direction.normalize();
@@ -71,6 +80,10 @@ impl StrokePath {
             })
             .chain(std::iter::once(end))
             .collect();
-        StrokePath { points }
+        StrokePath { points, bounds }
+    }
+
+    fn bounds(&self) -> Box2d {
+        self.bounds
     }
 }
