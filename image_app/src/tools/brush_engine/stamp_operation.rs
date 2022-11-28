@@ -1,4 +1,4 @@
-use cgmath::{point3, vec2, Rad, SquareMatrix, Transform};
+use cgmath::{point2, point3, vec2, Rad, SquareMatrix, Transform};
 use framework::{
     framework::{BufferId, ShaderId, TextureId},
     renderer::{
@@ -29,21 +29,27 @@ impl LayerOperation for StampOperation {
     fn execute(
         &self,
         layer: &mut image_editor::layers::Layer,
-        bounds: framework::Box2d,
+        mut bounds: framework::Box2d,
         renderer: &mut Renderer,
         framework: &mut Framework,
     ) -> image_editor::layers::OperationResult {
         let layer_transform = layer.transform();
+        let inv_layer_matrix = layer_transform.matrix().invert();
 
         match &mut layer.layer_type {
             image_editor::layers::LayerType::Chonky(map) => {
                 let chunk_size = map.chunk_size();
                 let chunk_camera = Camera2d::wh(chunk_size, chunk_size);
-                map.edit(
-                    bounds,
-                    |chunk, _, chunk_world_position, framework| {
-                        let inv_layer_matrix = layer_transform.matrix().invert();
-                        if let Some(inv_layer_matrix) = inv_layer_matrix {
+                if let Some(inv_layer_matrix) = inv_layer_matrix {
+                    let bounds_center = inv_layer_matrix.transform_point(point3(
+                        bounds.center.x,
+                        bounds.center.y,
+                        0.0,
+                    ));
+                    bounds.center = point2(bounds_center.x, bounds_center.y);
+                    map.edit(
+                        bounds,
+                        |chunk, _, chunk_world_position, framework| {
                             let transforms: Vec<Transform2d> = self
                                 .path
                                 .points
@@ -94,10 +100,10 @@ impl LayerOperation for StampOperation {
                                 },
                             });
                             renderer.end(chunk, None, framework);
-                        }
-                    },
-                    framework,
-                );
+                        },
+                        framework,
+                    );
+                }
                 OperationResult::Rerender
             }
             _ => unreachable!(),

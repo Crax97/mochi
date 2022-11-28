@@ -78,7 +78,9 @@
             },
             "args": [],
             "cwd": "${workspaceFolder}",
-            "env": {}
+            "env": {
+                "RUST_LOG": "info/App"
+            }
         },
         {
             "type": "lldb",
