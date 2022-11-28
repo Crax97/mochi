@@ -1,4 +1,4 @@
-use cgmath::{point2, point3, vec2, Rad, SquareMatrix, Transform};
+use cgmath::{point2, point3, vec2, EuclideanSpace, Matrix4, Point2, Rad, SquareMatrix, Transform};
 use framework::{
     framework::{BufferId, ShaderId, TextureId},
     renderer::{
@@ -9,7 +9,7 @@ use framework::{
 };
 use image_editor::{
     document::Document,
-    layers::{ImageLayerOperation, LayerOperation, OperationResult},
+    layers::{ImageLayerOperation, LayerOperation, LayerType, OperationResult},
 };
 
 use super::StrokePath;
@@ -35,12 +35,14 @@ impl LayerOperation for StampOperation {
     ) -> image_editor::layers::OperationResult {
         let layer_transform = layer.transform();
         let inv_layer_matrix = layer_transform.matrix().invert();
+        let layer_rendering_camera = layer.rendering_camera();
 
-        match &mut layer.layer_type {
-            image_editor::layers::LayerType::Chonky(map) => {
-                let chunk_size = map.chunk_size();
-                let chunk_camera = Camera2d::wh(chunk_size, chunk_size);
-                if let Some(inv_layer_matrix) = inv_layer_matrix {
+        if let (Some(inv_layer_matrix), Some(rendering_camera)) =
+            (inv_layer_matrix, layer_rendering_camera)
+        {
+            match &mut layer.layer_type {
+                image_editor::layers::LayerType::Chonky(map) => {
+                    let chunk_size = map.chunk_size();
                     let bounds_center = inv_layer_matrix.transform_point(point3(
                         bounds.center.x,
                         bounds.center.y,
@@ -50,70 +52,103 @@ impl LayerOperation for StampOperation {
                     map.edit(
                         bounds,
                         |chunk, _, chunk_world_position, framework| {
-                            let transforms: Vec<Transform2d> = self
-                                .path
-                                .points
-                                .iter()
-                                .map(|pt| {
-                                    let origin_inv = inv_layer_matrix.transform_point(point3(
-                                        pt.position.x - chunk_world_position.x,
-                                        pt.position.y - chunk_world_position.y,
-                                        0.0,
-                                    ));
-                                    Transform2d {
-                                        position: origin_inv,
-                                        scale: vec2(pt.size, pt.size),
-                                        rotation_radians: Rad(0.0),
-                                    }
-                                })
-                                .collect();
-
-                            // 2. Do draw
-                            let stamp = self.brush.clone();
-                            renderer.begin(&chunk_camera, None, framework);
-                            renderer.set_viewport(Some((
-                                0.0,
-                                0.0,
-                                chunk_size as f32,
-                                chunk_size as f32,
-                            )));
-                            renderer.draw(DrawCommand {
-                                primitives: PrimitiveType::Texture2D {
-                                    texture_id: stamp,
-                                    instances: transforms,
-                                    flip_uv_y: true,
-                                    multiply_color: self.color,
-                                },
-                                draw_mode: DrawMode::Instanced,
-                                additional_data: OptionalDrawData {
-                                    shader: Some(if self.is_eraser {
-                                        self.eraser_shader_id.clone()
-                                    } else {
-                                        self.brush_shader_id.clone()
-                                    }),
-                                    additional_bindable_resource: vec![
-                                        BindableResource::UniformBuffer(
-                                            self.brush_settings_buffer.clone(),
-                                        ),
-                                    ],
-                                    ..Default::default()
-                                },
-                            });
-                            renderer.end(chunk, None, framework);
+                            self.stamp_on_texture(
+                                inv_layer_matrix,
+                                chunk_world_position,
+                                renderer,
+                                rendering_camera,
+                                framework,
+                                chunk_size,
+                                chunk_size,
+                                chunk,
+                            );
                         },
                         framework,
                     );
                 }
-                OperationResult::Rerender
+                LayerType::Image {
+                    texture,
+                    dimensions,
+                } => {
+                    self.stamp_on_texture(
+                        inv_layer_matrix,
+                        Point2::origin(),
+                        renderer,
+                        rendering_camera,
+                        framework,
+                        dimensions.x,
+                        dimensions.y,
+                        &texture.clone(),
+                    );
+                }
+                _ => unreachable!(),
             }
-            _ => unreachable!(),
         }
+        OperationResult::Rerender
     }
 
     fn accept(&self, layer: &image_editor::layers::Layer) -> bool {
         match &layer.layer_type {
-            image_editor::layers::LayerType::Chonky(_) => true,
+            image_editor::layers::LayerType::Chonky(_)
+            | image_editor::layers::LayerType::Image { .. } => true,
             _ => false,
         }
+    }
+}
+
+impl StampOperation {
+    fn stamp_on_texture(
+        &self,
+        inv_layer_matrix: Matrix4<f32>,
+        offset: Point2<f32>,
+        renderer: &mut Renderer,
+        camera_to_use: Camera2d,
+        framework: &mut Framework,
+        width: u32,
+        height: u32,
+        texture: &TextureId,
+    ) {
+        let transforms: Vec<Transform2d> = self
+            .path
+            .points
+            .iter()
+            .map(|pt| {
+                let origin_inv = inv_layer_matrix.transform_point(point3(
+                    pt.position.x - offset.x,
+                    pt.position.y - offset.y,
+                    0.0,
+                ));
+                Transform2d {
+                    position: origin_inv,
+                    scale: vec2(pt.size, pt.size),
+                    rotation_radians: Rad(0.0),
+                }
+            })
+            .collect();
+        // 2. Do draw
+        let stamp = self.brush.clone();
+        renderer.begin(&camera_to_use, None, framework);
+        renderer.set_viewport(Some((0.0, 0.0, width as f32, height as f32)));
+        renderer.draw(DrawCommand {
+            primitives: PrimitiveType::Texture2D {
+                texture_id: stamp,
+                instances: transforms,
+                flip_uv_y: true,
+                multiply_color: self.color,
+            },
+            draw_mode: DrawMode::Instanced,
+            additional_data: OptionalDrawData {
+                shader: Some(if self.is_eraser {
+                    self.eraser_shader_id.clone()
+                } else {
+                    self.brush_shader_id.clone()
+                }),
+                additional_bindable_resource: vec![BindableResource::UniformBuffer(
+                    self.brush_settings_buffer.clone(),
+                )],
+                ..Default::default()
+            },
+        });
+        renderer.end(texture, None, framework);
     }
 }

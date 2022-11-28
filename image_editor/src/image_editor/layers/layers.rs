@@ -4,7 +4,9 @@ use cgmath::{point2, point3, vec2, ElementWise, Point2, Rad, Vector2};
 use framework::framework::TextureId;
 use framework::renderer::renderer::Renderer;
 use framework::scene::Transform2d;
-use framework::{Box2d, Framework, RgbaTexture2D, Texture, TextureConfiguration, TextureUsage};
+use framework::{
+    Box2d, Camera2d, Framework, RgbaTexture2D, Texture, TextureConfiguration, TextureUsage,
+};
 use uuid::Uuid;
 
 use crate::blend_settings::BlendMode;
@@ -290,6 +292,14 @@ impl Layer {
             },
             LayerType::Chonky(map) => map.bounds(),
             LayerType::Group => unreachable!(),
+        }
+    }
+
+    pub fn rendering_camera(&self) -> Option<Camera2d> {
+        match &self.layer_type {
+            LayerType::Image { dimensions, .. } => Some(Camera2d::wh(dimensions.x, dimensions.y)),
+            LayerType::Chonky(map) => Some(Camera2d::wh(map.chunk_size(), map.chunk_size())),
+            LayerType::Group => None,
         }
     }
 
