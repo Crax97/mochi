@@ -54,13 +54,13 @@ impl Box2d {
         self.center.x - self.extents.x
     }
     pub fn bottom(&self) -> f32 {
-        self.center.y - self.extents.y
+        self.center.y + self.extents.y
     }
     pub fn right(&self) -> f32 {
         self.center.x + self.extents.x
     }
     pub fn top(&self) -> f32 {
-        self.center.y + self.extents.y
+        self.center.y - self.extents.y
     }
 
     pub fn area(&self) -> f32 {
