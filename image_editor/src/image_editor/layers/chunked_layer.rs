@@ -1,11 +1,6 @@
-use std::{
-    borrow::Borrow,
-    cell::RefCell,
-    collections::HashMap,
-    ops::{Add, Div, Sub},
-};
+use std::{collections::HashMap, ops::Div};
 
-use cgmath::{point2, ElementWise, Point2, Vector2};
+use cgmath::{point2, ElementWise, Point2};
 use framework::{
     framework::TextureId, Box2d, Framework, RgbaTexture2D, Texture, TextureConfiguration,
     TextureUsage,

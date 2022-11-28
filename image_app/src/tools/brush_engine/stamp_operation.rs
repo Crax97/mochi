@@ -7,10 +7,7 @@ use framework::{
     },
     Camera2d, Framework, Transform2d,
 };
-use image_editor::{
-    document::Document,
-    layers::{ImageLayerOperation, LayerOperation, LayerType, OperationResult},
-};
+use image_editor::layers::{LayerOperation, LayerType, OperationResult};
 
 use super::StrokePath;
 

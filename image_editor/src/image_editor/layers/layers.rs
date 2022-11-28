@@ -278,7 +278,7 @@ impl Layer {
     pub fn pixel_transform(&self) -> Transform2d {
         let bounds = self.bounds();
         Transform2d {
-            position: point3(bounds.center.x, bounds.center.x, 0.0),
+            position: point3(bounds.center.x, bounds.center.y, 0.0),
             scale: self.bounds().extents,
             rotation_radians: self.transform.rotation_radians,
         }

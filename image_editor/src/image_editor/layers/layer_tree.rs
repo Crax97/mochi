@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use cgmath::{point3, vec2, Rad, Transform, Vector2};
+use cgmath::{point3, Transform, Vector2};
 use framework::{
     framework::{BufferId, TextureId},
     renderer::{
@@ -18,7 +18,7 @@ use framework::{
 
 use crate::{
     blend_settings::{BlendSettings, BlendSettingsUniform},
-    document::{Document, DocumentCreationInfo},
+    document::DocumentCreationInfo,
 };
 
 use super::{Layer, LayerBase, LayerId};
