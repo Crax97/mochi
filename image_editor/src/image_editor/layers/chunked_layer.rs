@@ -41,7 +41,6 @@ impl ChunkedLayer {
         framework: &mut Framework,
     ) {
         self.bounds = self.bounds.union(&bounds);
-        let chunks_modified = bounds.extents.cast::<u32>().unwrap() / self.chunk_size;
         let first_chunk = Point2 {
             x: bounds.left() / self.chunk_size as f32,
             y: bounds.top() / self.chunk_size as f32,
@@ -49,9 +48,21 @@ impl ChunkedLayer {
         .add_element_wise(point2(bounds.left().signum(), bounds.top().signum()) * 0.5)
         .cast::<i64>()
         .unwrap();
-        for x in 0..=chunks_modified.x {
-            for y in 0..=chunks_modified.y {
-                let chunk_index = point2(first_chunk.x + x as i64, first_chunk.y + y as i64);
+        let last_chunk = Point2 {
+            x: bounds.right() / self.chunk_size as f32,
+            y: bounds.bottom() / self.chunk_size as f32,
+        }
+        .add_element_wise(point2(bounds.right().signum(), bounds.bottom().signum()) * 0.5)
+        .cast::<i64>()
+        .unwrap();
+        log::info!(
+            "App,ChunkedLayer: left {:?} right {:?}",
+            first_chunk,
+            last_chunk
+        );
+        for x in first_chunk.x..=last_chunk.x {
+            for y in first_chunk.y..=last_chunk.y {
+                let chunk_index = point2(x, y);
                 log::info!("App,ChunkedLayer: editing chunk {:?}", chunk_index);
                 self.allocate_chunk(chunk_index, framework);
                 let chunk = self.chunks.get(&chunk_index).unwrap();

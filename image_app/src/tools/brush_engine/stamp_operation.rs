@@ -39,7 +39,6 @@ impl LayerOperation for StampOperation {
             image_editor::layers::LayerType::Chonky(map) => {
                 let chunk_size = map.chunk_size();
                 let chunk_camera = Camera2d::wh(chunk_size, chunk_size);
-                log::info!("App, StampOperation: mouse bounds are {:?}", bounds);
                 map.edit(
                     bounds,
                     |chunk, _, chunk_world_position, framework| {
