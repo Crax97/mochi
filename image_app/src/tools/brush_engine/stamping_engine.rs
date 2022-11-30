@@ -272,7 +272,7 @@ impl BrushEngine for StrokingEngine {
             };
             layer.execute_operation(&mut op, path_bounds, renderer, framework);
             let this_stroke_diff = op.diff();
-            self.current_frame_chunk_diff.join(this_stroke_diff);
+            self.current_frame_chunk_diff.join(&this_stroke_diff);
         });
 
         None

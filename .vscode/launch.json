@@ -64,7 +64,7 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'app' with logging enabled",
+            "name": "Debug executable 'app'",
             "cargo": {
                 "args": [
                     "build",
@@ -78,9 +78,6 @@
             },
             "args": [],
             "cwd": "${workspaceFolder}",
-            "env": {
-                "RUST_LOG": "info/App"
-            }
         },
         {
             "type": "lldb",

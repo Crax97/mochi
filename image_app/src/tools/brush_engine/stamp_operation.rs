@@ -1,4 +1,4 @@
-use cgmath::{point2, point3, vec2, EuclideanSpace, Matrix4, Point2, Rad, SquareMatrix, Transform};
+use cgmath::{point2, point3, vec2, Matrix4, Point2, Rad, SquareMatrix, Transform};
 use framework::{
     framework::{BufferId, ShaderId, TextureId},
     renderer::{
@@ -7,7 +7,7 @@ use framework::{
     },
     Camera2d, Framework, Transform2d,
 };
-use image_editor::layers::{ChunkDiff, LayerOperation, LayerType, OperationResult};
+use image_editor::layers::{ChunkDiff, LayerOperation, OperationResult};
 
 use super::StrokePath;
 

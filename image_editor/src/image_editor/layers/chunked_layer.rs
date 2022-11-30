@@ -16,17 +16,13 @@ pub struct ChunkedLayer {
 
 #[derive(Debug)]
 pub struct ChunkDiff {
-    chunks_created: Vec<Point2<i64>>,
-    chunks_modified: HashMap<Point2<i64>, TextureId>,
-    chunks_deleted: HashMap<Point2<i64>, TextureId>,
+    diff: HashMap<Point2<i64>, Option<TextureId>>,
 }
 
 impl ChunkDiff {
     pub fn new() -> Self {
         ChunkDiff {
-            chunks_created: vec![],
-            chunks_modified: HashMap::new(),
-            chunks_deleted: HashMap::new(),
+            diff: HashMap::new(),
         }
     }
 
@@ -36,17 +32,15 @@ impl ChunkDiff {
         chunk_index: &Point2<i64>,
         framework: &mut Framework,
     ) {
-        if let Some(_) = chunk_layer.chunks.get(&chunk_index) {
-            if !self.chunks_modified.contains_key(&chunk_index)
-                && !self.chunks_created.contains(&chunk_index)
-            {
-                let chunk_texture_copy = chunk_layer.clone_chunk_texture(&chunk_index, framework);
-
-                self.chunks_modified
-                    .insert(chunk_index.clone(), chunk_texture_copy);
+        if !self.diff.contains_key(chunk_index) {
+            if chunk_layer.chunks.contains_key(chunk_index) {
+                // modified
+                let chunk_clone = chunk_layer.clone_chunk_texture(chunk_index, framework);
+                self.diff.insert(*chunk_index, Some(chunk_clone));
+            } else {
+                //created
+                self.diff.insert(*chunk_index, None);
             }
-        } else {
-            self.chunks_created.push(chunk_index.clone());
         }
     }
 
@@ -55,58 +49,41 @@ impl ChunkDiff {
         layer: &mut ChunkedLayer,
         framework: &mut Framework,
     ) -> Self {
+        log::trace!("ChunkDiff: Applying diff: \n\t{:?}", self.diff);
+        log::trace!("ChunkDiff: Layer before diff: ");
+        log::trace!("\t{:?}", layer.chunks);
         let mut inverted_diff = Self::new();
-        for index_created in self.chunks_created.iter() {
-            let deleted_content = layer
-                .chunks
-                .remove(&index_created)
-                .expect("apply_diff: chunk marked as created is not existing");
-            inverted_diff
-                .chunks_deleted
-                .insert(index_created.clone(), deleted_content);
-        }
-        for (index_modified, modified_texture) in self.chunks_modified.iter() {
-            let current_copy = layer.clone_chunk_texture(&index_modified, framework);
-            inverted_diff
-                .chunks_modified
-                .insert(index_modified.clone(), current_copy);
-            layer
-                .chunks
-                .insert(*index_modified, modified_texture.clone());
-        }
-        for (index_deleted, deleted_content) in self.chunks_deleted.iter() {
-            inverted_diff.chunks_created.push(index_deleted.clone());
-            layer.chunks.insert(*index_deleted, deleted_content.clone());
-        }
-
-        inverted_diff
-    }
-    pub fn join(&mut self, other: ChunkDiff) {
-        self.chunks_created.extend(other.chunks_created);
-        for (idx, modified) in other.chunks_modified {
-            if !self.chunks_created.contains(&idx) {
-                self.chunks_modified.insert(idx, modified);
+        for (index, diff) in self.diff.iter() {
+            if let Some(texture) = diff {
+                // either created or modified
+                let old = layer.chunks.insert(index.clone(), texture.clone());
+                inverted_diff.diff.insert(*index, old);
+            } else {
+                let old = layer
+                    .chunks
+                    .remove(&index)
+                    .expect("Diff: chunk should be deleted but it doesn't exist");
+                inverted_diff.diff.insert(*index, Some(old));
             }
         }
-        self.chunks_deleted.extend(other.chunks_deleted);
+        log::trace!("ChunkDiff: inverted diff: \n\t{:?}", inverted_diff.diff);
+        log::trace!("ChunkDiff: Layer after diff: \n\t{:?}", layer.chunks);
+        inverted_diff
+    }
+    pub fn join(&mut self, other: &ChunkDiff) {
+        for (index, diff) in other.diff.iter() {
+            if !self.diff.contains_key(index) {
+                // Ignore the latest updates (e.g created, afterwards modified, we should only pick the created)
+                self.diff.insert(*index, diff.clone());
+            }
+        }
     }
 
     pub fn take(&mut self) -> Self {
         let mut taken = ChunkDiff::new();
-        for created in self.chunks_created.iter() {
-            taken.chunks_created.push(created.clone());
-        }
-        for (index, modified) in self.chunks_modified.iter() {
-            taken
-                .chunks_modified
-                .insert(index.clone(), modified.clone());
-        }
-        for (index, deleted) in self.chunks_deleted.iter() {
-            taken.chunks_deleted.insert(index.clone(), deleted.clone());
-        }
-        self.chunks_created.clear();
-        self.chunks_deleted.clear();
-        self.chunks_modified.clear();
+        taken.join(self);
+
+        self.diff.clear();
         taken
     }
 }
