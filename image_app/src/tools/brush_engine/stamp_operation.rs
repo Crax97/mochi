@@ -91,11 +91,16 @@ impl StampOperation {
             .points
             .iter()
             .map(|pt| {
-                let mut origin_inv =
+                /*
+                    Explanation:
+                    This works because the chunks we stroke to are the ones that gets selected from the transformed
+                    bounds, so we don't need to transform the offset as well: it's already transformed
+                */
+                let stroke_origin =
                     inv_layer_matrix.transform_point(point3(pt.position.x, pt.position.y, 0.0));
-                origin_inv -= point3(offset.x, offset.y, 0.0).to_vec();
+                let stroke_origin = stroke_origin - point3(offset.x, offset.y, 0.0).to_vec();
                 Transform2d {
-                    position: origin_inv,
+                    position: stroke_origin,
                     scale: vec2(pt.size, pt.size),
                     rotation_radians: Rad(0.0),
                 }
