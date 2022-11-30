@@ -14,6 +14,103 @@ pub struct ChunkedLayer {
     bounds: Box2d,
 }
 
+#[derive(Debug)]
+pub struct ChunkDiff {
+    chunks_created: Vec<Point2<i64>>,
+    chunks_modified: HashMap<Point2<i64>, TextureId>,
+    chunks_deleted: HashMap<Point2<i64>, TextureId>,
+}
+
+impl ChunkDiff {
+    pub fn new() -> Self {
+        ChunkDiff {
+            chunks_created: vec![],
+            chunks_modified: HashMap::new(),
+            chunks_deleted: HashMap::new(),
+        }
+    }
+
+    pub(crate) fn update_with_chunk(
+        &mut self,
+        chunk_layer: &ChunkedLayer,
+        chunk_index: &Point2<i64>,
+        framework: &mut Framework,
+    ) {
+        if let Some(_) = chunk_layer.chunks.get(&chunk_index) {
+            if !self.chunks_modified.contains_key(&chunk_index)
+                && !self.chunks_created.contains(&chunk_index)
+            {
+                let chunk_texture_copy = chunk_layer.clone_chunk_texture(&chunk_index, framework);
+
+                self.chunks_modified
+                    .insert(chunk_index.clone(), chunk_texture_copy);
+            }
+        } else {
+            self.chunks_created.push(chunk_index.clone());
+        }
+    }
+
+    pub fn apply_to_chunked_layer(
+        &self,
+        layer: &mut ChunkedLayer,
+        framework: &mut Framework,
+    ) -> Self {
+        let mut inverted_diff = Self::new();
+        for index_created in self.chunks_created.iter() {
+            let deleted_content = layer
+                .chunks
+                .remove(&index_created)
+                .expect("apply_diff: chunk marked as created is not existing");
+            inverted_diff
+                .chunks_deleted
+                .insert(index_created.clone(), deleted_content);
+        }
+        for (index_modified, modified_texture) in self.chunks_modified.iter() {
+            let current_copy = layer.clone_chunk_texture(&index_modified, framework);
+            inverted_diff
+                .chunks_modified
+                .insert(index_modified.clone(), current_copy);
+            layer
+                .chunks
+                .insert(*index_modified, modified_texture.clone());
+        }
+        for (index_deleted, deleted_content) in self.chunks_deleted.iter() {
+            inverted_diff.chunks_created.push(index_deleted.clone());
+            layer.chunks.insert(*index_deleted, deleted_content.clone());
+        }
+
+        inverted_diff
+    }
+    pub fn join(&mut self, other: ChunkDiff) {
+        self.chunks_created.extend(other.chunks_created);
+        for (idx, modified) in other.chunks_modified {
+            if !self.chunks_created.contains(&idx) {
+                self.chunks_modified.insert(idx, modified);
+            }
+        }
+        self.chunks_deleted.extend(other.chunks_deleted);
+    }
+
+    pub fn take(&mut self) -> Self {
+        let mut taken = ChunkDiff::new();
+        for created in self.chunks_created.iter() {
+            taken.chunks_created.push(created.clone());
+        }
+        for (index, modified) in self.chunks_modified.iter() {
+            taken
+                .chunks_modified
+                .insert(index.clone(), modified.clone());
+        }
+        for (index, deleted) in self.chunks_deleted.iter() {
+            taken.chunks_deleted.insert(index.clone(), deleted.clone());
+        }
+        self.chunks_created.clear();
+        self.chunks_deleted.clear();
+        self.chunks_modified.clear();
+        taken
+    }
+}
+
 impl ChunkedLayer {
     pub(crate) fn new(label: &str, chunk_size: u32) -> Self {
         Self {
@@ -29,12 +126,13 @@ impl ChunkedLayer {
     }
 
     // Use this to interact with the chunk on the chunk map, filling eventual holes.
+    // F: (chunk, chunk index, chunk world position, chunk was just created)
     pub fn edit<F: FnMut(&TextureId, Point2<i64>, Point2<f32>, &mut Framework)>(
         &mut self,
         bounds: Box2d,
         mut f: F,
         framework: &mut Framework,
-    ) {
+    ) -> ChunkDiff {
         self.bounds = self.bounds.union(&bounds);
         let first_chunk = Point2 {
             x: bounds.left() / self.chunk_size as f32,
@@ -55,19 +153,23 @@ impl ChunkedLayer {
             first_chunk,
             last_chunk
         );
+        let mut diff = ChunkDiff::new();
         for x in first_chunk.x..=last_chunk.x {
             for y in first_chunk.y..=last_chunk.y {
                 let chunk_index = point2(x, y);
+                diff.update_with_chunk(self, &chunk_index, framework);
+
                 log::info!("App,ChunkedLayer: editing chunk {:?}", chunk_index);
-                self.allocate_chunk(chunk_index, framework);
-                let chunk = self.chunks.get(&chunk_index).unwrap();
                 let chunk_position = self.index_to_world_position(&chunk_index);
+                self.allocate_chunk_if_needed(chunk_index, framework);
+                let chunk = self.chunks.get(&chunk_index).unwrap();
                 f(chunk, chunk_index, chunk_position, framework);
             }
         }
+        diff
     }
 
-    fn allocate_chunk(&mut self, chunk_index: Point2<i64>, framework: &mut Framework) {
+    fn allocate_chunk_if_needed(&mut self, chunk_index: Point2<i64>, framework: &mut Framework) {
         if !self.chunks.contains_key(&chunk_index) {
             log::info!(
                 "App,ChunkedLayer: Allocating a chunk at [{}, {}], chunk size: {}",
@@ -82,6 +184,7 @@ impl ChunkedLayer {
                 framework,
                 &mut self.chunks,
             );
+        } else {
         }
     }
 
@@ -138,5 +241,23 @@ impl ChunkedLayer {
             .cast::<f32>()
             .unwrap()
             .mul_element_wise(self.chunk_size as f32)
+    }
+
+    fn clone_chunk_texture(
+        &self,
+        chunk_index: &Point2<i64>,
+        framework: &mut Framework,
+    ) -> TextureId {
+        let chunk_texture = self
+            .chunks
+            .get(chunk_index)
+            .expect("clone_chunk_texture: index not found");
+        framework.texture2d_copy_subregion(
+            chunk_texture,
+            0,
+            0,
+            self.chunk_size(),
+            self.chunk_size(),
+        )
     }
 }

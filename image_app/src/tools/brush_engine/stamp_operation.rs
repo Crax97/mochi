@@ -7,7 +7,7 @@ use framework::{
     },
     Camera2d, Framework, Transform2d,
 };
-use image_editor::layers::{LayerOperation, LayerType, OperationResult};
+use image_editor::layers::{ChunkDiff, LayerOperation, LayerType, OperationResult};
 
 use super::StrokePath;
 
@@ -20,11 +20,13 @@ pub(crate) struct StampOperation {
 
     pub eraser_shader_id: ShaderId,
     pub brush_shader_id: ShaderId,
+
+    pub diff: ChunkDiff,
 }
 
 impl LayerOperation for StampOperation {
     fn execute(
-        &self,
+        &mut self,
         layer: &mut image_editor::layers::Layer,
         mut bounds: framework::Box2d,
         renderer: &mut Renderer,
@@ -46,7 +48,7 @@ impl LayerOperation for StampOperation {
                         0.0,
                     ));
                     bounds.center = point2(bounds_center.x, bounds_center.y);
-                    map.edit(
+                    self.diff = map.edit(
                         bounds,
                         |chunk, _, chunk_world_position, framework| {
                             self.stamp_on_texture(
@@ -63,21 +65,6 @@ impl LayerOperation for StampOperation {
                         framework,
                     );
                 }
-                LayerType::Image {
-                    texture,
-                    dimensions,
-                } => {
-                    self.stamp_on_texture(
-                        inv_layer_matrix,
-                        Point2::origin(),
-                        renderer,
-                        rendering_camera,
-                        framework,
-                        dimensions.x,
-                        dimensions.y,
-                        &texture.clone(),
-                    );
-                }
                 _ => unreachable!(),
             }
         }
@@ -86,8 +73,7 @@ impl LayerOperation for StampOperation {
 
     fn accept(&self, layer: &image_editor::layers::Layer) -> bool {
         match &layer.layer_type {
-            image_editor::layers::LayerType::Chonky(_)
-            | image_editor::layers::LayerType::Image { .. } => true,
+            image_editor::layers::LayerType::Chonky(_) => true,
             _ => false,
         }
     }
@@ -147,5 +133,9 @@ impl StampOperation {
             },
         });
         renderer.end(texture, None, framework);
+    }
+
+    pub(crate) fn diff(self) -> ChunkDiff {
+        self.diff
     }
 }

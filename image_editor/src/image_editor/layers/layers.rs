@@ -99,7 +99,7 @@ pub enum OperationResult {
 pub trait LayerOperation {
     fn accept(&self, layer: &Layer) -> bool;
     fn execute(
-        &self,
+        &mut self,
         layer: &mut Layer,
         bounds: Box2d,
         renderer: &mut Renderer,
@@ -127,7 +127,7 @@ impl<T: ImageLayerOperation> LayerOperation for T {
     }
 
     fn execute(
-        &self,
+        &mut self,
         layer: &mut Layer,
         _: Box2d,
         renderer: &mut Renderer,
@@ -226,7 +226,7 @@ impl Layer {
 
     pub fn execute_operation<O: LayerOperation>(
         &mut self,
-        op: O,
+        op: &mut O,
         bounds: Box2d,
         renderer: &mut Renderer,
         framework: &mut Framework,

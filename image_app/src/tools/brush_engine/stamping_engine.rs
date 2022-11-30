@@ -2,7 +2,7 @@ use framework::framework::{BufferId, ShaderId, TextureId};
 use framework::shader::{BindElement, ShaderCreationInfo};
 use framework::BufferConfiguration;
 use framework::{Buffer, Framework};
-use image_editor::layers::{LayerId, LayerType};
+use image_editor::layers::{ChunkDiff, LayerId, LayerType};
 use wgpu::{BlendComponent, ShaderModuleDescriptor, ShaderSource};
 
 use crate::tools::{EditorCommand, EditorContext};
@@ -12,13 +12,13 @@ use super::stamp_operation::StampOperation;
 use super::BrushEngine;
 
 struct LayerReplaceCommand {
-    old_layer_texture_id: TextureId,
+    chunk_diff: ChunkDiff,
     modified_layer: LayerId,
 }
 impl LayerReplaceCommand {
-    pub fn new(modified_layer: LayerId, old_layer_texture_id: TextureId) -> Self {
+    pub fn new(modified_layer: LayerId, chunk_diff: ChunkDiff) -> Self {
         Self {
-            old_layer_texture_id,
+            chunk_diff,
             modified_layer,
         }
     }
@@ -26,23 +26,22 @@ impl LayerReplaceCommand {
 
 impl EditorCommand for LayerReplaceCommand {
     fn undo(&self, context: &mut EditorContext) -> Box<dyn EditorCommand> {
-        let new_texture_id = match &context
-            .image_editor
-            .document()
-            .get_layer(&self.modified_layer)
-            .layer_type
-        {
-            LayerType::Image { texture, .. } => texture.clone(),
-            LayerType::Chonky(..) => todo!(),
-            LayerType::Group => unreachable!(),
-        };
+        let mut out_box: Option<Box<dyn EditorCommand>> = None;
         context
             .image_editor
-            .mutate_current_layer(|lay| lay.replace_texture(self.old_layer_texture_id.clone()));
-        Box::new(LayerReplaceCommand::new(
-            self.modified_layer,
-            new_texture_id.clone(),
-        ))
+            .mutate_current_layer(|lay| match &mut lay.layer_type {
+                LayerType::Chonky(map) => {
+                    let inverted_diff = self
+                        .chunk_diff
+                        .apply_to_chunked_layer(map, context.framework);
+                    out_box = Some(Box::new(LayerReplaceCommand::new(
+                        self.modified_layer,
+                        inverted_diff,
+                    )));
+                }
+                _ => unreachable!(),
+            });
+        out_box.unwrap()
     }
 }
 
@@ -105,6 +104,8 @@ pub struct StrokingEngine {
     brush_shader_id: ShaderId,
     eraser_shader_id: ShaderId,
     brush_settings_buffer_id: BufferId,
+
+    current_frame_chunk_diff: ChunkDiff,
 }
 
 impl StrokingEngine {
@@ -180,6 +181,7 @@ impl StrokingEngine {
             brush_shader_id,
             brush_settings_buffer_id,
             eraser_shader_id,
+            current_frame_chunk_diff: ChunkDiff::new(),
         }
     }
 
@@ -258,49 +260,32 @@ impl BrushEngine for StrokingEngine {
         } = context;
         let path_bounds = path.bounds();
         editor.mutate_current_layer(move |layer| {
-            layer.execute_operation(
-                StampOperation {
-                    path,
-                    brush: self.current_stamp().brush_texture.clone(),
-                    color: self.settings().wgpu_color(),
-                    is_eraser: self.settings().is_eraser,
-                    brush_settings_buffer: self.brush_settings_buffer_id.clone(),
-                    eraser_shader_id: self.eraser_shader_id.clone(),
-                    brush_shader_id: self.brush_shader_id.clone(),
-                },
-                path_bounds,
-                renderer,
-                framework,
-            )
+            let mut op = StampOperation {
+                path,
+                brush: self.current_stamp().brush_texture.clone(),
+                color: self.settings().wgpu_color(),
+                is_eraser: self.settings().is_eraser,
+                brush_settings_buffer: self.brush_settings_buffer_id.clone(),
+                eraser_shader_id: self.eraser_shader_id.clone(),
+                brush_shader_id: self.brush_shader_id.clone(),
+                diff: ChunkDiff::new(),
+            };
+            layer.execute_operation(&mut op, path_bounds, renderer, framework);
+            let this_stroke_diff = op.diff();
+            self.current_frame_chunk_diff.join(this_stroke_diff);
         });
 
         None
     }
 
-    fn begin_stroking(&mut self, context: &mut EditorContext) -> Option<Box<dyn EditorCommand>> {
-        match &context.image_editor.document().current_layer().layer_type {
-            LayerType::Image { .. } => {
-                let (old_layer_texture_id, new_texture_id) =
-                    StrokingEngine::create_clone_of_current_layer_texture(context);
-                context
-                    .image_editor
-                    .mutate_current_layer(|lay| match &mut lay.layer_type {
-                        LayerType::Image { .. } => lay.replace_texture(new_texture_id.clone()),
-                        _ => unreachable!(),
-                    });
-                let cmd = LayerReplaceCommand::new(
-                    context
-                        .image_editor
-                        .document()
-                        .current_layer_index()
-                        .unwrap()
-                        .clone(),
-                    old_layer_texture_id,
-                );
-                Some(Box::new(cmd))
-            }
-            LayerType::Chonky(_) => None,
-            LayerType::Group => unreachable!(),
+    fn end_stroking(&mut self, context: &mut EditorContext) -> Option<Box<dyn EditorCommand>> {
+        if let Some(layer_index) = context.image_editor.document().current_layer_index() {
+            Some(Box::new(LayerReplaceCommand::new(
+                layer_index.clone(),
+                self.current_frame_chunk_diff.take(),
+            )))
+        } else {
+            None
         }
     }
 }
