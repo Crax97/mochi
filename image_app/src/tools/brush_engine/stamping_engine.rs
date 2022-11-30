@@ -204,32 +204,6 @@ impl StrokingEngine {
             .expect("Could not find the given index in stamp array")
     }
 
-    fn create_clone_of_current_layer_texture(
-        context: &mut EditorContext,
-    ) -> (TextureId, TextureId) {
-        let modified_layer = context
-            .image_editor
-            .document()
-            .current_layer_index()
-            .unwrap()
-            .clone();
-        let layer = context.image_editor.document().get_layer(&modified_layer);
-        let old_layer_texture_id = match &layer.layer_type {
-            LayerType::Image { texture, .. } => texture.clone(),
-            _ => unreachable!(),
-        };
-        let (width, height) = context
-            .framework
-            .texture2d_dimensions(&old_layer_texture_id);
-
-        let new_texture_id =
-            context
-                .framework
-                .texture2d_copy_subregion(&old_layer_texture_id, 0, 0, width, height);
-
-        (old_layer_texture_id, new_texture_id)
-    }
-
     pub fn toggle_eraser(&mut self) {
         self.stamp_configuration.is_eraser = !self.stamp_configuration.is_eraser;
     }

@@ -1,4 +1,4 @@
-use cgmath::{point2, point3, vec2, EuclideanSpace, Matrix4, Point2, Rad, SquareMatrix, Transform};
+use cgmath::{point3, vec2, EuclideanSpace, Matrix4, Point2, Rad, SquareMatrix, Transform};
 use framework::{
     framework::{BufferId, ShaderId, TextureId},
     renderer::{
@@ -47,7 +47,7 @@ impl LayerOperation for StampOperation {
                         bounds,
                         |chunk, _, chunk_world_position, framework| {
                             self.stamp_on_texture(
-                                inv_layer_matrix,
+                                layer_transform,
                                 chunk_world_position,
                                 renderer,
                                 rendering_camera,
@@ -77,15 +77,17 @@ impl LayerOperation for StampOperation {
 impl StampOperation {
     fn stamp_on_texture(
         &self,
-        inv_layer_matrix: Matrix4<f32>,
+        layer_transform: Transform2d,
         offset: Point2<f32>,
         renderer: &mut Renderer,
         camera_to_use: Camera2d,
         framework: &mut Framework,
-        width: u32,
-        height: u32,
-        texture: &TextureId,
+        target_width: u32,
+        target_height: u32,
+        stamp_texture: &TextureId,
     ) {
+        let inv_scale = 1.0 / layer_transform.scale;
+        let inv_layer_matrix = layer_transform.matrix().invert().unwrap();
         let transforms: Vec<Transform2d> = self
             .path
             .points
@@ -101,15 +103,15 @@ impl StampOperation {
                 let stroke_origin = stroke_origin - point3(offset.x, offset.y, 0.0).to_vec();
                 Transform2d {
                     position: stroke_origin,
-                    scale: vec2(pt.size, pt.size),
-                    rotation_radians: Rad(0.0),
+                    scale: vec2(pt.size * inv_scale.x, pt.size * inv_scale.y), // Account for layer scale when stamping
+                    rotation_radians: layer_transform.rotation_radians,
                 }
             })
             .collect();
         // 2. Do draw
         let stamp = self.brush.clone();
         renderer.begin(&camera_to_use, None, framework);
-        renderer.set_viewport(Some((0.0, 0.0, width as f32, height as f32)));
+        renderer.set_viewport(Some((0.0, 0.0, target_width as f32, target_height as f32)));
         renderer.draw(DrawCommand {
             primitives: PrimitiveType::Texture2D {
                 texture_id: stamp,
@@ -130,7 +132,7 @@ impl StampOperation {
                 ..Default::default()
             },
         });
-        renderer.end(texture, None, framework);
+        renderer.end(stamp_texture, None, framework);
     }
 
     pub(crate) fn diff(self) -> ChunkDiff {

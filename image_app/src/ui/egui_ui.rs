@@ -1,4 +1,4 @@
-use std::ops::RangeInclusive;
+use std::{collections::btree_map::Range, ops::RangeInclusive};
 
 use bytemuck::Zeroable;
 use egui::{
@@ -90,7 +90,35 @@ impl<'a> DynamicToolUi for DynamicEguiUi<'a> {
         mut current: f32,
         range: RangeInclusive<f32>,
     ) -> f32 {
-        self.ui.add(egui::Slider::new(&mut current, range));
+        self.ui.horizontal(|ui| {
+            ui.label(label);
+            ui.add(egui::Slider::new(&mut current, range));
+        });
+        current
+    }
+    fn vec2_ranged(
+        &mut self,
+        label: &str,
+        value: &mut cgmath::Vector2<f32>,
+        x_min: RangeInclusive<f32>,
+        y_min: RangeInclusive<f32>,
+    ) {
+        self.ui.horizontal(|ui| {
+            ui.label(label);
+            ui.add(egui::DragValue::new(&mut value.x).clamp_range(x_min));
+            ui.add(egui::DragValue::new(&mut value.y).clamp_range(y_min));
+        });
+    }
+    fn textbox_float_ranged(
+        &mut self,
+        label: &str,
+        mut current: f32,
+        range: RangeInclusive<f32>,
+    ) -> f32 {
+        self.ui.horizontal(|ui| {
+            ui.label(label);
+            ui.add(egui::DragValue::new(&mut current).clamp_range(range));
+        });
         current
     }
 }

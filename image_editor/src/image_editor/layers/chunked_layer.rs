@@ -104,6 +104,8 @@ impl ChunkedLayer {
 
     // Use this to interact with the chunk on the chunk map, filling eventual holes.
     // F: (chunk, chunk index, chunk world position, chunk was just created)
+    // FIXME: Using an AABB brings issues when the AABB is created with a rotation, so
+    //  we should to an OBB instead
     pub fn edit<F: FnMut(&TextureId, Point2<i64>, Point2<f32>, &mut Framework)>(
         &mut self,
         bounds: Box2d,

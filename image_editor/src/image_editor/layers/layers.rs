@@ -279,6 +279,10 @@ impl Layer {
         self.transform.rotation_radians = Rad(new_rotation_radians);
         self.mark_dirty();
     }
+    pub fn set_scale(&mut self, scale: Vector2<f32>) {
+        self.transform.scale = scale;
+        self.mark_dirty();
+    }
 
     pub fn pixel_transform(&self) -> Transform2d {
         let bounds = self.bounds();

@@ -32,8 +32,6 @@ pub struct TransformLayerTool {
     transform_item: TransformItem,
     extract_selection: bool,
     is_manipulating_selection: bool,
-    next_rotation_rads: Option<f32>,
-    next_scale_uniform: Option<f32>,
 }
 
 impl TransformLayerTool {
@@ -44,8 +42,6 @@ impl TransformLayerTool {
             transform_item: TransformItem::Layer,
             extract_selection: false,
             is_manipulating_selection: false,
-            next_rotation_rads: None,
-            next_scale_uniform: None,
         }
     }
 }
@@ -148,10 +144,14 @@ impl Tool for TransformLayerTool {
                 current_layer_transform.rotation_radians.0,
                 -PI..=PI,
             );
+            let mut scale = current_layer_transform.scale.clone();
+            ui.vec2_ranged("Layer scale", &mut scale, 0.1..=f32::MAX, 0.1..=f32::MAX);
+
             current_layer.set_rotation(new_rotation);
+            current_layer.set_scale(scale);
         })
     }
     fn name(&self) -> &'static str {
-        "Move tool"
+        "Transform Tool"
     }
 }

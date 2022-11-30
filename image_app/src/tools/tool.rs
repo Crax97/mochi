@@ -34,6 +34,20 @@ pub trait DynamicToolUi {
     }
 
     fn value_float_ranged(&mut self, label: &str, current: f32, range: RangeInclusive<f32>) -> f32;
+
+    fn textbox_float_ranged(
+        &mut self,
+        label: &str,
+        current: f32,
+        range: RangeInclusive<f32>,
+    ) -> f32;
+    fn vec2_ranged(
+        &mut self,
+        label: &str,
+        value: &mut cgmath::Vector2<f32>,
+        x_min: RangeInclusive<f32>,
+        y_min: RangeInclusive<f32>,
+    );
 }
 
 pub mod dynamic_tool_ui_helpers {
