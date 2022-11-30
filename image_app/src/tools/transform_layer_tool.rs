@@ -1,3 +1,5 @@
+use std::f32::consts::PI;
+
 use crate::tools::EditorContext;
 use cgmath::{point2, InnerSpace, Point2};
 use strum_macros::{Display, EnumIter, EnumString};
@@ -30,6 +32,8 @@ pub struct TransformLayerTool {
     transform_item: TransformItem,
     extract_selection: bool,
     is_manipulating_selection: bool,
+    next_rotation_rads: Option<f32>,
+    next_scale_uniform: Option<f32>,
 }
 
 impl TransformLayerTool {
@@ -40,6 +44,8 @@ impl TransformLayerTool {
             transform_item: TransformItem::Layer,
             extract_selection: false,
             is_manipulating_selection: false,
+            next_rotation_rads: None,
+            next_scale_uniform: None,
         }
     }
 }
@@ -121,7 +127,7 @@ impl Tool for TransformLayerTool {
         None
     }
 
-    fn ui(&mut self, ui: &mut dyn DynamicToolUi) {
+    fn ui(&mut self, ui: &mut dyn DynamicToolUi, context: &mut EditorContext) {
         self.transform_item =
             dynamic_tool_ui_helpers::dropdown(ui, "Transform item", self.transform_item);
         if self.is_manipulating_selection {
@@ -134,6 +140,16 @@ impl Tool for TransformLayerTool {
                 self.extract_selection = true;
             }
         }
+
+        context.image_editor.mutate_current_layer(|current_layer| {
+            let current_layer_transform = current_layer.transform();
+            let new_rotation = ui.value_float_ranged(
+                "Layer rotation",
+                current_layer_transform.rotation_radians.0,
+                -PI..=PI,
+            );
+            current_layer.set_rotation(new_rotation);
+        })
     }
     fn name(&self) -> &'static str {
         "Move tool"

@@ -1,3 +1,5 @@
+use std::ops::RangeInclusive;
+
 use bytemuck::Zeroable;
 use egui::{
     color::Hsva, Align2, CollapsingHeader, Color32, FontDefinitions, Label, Pos2, RichText, Sense,
@@ -81,6 +83,15 @@ impl<'a> DynamicToolUi for DynamicEguiUi<'a> {
 
     fn button(&mut self, label: &str) -> bool {
         self.ui.button(label).clicked()
+    }
+    fn value_float_ranged(
+        &mut self,
+        label: &str,
+        mut current: f32,
+        range: RangeInclusive<f32>,
+    ) -> f32 {
+        self.ui.add(egui::Slider::new(&mut current, range));
+        current
     }
 }
 
@@ -483,7 +494,14 @@ impl Ui for EguiUI {
         let ctx = self.platform.context();
         let window = egui::Window::new(tool.name()).show(&ctx, |ui| {
             let mut dynamic_ui = DynamicEguiUi::new(ui);
-            tool.ui(&mut dynamic_ui);
+            tool.ui(
+                &mut dynamic_ui,
+                &mut EditorContext {
+                    framework: app_ctx.framework,
+                    image_editor: app_ctx.image_editor,
+                    renderer: app_ctx.renderer,
+                },
+            );
             // dynamic_ui.do_stuff();
         });
         if let Some(response) = window {

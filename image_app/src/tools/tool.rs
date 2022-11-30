@@ -1,3 +1,5 @@
+use std::ops::RangeInclusive;
+
 use cgmath::{Point2, Vector2};
 use framework::{renderer::renderer::Renderer, Framework};
 
@@ -27,6 +29,11 @@ pub trait DynamicToolUi {
         values_fn: Box<dyn FnOnce() -> Vec<(usize, String)>>,
     ) -> usize;
     fn button(&mut self, label: &str) -> bool;
+    fn value_float(&mut self, label: &str, current: f32) -> f32 {
+        self.value_float_ranged(label, current, f32::MIN..=f32::MAX)
+    }
+
+    fn value_float_ranged(&mut self, label: &str, current: f32, range: RangeInclusive<f32>) -> f32;
 }
 
 pub mod dynamic_tool_ui_helpers {
@@ -74,7 +81,7 @@ pub trait Tool {
         None
     }
 
-    fn ui(&mut self, _ui: &mut dyn DynamicToolUi) {}
+    fn ui(&mut self, _ui: &mut dyn DynamicToolUi, _context: &mut EditorContext) {}
 
     fn on_pointer_release(
         &mut self,

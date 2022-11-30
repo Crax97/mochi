@@ -275,6 +275,11 @@ impl Layer {
         self.transform
     }
 
+    pub fn set_rotation(&mut self, new_rotation_radians: f32) {
+        self.transform.rotation_radians = Rad(new_rotation_radians);
+        self.mark_dirty();
+    }
+
     pub fn pixel_transform(&self) -> Transform2d {
         let bounds = self.bounds();
         Transform2d {
