@@ -1,4 +1,4 @@
-use cgmath::{point3, vec2, EuclideanSpace, Matrix4, Point2, Rad, SquareMatrix, Transform};
+use cgmath::{point3, vec2, EuclideanSpace, Point2, SquareMatrix, Transform};
 use framework::{
     framework::{BufferId, ShaderId, TextureId},
     renderer::{

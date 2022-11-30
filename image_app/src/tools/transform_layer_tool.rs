@@ -145,7 +145,13 @@ impl Tool for TransformLayerTool {
                 -PI..=PI,
             );
             let mut scale = current_layer_transform.scale.clone();
-            ui.vec2_ranged("Layer scale", &mut scale, 0.1..=f32::MAX, 0.1..=f32::MAX);
+            ui.vec2_ranged(
+                "Layer scale",
+                &mut scale,
+                0.1..=f32::MAX,
+                0.1..=f32::MAX,
+                0.01,
+            );
 
             current_layer.set_rotation(new_rotation);
             current_layer.set_scale(scale);

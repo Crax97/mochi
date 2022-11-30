@@ -47,6 +47,7 @@ pub trait DynamicToolUi {
         value: &mut cgmath::Vector2<f32>,
         x_min: RangeInclusive<f32>,
         y_min: RangeInclusive<f32>,
+        step: f32,
     );
 }
 

@@ -4,13 +4,11 @@ use std::{
     fmt::{Debug, Display},
     fs::File,
     io::{BufRead, BufReader, Cursor, Error, Read},
-    sync::Mutex,
 };
 
 use naga::{
-    front::wgsl::{parse_str, ParseError},
+    front::wgsl::parse_str,
     valid::{Capabilities, ValidationFlags, Validator},
-    Module,
 };
 use wgpu::ShaderModuleDescriptor;
 

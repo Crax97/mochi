@@ -15,7 +15,7 @@ use application::{
 use application::{AppBoot, AppResized};
 
 use image_editor::ImageEditor;
-use log::{info, warn};
+use log::warn;
 use wgpu::TextureView;
 use winit::dpi::LogicalSize;
 

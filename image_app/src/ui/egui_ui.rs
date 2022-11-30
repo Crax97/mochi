@@ -1,4 +1,4 @@
-use std::{collections::btree_map::Range, ops::RangeInclusive};
+use std::ops::RangeInclusive;
 
 use bytemuck::Zeroable;
 use egui::{
@@ -10,7 +10,7 @@ use egui_winit_platform::PlatformDescriptor;
 use framework::Framework;
 use image_editor::{
     blend_settings::BlendMode,
-    document::{self, Document},
+    document::Document,
     layers::{LayerId, LayerItem, LayerSettings},
     LayerConstructionInfo,
 };
@@ -102,11 +102,20 @@ impl<'a> DynamicToolUi for DynamicEguiUi<'a> {
         value: &mut cgmath::Vector2<f32>,
         x_min: RangeInclusive<f32>,
         y_min: RangeInclusive<f32>,
+        step: f32,
     ) {
         self.ui.horizontal(|ui| {
             ui.label(label);
-            ui.add(egui::DragValue::new(&mut value.x).clamp_range(x_min));
-            ui.add(egui::DragValue::new(&mut value.y).clamp_range(y_min));
+            ui.add(
+                egui::DragValue::new(&mut value.x)
+                    .clamp_range(x_min)
+                    .speed(step),
+            );
+            ui.add(
+                egui::DragValue::new(&mut value.y)
+                    .clamp_range(y_min)
+                    .speed(step),
+            );
         });
     }
     fn textbox_float_ranged(

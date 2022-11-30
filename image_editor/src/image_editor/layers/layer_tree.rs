@@ -486,6 +486,7 @@ impl CanvasRenderingStrategy {
             .as_str(),
         );
         map.iterate(|chunk, index, wpos| {
+            log::trace!("Rendering chunk {index:?} at world position {wpos:?}");
             let transformed_position =
                 layer_transform_mat.transform_point(point3(wpos.x, wpos.y, 0.0));
             let transformed_scale = Vector2 {

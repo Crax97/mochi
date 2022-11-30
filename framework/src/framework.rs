@@ -226,6 +226,7 @@ impl<'a> Framework {
 }
 
 // Texture2D
+#[allow(unused)]
 impl<'a> Framework {
     pub fn texture2d_dimensions(&self, id: &TextureId) -> (u32, u32) {
         (self.texture2d_width(id), self.texture2d_height(id))

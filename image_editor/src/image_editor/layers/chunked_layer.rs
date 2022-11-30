@@ -44,11 +44,7 @@ impl ChunkDiff {
         }
     }
 
-    pub fn apply_to_chunked_layer(
-        &self,
-        layer: &mut ChunkedLayer,
-        framework: &mut Framework,
-    ) -> Self {
+    pub fn apply_to_chunked_layer(&self, layer: &mut ChunkedLayer) -> Self {
         log::trace!("ChunkDiff: Applying diff: \n\t{:?}", self.diff);
         log::trace!("ChunkDiff: Layer before diff: ");
         log::trace!("\t{:?}", layer.chunks);

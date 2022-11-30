@@ -268,6 +268,7 @@ impl InputState {
     }
 }
 
+#[allow(deprecated)] // We need ModifiersState::empty() to construct a KeyboardInput
 #[cfg(test)]
 mod tests {
     use super::*;

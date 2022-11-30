@@ -20,6 +20,7 @@ pub struct GpuTexture<L: Texel, T: Texture<L>> {
     pub(crate) binding_infos: Vec<BindingInfo>,
 }
 
+#[allow(unused)]
 impl<L: Texel, T: Texture<L>> GpuTexture<L, T> {
     pub(crate) fn new<'a>(
         texture: T,

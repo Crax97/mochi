@@ -31,9 +31,7 @@ impl EditorCommand for LayerReplaceCommand {
             .image_editor
             .mutate_current_layer(|lay| match &mut lay.layer_type {
                 LayerType::Chonky(map) => {
-                    let inverted_diff = self
-                        .chunk_diff
-                        .apply_to_chunked_layer(map, context.framework);
+                    let inverted_diff = self.chunk_diff.apply_to_chunked_layer(map);
                     out_box = Some(Box::new(LayerReplaceCommand::new(
                         self.modified_layer,
                         inverted_diff,
