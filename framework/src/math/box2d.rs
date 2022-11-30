@@ -1,4 +1,4 @@
-use cgmath::{point2, EuclideanSpace, Point2, Vector2};
+use cgmath::{point2, point3, EuclideanSpace, Matrix4, Point2, Transform, Vector2};
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -124,6 +124,16 @@ impl Box2d {
     pub fn contains_point(&self, point: Point2<f32>) -> bool {
         (self.left() <= point.x && self.right() >= point.x)
             && (self.top() >= point.y && self.bottom() <= point.y)
+    }
+
+    pub fn transformed(&self, matrix: Matrix4<f32>) -> Self {
+        let left_top = point2(self.left(), self.top());
+        let right_bottom = point2(self.right(), self.bottom());
+        let left_top = matrix.transform_point(point3(left_top.x, left_top.y, 0.0));
+        let right_bottom = matrix.transform_point(point3(right_bottom.x, right_bottom.y, 0.0));
+        let left_top = point2(left_top.x, left_top.y);
+        let right_bottom = point2(right_bottom.x, right_bottom.y);
+        Box2d::from_points(left_top, right_bottom)
     }
 
     pub fn expand_with_point(&mut self, point: Point2<f32>) {

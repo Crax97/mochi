@@ -1,4 +1,4 @@
-use cgmath::{point2, point3, vec2, Matrix4, Point2, Rad, SquareMatrix, Transform};
+use cgmath::{point2, point3, vec2, EuclideanSpace, Matrix4, Point2, Rad, SquareMatrix, Transform};
 use framework::{
     framework::{BufferId, ShaderId, TextureId},
     renderer::{
@@ -28,7 +28,7 @@ impl LayerOperation for StampOperation {
     fn execute(
         &mut self,
         layer: &mut image_editor::layers::Layer,
-        mut bounds: framework::Box2d,
+        bounds: framework::Box2d,
         renderer: &mut Renderer,
         framework: &mut Framework,
     ) -> image_editor::layers::OperationResult {
@@ -42,12 +42,7 @@ impl LayerOperation for StampOperation {
             match &mut layer.layer_type {
                 image_editor::layers::LayerType::Chonky(map) => {
                     let chunk_size = map.chunk_size();
-                    let bounds_center = inv_layer_matrix.transform_point(point3(
-                        bounds.center.x,
-                        bounds.center.y,
-                        0.0,
-                    ));
-                    bounds.center = point2(bounds_center.x, bounds_center.y);
+                    let bounds = bounds.transformed(inv_layer_matrix);
                     self.diff = map.edit(
                         bounds,
                         |chunk, _, chunk_world_position, framework| {
@@ -96,11 +91,9 @@ impl StampOperation {
             .points
             .iter()
             .map(|pt| {
-                let origin_inv = inv_layer_matrix.transform_point(point3(
-                    pt.position.x - offset.x,
-                    pt.position.y - offset.y,
-                    0.0,
-                ));
+                let mut origin_inv =
+                    inv_layer_matrix.transform_point(point3(pt.position.x, pt.position.y, 0.0));
+                origin_inv -= point3(offset.x, offset.y, 0.0).to_vec();
                 Transform2d {
                     position: origin_inv,
                     scale: vec2(pt.size, pt.size),
