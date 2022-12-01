@@ -136,26 +136,6 @@ impl Tool for TransformLayerTool {
                 self.extract_selection = true;
             }
         }
-
-        context.image_editor.mutate_current_layer(|current_layer| {
-            let current_layer_transform = current_layer.transform();
-            let new_rotation = ui.value_float_ranged(
-                "Layer rotation",
-                current_layer_transform.rotation_radians.0,
-                -PI..=PI,
-            );
-            let mut scale = current_layer_transform.scale.clone();
-            ui.vec2_ranged(
-                "Layer scale",
-                &mut scale,
-                0.1..=f32::MAX,
-                0.1..=f32::MAX,
-                0.01,
-            );
-
-            current_layer.set_rotation(new_rotation);
-            current_layer.set_scale(scale);
-        })
     }
     fn name(&self) -> &'static str {
         "Transform Tool"
