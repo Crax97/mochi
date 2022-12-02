@@ -9,7 +9,7 @@ use crate::{
     selection::{Selection, SelectionAddition, SelectionShape},
     LayerConstructionInfo,
 };
-use cgmath::{point2, vec2, SquareMatrix, Vector2};
+use cgmath::{point2, point3, vec2, Rad, SquareMatrix, Vector2};
 use framework::{
     framework::DepthStencilTextureId,
     renderer::draw_command::{DrawCommand, DrawMode, OptionalDrawData, PrimitiveType},
@@ -24,7 +24,7 @@ use framework::{
     scene::Camera2d,
     Box2d, DepthStencilTexture2D, RgbaTexture2D, Texture, TextureConfiguration, TextureUsage,
 };
-use framework::{math, RgbaU8};
+use framework::{math, RgbaU8, Transform2d};
 use image::{DynamicImage, ImageBuffer};
 
 pub struct SelectionLayer {
@@ -43,7 +43,7 @@ pub struct Document {
     selection: Selection,
     partial_selection: Selection,
     wants_selection_update: bool,
-    stencil_texture: DepthStencilTextureId,
+    stencil_texture: TextureId,
     render_result: TextureId,
 }
 
@@ -55,8 +55,8 @@ pub struct DocumentCreationInfo {
 
 impl Document {
     pub fn new(config: DocumentCreationInfo, framework: &mut Framework) -> Self {
-        let stencil_texture = framework.allocate_depth_stencil_texture(
-            DepthStencilTexture2D::empty((config.width, config.height)),
+        let stencil_texture = framework.allocate_texture2d(
+            RgbaTexture2D::empty((config.width, config.height)),
             TextureConfiguration {
                 label: Some("Selection stencil texture"),
                 usage: TextureUsage::RWRT,
@@ -186,11 +186,7 @@ impl Document {
                 }
             }
 
-            renderer.end(
-                &self.buffer_texture,
-                Some((&self.stencil_texture, DepthStencilUsage::Stencil)),
-                framework,
-            );
+            renderer.end(&self.stencil_texture, None, framework);
         }
     }
 
@@ -201,12 +197,7 @@ impl Document {
             framework,
         );
         renderer.set_draw_debug_name("Selection tool: clear stencil buffer");
-        renderer.set_stencil_clear(Some(0));
-        renderer.end(
-            &self.buffer_texture,
-            Some((&self.stencil_texture, DepthStencilUsage::Stencil)),
-            framework,
-        );
+        renderer.end(&self.stencil_texture, None, framework);
     }
 
     pub fn selection(&self) -> &Selection {
@@ -216,21 +207,20 @@ impl Document {
     pub fn draw_selection(&self, renderer: &mut Renderer) {
         let extents = self.document_size.cast::<f32>().unwrap() * 0.5;
         renderer.draw(DrawCommand {
-            primitives: PrimitiveType::Rect {
-                rects: vec![Box2d {
-                    center: point2(0.0, 0.0),
-                    extents,
+            primitives: PrimitiveType::Texture2D {
+                texture_id: self.stencil_texture.clone(),
+                instances: vec![Transform2d {
+                    position: point3(0.0, 0.0, 0.0),
+                    scale: extents,
+                    rotation_radians: Rad(0.0),
                 }],
-                multiply_color: wgpu::Color::RED,
+                flip_uv_y: false,
+                multiply_color: wgpu::Color::WHITE,
             },
             draw_mode: DrawMode::Single,
-            additional_data: OptionalDrawData {
-                additional_vertex_buffers: vec![],
-                additional_bindable_resource: vec![BindableResource::StencilTexture(
-                    self.stencil_texture.clone(),
-                )],
-                shader: Some(global_selection_data().dotted_shader.clone()),
-            },
+            additional_data: OptionalDrawData::just_shader(Some(
+                global_selection_data().dotted_shader.clone(),
+            )),
         });
     }
 
@@ -260,6 +250,7 @@ impl Document {
     }
 
     pub fn extract_selection(&mut self, renderer: &mut Renderer, framework: &mut Framework) {
+        /*
         let current_layer = self.current_layer();
         let dims = current_layer.size();
         let dims = (dims.x, dims.y);
@@ -380,6 +371,7 @@ impl Document {
 
         self.selection.clear();
         self.update_selection_buffer(renderer, framework);
+         */
     }
 
     pub fn selection_layer_mut(&mut self) -> Option<&mut SelectionLayer> {

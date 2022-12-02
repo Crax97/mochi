@@ -30,55 +30,9 @@ pub struct ImageEditorGlobals {
 
 static INSTANCE: OnceCell<ImageEditorGlobals> = OnceCell::new();
 fn make_globals(framework: &mut Framework) -> ImageEditorGlobals {
-    let info = ShaderCreationInfo::using_default_vertex_fragment(framework).with_depth_state(Some(
-        DepthStencilState {
-            format: wgpu::TextureFormat::Depth24PlusStencil8,
-            depth_write_enabled: false,
-            depth_compare: wgpu::CompareFunction::Always,
-            stencil: StencilState {
-                front: StencilFaceState {
-                    compare: wgpu::CompareFunction::Always,
-                    pass_op: wgpu::StencilOperation::Replace,
-                    fail_op: wgpu::StencilOperation::Keep,
-                    depth_fail_op: wgpu::StencilOperation::Keep,
-                },
-                back: StencilFaceState {
-                    compare: wgpu::CompareFunction::Always,
-                    pass_op: wgpu::StencilOperation::Replace,
-                    fail_op: wgpu::StencilOperation::Keep,
-                    depth_fail_op: wgpu::StencilOperation::Keep,
-                },
-                read_mask: 0xFFFFFFF,
-                write_mask: 0xFFFFFFF,
-            },
-            bias: DepthBiasState::default(),
-        },
-    ));
+    let info = ShaderCreationInfo::using_default_vertex_fragment(framework);
     let draw_on_stencil_buffer_shader_id = framework.create_shader(info);
-    let info = ShaderCreationInfo::using_default_vertex_fragment(framework).with_depth_state(Some(
-        DepthStencilState {
-            format: wgpu::TextureFormat::Depth24PlusStencil8,
-            depth_write_enabled: false,
-            depth_compare: wgpu::CompareFunction::Always,
-            stencil: StencilState {
-                front: StencilFaceState {
-                    compare: wgpu::CompareFunction::Equal,
-                    pass_op: wgpu::StencilOperation::Keep,
-                    fail_op: wgpu::StencilOperation::Keep,
-                    depth_fail_op: wgpu::StencilOperation::Keep,
-                },
-                back: StencilFaceState {
-                    compare: wgpu::CompareFunction::Equal,
-                    pass_op: wgpu::StencilOperation::Keep,
-                    fail_op: wgpu::StencilOperation::Keep,
-                    depth_fail_op: wgpu::StencilOperation::Keep,
-                },
-                read_mask: 0xFFFFFFF,
-                write_mask: 0xFFFFFFF,
-            },
-            bias: DepthBiasState::default(),
-        },
-    ));
+    let info = ShaderCreationInfo::using_default_vertex_fragment(framework);
     let draw_masked_stencil_buffer_shader_id = framework.create_shader(info);
 
     let info = ShaderCreationInfo::using_default_vertex_fragment(framework).with_depth_state(Some(
@@ -112,8 +66,7 @@ fn make_globals(framework: &mut Framework) -> ImageEditorGlobals {
         include_str!("shaders/dotted_selection.wgsl"),
     );
     let dotted_info = ShaderCreationInfo::using_default_vertex(dotted_module_descriptor, framework)
-        .with_bind_element(BindElement::Texture) // 2: diffuse texture + sampler
-        .with_bind_element(BindElement::StencilTexture); // 3: Stencil texture + sampler
+        .with_bind_element(BindElement::Texture); // 2: diffuse texture + sampler
     let dotted_shader = framework.create_shader(dotted_info);
 
     let blended_shader = framework.shader_compiler.compile_into_shader_description(

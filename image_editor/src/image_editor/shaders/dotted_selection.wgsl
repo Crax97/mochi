@@ -4,47 +4,36 @@
 @group(2) @binding(0) var diffuse: texture_2d<f32>;
 @group(2) @binding(1) var s_diffuse: sampler;
 
-@group(3) @binding(0) var stencil: texture_2d<u32>;
+fn stencil_sample(_uv: vec2<f32>) -> f32 {
 
-fn stencil_sample(uv: vec2<f32>) -> f32 {
+    let uv = vec2(_uv.x, 1.0 - _uv.y);
 
-    let stencil_dimensions = textureDimensions(stencil);
-    let x = uv.x * f32(stencil_dimensions.x);
-    let y = (1.0 - uv.y) * f32(stencil_dimensions.y);
-    let texel_position = vec2(i32(x), i32(y));
-
-    let up_sample = textureLoad(stencil, texel_position + vec2<i32>(0, 1), 0);
-    let down_sample = textureLoad(stencil,  texel_position + vec2<i32>(0, -1), 0);
-    let left_sample = textureLoad(stencil,  texel_position + vec2<i32>(-1, 0), 0);
-    let right_sample = textureLoad(stencil,  texel_position + vec2<i32>(1, 0), 0);
+    let stencil_dimensions = textureDimensions(diffuse);
+    let one_over_dimensions = vec2(1.0, 1.0) / vec2(f32(stencil_dimensions.x), f32(stencil_dimensions.y));
+    
+    let up_sample = textureSample(diffuse, s_diffuse, uv + vec2<f32>(0.0, 1.0) * one_over_dimensions);
+    let down_sample = textureSample(diffuse, s_diffuse,  uv + vec2<f32>(0.0, -1.0) * one_over_dimensions);
+    let left_sample = textureSample(diffuse, s_diffuse,  uv + vec2<f32>(-1.0, 0.0) * one_over_dimensions);
+    let right_sample = textureSample(diffuse, s_diffuse,  uv + vec2<f32>(1.0, 0.0) * one_over_dimensions);
     let up_down = down_sample + up_sample;
     let left_right = right_sample + left_sample;
     let sampled_component = up_down - left_right;
     
-    return f32(sampled_component.r);
+    return f32(sampled_component.a);
 }
 
-fn checkerboard(el: i32, span: i32) -> f32 {
-    let el = abs(el);
-    return f32((el % (span * 2)) < span);
+fn stripes(step: f32, size: f32) -> f32 {
+    return f32(fract(step * size) < 0.5);
 }
 
 @fragment
 fn fragment(in: FragmentInput) -> @location(0) vec4<f32> {
-    let position = vec2<f32>(in.position.x, in.position.y);
-    let scale = vec2<f32>(in.scale.x, in.scale.y);
-    let top_left = position - scale;
-    let bottom_right = position + scale;
-    let x = in.tex_uv.x;
-    let y = in.tex_uv.y;
-    let midpoint = scale * 2.0 * vec2<f32>(x, y);
-
-    let animation_speed = 15.0;
-    let span = 2.0;
-    let i_x_span = 15;
-    let i_y_span = 15;
+    let animation_speed = 5.0;
+    let time_step = in.time * 0.03;
+    
+    let size = 35.0;
     let ss = stencil_sample(in.tex_uv);
-    let time_step = i32(in.time * animation_speed);
-    let checker = checkerboard(i32(midpoint.x + midpoint.y) + time_step, i_x_span);
-    return mix(vec4(0.0), vec4(0.0, 0.0, 0.0, 1.0), checker * ss);
+    let st = stripes(in.tex_uv.x + in.tex_uv.y + time_step, size);
+    let o = ss * st;
+    return vec4(0.0, 0.0, 0.0, o);
 }
