@@ -1,4 +1,5 @@
 use cgmath::{point2, point3, vec2};
+use once_cell::sync::OnceCell;
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupLayoutDescriptor, Color, CommandEncoder,
     CommandEncoderDescriptor, LoadOp, Operations, RenderPass, RenderPassColorAttachment,
@@ -51,6 +52,53 @@ struct ResolvedDrawCommand<'a> {
     bindable_resources: Vec<(u32, ResolvedResourceType<'a>)>,
 }
 
+pub struct RendererGlobals {
+    texture2d_instanced_shader_id: ShaderId,
+    texture2d_single_shader_id: ShaderId,
+    white_texture_id: TextureId,
+    quad_mesh_id: MeshId,
+    empty_bind_group: BindGroup,
+}
+
+static GLOBALS: OnceCell<RendererGlobals> = OnceCell::new();
+fn globals() -> &'static RendererGlobals {
+    GLOBALS.get().unwrap()
+}
+fn setup_globals(framework: &mut Framework) {
+    if GLOBALS.get().is_some() {
+        return;
+    }
+
+    let texture2d_instanced_shader_id = framework.create_shader(
+        ShaderCreationInfo::using_default_vertex_fragment_instanced(&framework),
+    );
+    let texture2d_single_shader_id = framework.create_shader(
+        ShaderCreationInfo::using_default_vertex_fragment(&framework),
+    );
+
+    let quad_mesh_id = Renderer::construct_initial_quad(framework);
+    let empty_bind_group = Renderer::empty_bind_group(framework);
+
+    let white_cpu_texture = RgbaTexture2D::from_bytes(&[255, 255, 255, 255], (1, 1)).unwrap();
+    let white_texture_id = framework.allocate_texture2d(
+        white_cpu_texture,
+        crate::TextureConfiguration {
+            label: Some("White texture"),
+            usage: crate::texture::TextureUsage::READ_WRITE,
+            mip_count: None,
+        },
+    );
+    GLOBALS
+        .set(RendererGlobals {
+            texture2d_instanced_shader_id,
+            texture2d_single_shader_id,
+            quad_mesh_id,
+            empty_bind_group,
+            white_texture_id,
+        })
+        .unwrap_or_else(|_| panic!("Failure to init Renderer globals"));
+}
+
 pub struct Renderer {
     draw_queue: Vec<DrawCommand>,
     camera_buffer_id: BufferId,
@@ -58,18 +106,10 @@ pub struct Renderer {
     clear_depth: Option<f32>,
     clear_stencil: Option<u32>,
     viewport: Option<(f32, f32, f32, f32)>,
-    empty_bind_group: BindGroup,
-
-    texture2d_instanced_shader_id: ShaderId,
-    texture2d_single_shader_id: ShaderId,
 
     render_pass_debug_name: Option<String>,
     depth_stencil_target: Option<TextureId>,
     stencil_value: Option<u32>,
-
-    white_texture_id: TextureId,
-
-    quad_mesh_id: MeshId,
 }
 
 impl Renderer {
@@ -130,25 +170,8 @@ impl Renderer {
                 cpu_copy_dest: false,
                 cpu_copy_source: false,
             });
-        let texture2d_instanced_shader_id = framework.create_shader(
-            ShaderCreationInfo::using_default_vertex_fragment_instanced(&framework),
-        );
-        let texture2d_single_shader_id = framework.create_shader(
-            ShaderCreationInfo::using_default_vertex_fragment(&framework),
-        );
 
-        let quad_mesh_id = Renderer::construct_initial_quad(framework);
-        let empty_bind_group = Renderer::empty_bind_group(framework);
-
-        let white_cpu_texture = RgbaTexture2D::from_bytes(&[255, 255, 255, 255], (1, 1)).unwrap();
-        let white_texture_id = framework.allocate_texture2d(
-            white_cpu_texture,
-            crate::TextureConfiguration {
-                label: Some("White texture"),
-                usage: crate::texture::TextureUsage::READ_WRITE,
-                mip_count: None,
-            },
-        );
+        setup_globals(framework);
 
         Self {
             camera_buffer_id,
@@ -157,15 +180,14 @@ impl Renderer {
             clear_depth: None,
             clear_stencil: None,
             viewport: None,
-            empty_bind_group,
+            // empty_bind_group,
             render_pass_debug_name: None,
             depth_stencil_target: None,
             stencil_value: None,
-
-            texture2d_instanced_shader_id,
-            texture2d_single_shader_id,
-            white_texture_id,
-            quad_mesh_id,
+            // texture2d_instanced_shader_id,
+            // texture2d_single_shader_id,
+            // white_texture_id,
+            // quad_mesh_id,
         }
     }
 
@@ -428,7 +450,7 @@ impl Renderer {
         let bind_group = match resource {
             ResolvedResourceType::UniformBuffer(buffer) => buffer.bind_group.as_ref().unwrap(),
             ResolvedResourceType::Texture(texture) => texture.bind_group(0),
-            ResolvedResourceType::EmptyBindGroup => &self.empty_bind_group,
+            ResolvedResourceType::EmptyBindGroup => &globals().empty_bind_group,
             ResolvedResourceType::DepthTexture(gpu_texture) => gpu_texture.depth_bind_group(),
             ResolvedResourceType::StencilTexture(gpu_texture) => gpu_texture.stencil_bind_group(),
         };
@@ -445,7 +467,7 @@ impl Renderer {
     {
         let mesh_id = match draw_type {
             PrimitiveType::Noop => unreachable!(),
-            PrimitiveType::Texture2D { .. } | PrimitiveType::Rect { .. } => &self.quad_mesh_id, // Pick quad mesh
+            PrimitiveType::Texture2D { .. } | PrimitiveType::Rect { .. } => &globals().quad_mesh_id, // Pick quad mesh
         };
         framework.mesh(&mesh_id)
     }
@@ -465,8 +487,8 @@ impl Renderer {
                 PrimitiveType::Noop => unreachable!(),
                 PrimitiveType::Texture2D { .. } | PrimitiveType::Rect { .. } => {
                     match command.draw_mode {
-                        DrawMode::Instanced => &self.texture2d_instanced_shader_id,
-                        DrawMode::Single => &self.texture2d_single_shader_id,
+                        DrawMode::Instanced => &globals().texture2d_instanced_shader_id,
+                        DrawMode::Single => &globals().texture2d_single_shader_id,
                     }
                 } // Pick quad mesh
             }
@@ -562,7 +584,9 @@ impl Renderer {
                     (1, ResolvedResourceType::EmptyBindGroup),
                     (
                         Renderer::DIFFUSE_BIND_GROUP_LOCATION,
-                        ResolvedResourceType::Texture(framework.texture2d(&self.white_texture_id)),
+                        ResolvedResourceType::Texture(
+                            framework.texture2d(&globals().white_texture_id),
+                        ),
                     ),
                 ]
             }

@@ -727,6 +727,7 @@ dependencies = [
  "log",
  "naga",
  "nalgebra",
+ "once_cell",
  "pollster",
  "strum",
  "strum_macros",
